@@ -1,0 +1,13 @@
+~link "aeon.core"
+
+pulse core {
+    shadow kernel_id = "AEON-OS-X86"
+    atom auth = "1"
+    
+    beam "X-Phage Handshake with AeonOS..."
+    
+    scan auth {
+        beam "Handshake Confirmed."
+        beam kernel_id
+    }
+}

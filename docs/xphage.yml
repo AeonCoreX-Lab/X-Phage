@@ -1,0 +1,9 @@
+X-Phage:
+  type: programming
+  color: "#00FF7F" # Spring Green (আপনার নিওন থিমের সাথে মিল রেখে)
+  extensions:
+    - .xp0
+    - .xh
+  tm_scope: source.xphage
+  ace_mode: c_cpp
+  language_id: 999999 # এটি গিটহাব থেকে অ্যাসাইন করা হয়

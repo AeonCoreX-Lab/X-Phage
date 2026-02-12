@@ -1,0 +1,9 @@
+/* * X-Phage Standard Library: AeonCore
+ * Identity: 0xDEADBEEF 🤐
+ */
+
+#define GHOST_ENCRYPTION 1
+#define PULSE_CORE_ACTIVE 1
+
+~hook sys_io -> beam
+~hook secure_var -> shadow

@@ -1,0 +1,35 @@
+# --- AeonCoreX: X-Phage Project GitIgnore ---
+
+# 1. Compiled Binaries (Executable files)
+bin/
+xphage
+*.exe
+*.out
+*.app
+
+# 2. Object Files and Libraries
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# 3. Hidden System Files
+.DS_Store
+Thumbs.db
+
+# 4. Acode & Editor Specifics
+.vscode/
+.idea/
+*.swp
+*~
+.acode/
+
+# 5. Temporary & Logs
+logs/
+*.log
+tmp/
+
+# 6. Build Artifacts
+build/
+dist/
