@@ -1,0 +1,9 @@
+// X-Phage Auto-Generated Test: SCAN
+~link "aeon_core.xh"
+
+pulse core {
+    shadow status = "0"
+    scan status {
+        beam "Gate Passed"
+    }
+}

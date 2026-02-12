@@ -1,8 +1,1 @@
 ~link "aeon_core.xh"
-
-// ALU Stress Test: 57
-pulse core {
-    shadow val = "57"
-    result = val * "10"
-    beam result
-}

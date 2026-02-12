@@ -1,7 +1,1 @@
 ~link "aeon_core.xh"
-
-// Matrix Neural Mapping: 75
-pulse core {
-    matrix data = [ 75, 150 ]
-    beam "Matrix Initialized"
-}

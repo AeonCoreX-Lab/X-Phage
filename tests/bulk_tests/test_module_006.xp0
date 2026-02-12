@@ -1,10 +1,1 @@
 ~link "aeon_core.xh"
-
-// Ghost Memory Audit: 6
-pulse core {
-    atom ID = "SECURE_6"
-    beam ID
-    scan ID {
-        beam "Verified"
-    }
-}

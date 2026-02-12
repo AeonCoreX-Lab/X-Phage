@@ -1,8 +1,7 @@
 /* AeonCore v3.0 - The Heart of X-Phage */
-
 #define AEON_RUNTIME_STABLE 1
 #define MEMORY_PROTECTION_ON 1
 
-// Neural Mapping
 ~hook hardware_id -> "0xAF22"
+~hook hardware_bypass -> "enabled" // NEW
 ~hook stream_ultra -> "active"

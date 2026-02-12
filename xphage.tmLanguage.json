@@ -5,7 +5,7 @@
   "patterns": [
     {
       "name": "keyword.control.xphage",
-      "match": "\\b(pulse|core|scan|bypass|~link)\\b"
+      "match": "\\b(pulse|core|scan|bypass|~link|quantum|vortex|synapse|chronos|ether)\\b"
     },
     {
       "name": "storage.type.xphage",
@@ -19,12 +19,7 @@
       "name": "string.quoted.double.xphage",
       "begin": "\"",
       "end": "\"",
-      "patterns": [
-        {
-          "name": "constant.character.escape.xphage",
-          "match": "\\\\."
-        }
-      ]
+      "patterns": [{ "name": "constant.character.escape.xphage", "match": "\\\\." }]
     },
     {
       "name": "comment.line.double-slash.xphage",

@@ -1,0 +1,6 @@
+// X-Phage Auto-Generated Test: PULSE
+~link "aeon_core.xh"
+
+pulse core {
+    beam "Pulse Core Sequence 115"
+}

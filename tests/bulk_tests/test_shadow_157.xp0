@@ -1,0 +1,8 @@
+// X-Phage Auto-Generated Test: SHADOW
+~link "aeon_core.xh"
+
+pulse core {
+    shadow dynamic_val = "157"
+    dynamic_val = "314"
+    beam dynamic_val
+}
