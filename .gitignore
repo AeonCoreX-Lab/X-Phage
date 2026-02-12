@@ -33,3 +33,6 @@ tmp/
 # 6. Build Artifacts
 build/
 dist/
+
+# Hide the automation script
+generate_tests.py

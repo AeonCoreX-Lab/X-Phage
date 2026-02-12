@@ -1,0 +1,8 @@
+~link "aeon_core.xh"
+
+// StreamX Ultra Module: 44
+pulse core {
+    shadow track = "Track_44"
+    beam "Streaming Now..."
+    beam track
+}
