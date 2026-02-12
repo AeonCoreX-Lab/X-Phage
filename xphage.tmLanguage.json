@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "X-Phage",
+  "scopeName": "source.xp0",
+  "patterns": [
+    {
+      "name": "keyword.control.xphage",
+      "match": "\\b(pulse|core|scan|bypass|~link)\\b"
+    },
+    {
+      "name": "storage.type.xphage",
+      "match": "\\b(atom|shadow|matrix)\\b"
+    },
+    {
+      "name": "entity.name.function.xphage",
+      "match": "\\b(beam)\\b"
+    },
+    {
+      "name": "string.quoted.double.xphage",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.xphage",
+          "match": "\\\\."
+        }
+      ]
+    },
+    {
+      "name": "comment.line.double-slash.xphage",
+      "match": "//.*$"
+    },
+    {
+      "name": "keyword.operator.arithmetic.xphage",
+      "match": "\\+|\\-|\\*|\\/|="
+    },
+    {
+      "name": "constant.numeric.xphage",
+      "match": "\\b\\d+(\\.\\d+)?\\b"
+    }
+  ]
+}
