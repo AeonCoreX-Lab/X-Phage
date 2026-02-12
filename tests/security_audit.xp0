@@ -1,0 +1,21 @@
+~link "aeon_core.xh"
+
+pulse core {
+    beam "--- Running AeonCoreX Security Audit ---"
+    
+    atom SECURE_KEY = "0xGHOST_99"
+    shadow temp_data = "Temporary_Session_Data"
+    
+    beam "Initial Key:"
+    beam SECURE_KEY
+    
+    // Security Test: 
+    // নিচের লাইনটি আন-কমেন্ট করলে ইঞ্জিন ক্র্যাশ করবে (Safety Feature)
+    // SECURE_KEY = "HACKED_KEY" 
+    
+    temp_data = "Session_Updated"
+    beam "Updating Mutable Shadow..."
+    beam temp_data
+    
+    beam "Audit Result: System Integrity Verified."
+}

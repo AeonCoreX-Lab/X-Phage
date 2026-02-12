@@ -1,0 +1,21 @@
+~link "aeon.core"
+
+pulse core {
+    atom PI = "3.1416"
+    shadow radius = "10"
+    shadow result = "0"
+    
+    beam "--- Calculating Neural Sphere Area ---"
+    
+    // Full Math Support
+    result = radius * PI
+    beam result
+    
+    // Security Test: Atom protection
+    // PI = "4" // This will crash the engine (Safety!)
+    
+    atom auth = "1"
+    scan auth {
+        beam "AeonCoreX Singularity Verified."
+    }
+}

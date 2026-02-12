@@ -1,17 +1,23 @@
 #!/bin/bash
-# X-Phage Automated Build Script (Termux Optimized)
+# X-Phage Ultimate Build Script
+# Uses O3 Optimization (Maximum Speed)
+
+echo "🧬 AeonCoreX: Building Genesis Engine..."
+
+# Clean old binaries
+rm -rf bin/xphage
+
 mkdir -p bin
 
-echo "⚙️  Compiling X-Phage Engine..."
-clang++ src/xphage_core.cpp -o bin/xphage
+# Compile with High Optimization (-O3) and C++17 Standard
+clang++ src/xphage_core.cpp -o bin/xphage -std=c++17 -O3 -Wall
 
 if [ $? -eq 0 ]; then
-    echo "✔ Compiler Built Successfully."
-    echo "🔓 Ensuring execution permissions..."
+    echo "✔ Build Complete. Engine is Optimized."
     chmod +x bin/xphage
     
-    echo "🚀 Running Test: main.xp0"
-    ./bin/xphage tests/main.xp0
+    echo "⚡ Running Genesis Test..."
+    ./bin/xphage tests/genesis_test.xp0
 else
-    echo "✖ Compilation Failed!"
+    echo "✖ Fatal Error: Compilation Failed."
 fi

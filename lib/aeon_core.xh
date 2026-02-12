@@ -1,9 +1,8 @@
-/* * X-Phage Standard Library: AeonCore
- * Identity: 0xDEADBEEF 🤐
- */
+/* AeonCore v3.0 - The Heart of X-Phage */
 
-#define GHOST_ENCRYPTION 1
-#define PULSE_CORE_ACTIVE 1
+#define AEON_RUNTIME_STABLE 1
+#define MEMORY_PROTECTION_ON 1
 
-~hook sys_io -> beam
-~hook secure_var -> shadow
+// Neural Mapping
+~hook hardware_id -> "0xAF22"
+~hook stream_ultra -> "active"
