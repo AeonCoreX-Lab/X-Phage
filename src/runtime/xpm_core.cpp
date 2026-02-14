@@ -9,7 +9,10 @@
 
 const std::string RAW_URL = "https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/";
 
-bool XPM_Cloud::sync_module(std::string module_name) {
+// ** FIX: Wrapped in Namespace to resolve linker error **
+namespace XPM_Cloud {
+
+bool sync_module(std::string module_name) {
     std::cout << "\033[1;34m[XPM] 🌐 Cloud Sync Initiated for: " << module_name << "...\033[0m\n";
     
     // Create directory path based on target OS

@@ -4,6 +4,7 @@
 #include <thread>
 #include <chrono>
 #include <stack>
+#include <cstdlib> // For rand()
 
 // --- OMNI-GOD FEATURE SET ---
 
@@ -28,12 +29,11 @@ void XPhageRuntime::activate_void_protocol() {
     std::cout << "\033[1;41;97m[VOID] ⛔ INITIATING BLACKHOLE WIPE...\033[0m\n";
     cell_map.clear();
     global_registry.clear();
-    ui_root.reset(); // Destroy UI Tree
+    ui_root.reset(); 
     std::cout << "\033[1;30m[VOID] ⬛ System Trace Destroyed.\033[0m\n";
 }
 
 // --- TITAN FUSION ENGINE (UI CORE) ---
-// This implements a Declarative UI Tree (Virtual DOM)
 
 void XPhageRuntime::init_fusion_engine() {
     if(!ui_active) {
@@ -45,35 +45,27 @@ void XPhageRuntime::init_fusion_engine() {
     }
 }
 
-// Builds the Virtual DOM Tree recursively
 void XPhageRuntime::begin_ui_component(std::string type, std::string params) {
     if (!ui_active) init_fusion_engine();
 
     auto node = std::make_shared<FusionNode>();
     node->type = type;
-    node->id = type + "_" + std::to_string(std::rand() % 1000); // Simple hash
-    
-    // Parse params string "key:val, key2:val2" into map (Simplified)
+    node->id = type + "_" + std::to_string(std::rand() % 1000); 
     node->props["raw_params"] = params;
 
-    // Link to tree
     current_ui_context->children.push_back(node);
-    
-    // If it's a layout container, it becomes the new context
-    if (type == "Vortex" || type == "Orbit" || type == "Z_Plane" || type == "FUSION_ROOT") {
-        // Stack logic would be here, for now we use a parent pointer simulation
-        // In full implementation, we'd track parents. 
-        // For this demo, we are appending linearly to active context for simplicity, 
-        // but recursive main.cpp logic handles the "scope".
-    }
+}
+
+// ** FIX: Implementation of the missing method **
+void XPhageRuntime::fusion_render(std::string element, std::string params) {
+    // Wrapper for Linker compatibility
+    begin_ui_component(element, params);
 }
 
 void XPhageRuntime::end_ui_component() {
-    // Logic to pop context back to parent
-    // (Handled by Main Recursion in this architecture)
+    // Logic to pop context (managed by recursive parser in main)
 }
 
-// Renders the Tree (Simulated Draw Cycle)
 void traverse_render(std::shared_ptr<FusionNode> node, int depth) {
     if (!node) return;
     
@@ -100,7 +92,6 @@ void XPhageRuntime::render_ui_tree() {
     traverse_render(ui_root, 0);
     std::cout << "\033[1;45;97m ============================ \033[0m\n\n";
 }
-
 
 // --- TORRENT & NETWORKING ---
 
