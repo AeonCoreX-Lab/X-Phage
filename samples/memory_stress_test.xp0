@@ -1,0 +1,42 @@
+// ⚡ X-Phage Main: Advanced Memory & Security Test
+// File: samples/memory_stress_test.xp0
+
+~link "memory_vault.xh"
+~link "secure_data.xui"
+
+pulse core {
+    beam "--- Initializing Ghost Memory Protocol ---"
+    beam "Kernel Sign: " + KERNEL_SIGNATURE
+
+    // Shadow Memory update (এটি সম্ভব)
+    current_session_id = "SESSION_X_999"
+    beam "Session Start: " + current_session_id
+
+    // Atom Mutation Attempt (ইঞ্জিন এটি ব্লক করবে এবং প্যানিক দিবে)
+    // KERNEL_SIGNATURE = "HACKED" // আনকমেন্ট করলে সিকিউরিটি ট্রিগার করবে
+
+    scan (volatile_buffer_size < 100) {
+        beam "Allocating Shadow Buffer..."
+        quantum "data_stream_task"
+        
+        // Simulating heavy data load
+        volatile_buffer_size = 85 
+        
+        chronos "200ms"
+    }
+
+    // Critical Security Logic
+    if (volatile_buffer_size > PURGE_THRESHOLD * 100) {
+        beam "CRITICAL MEMORY OVERLOAD! Activating Blackhole..."
+        
+        // VORTEX: সাথে সাথে সব Shadow memory মুছে ফেলবে
+        vortex 
+        
+        beam "Post-Vortex Scan: Shadow Data Cleared."
+    } else {
+        beam "Memory Pulse: Healthy."
+    }
+
+    // VOID: প্রসেসটি সেফলি টার্মিনেট করবে কোনো মেমোরি ফুটপ্রিন্ট না রেখে
+    void
+}

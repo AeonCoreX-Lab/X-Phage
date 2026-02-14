@@ -1,5 +1,5 @@
 // X-Phage Auto-Generated Test: ATOM
-~link "aeon_core.xh"
+~link "aeon_ultimate.xh"
 
 pulse core {
     atom SECURE_ID_17 = "LOCKED_17"

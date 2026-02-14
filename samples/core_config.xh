@@ -1,0 +1,17 @@
+// 🌌 X-Phage Logic Library: Global Configuration
+// File: samples/core_config.xh
+
+#define APP_NAME "Titan Neural Streamer"
+#define ENGINE_VERSION "3.2.0"
+
+// Global Registry: Accessible by all modules
+global USER_AUTH_STATUS = "AUTHORIZED"
+global STREAM_RESOLUTION = "4K_ULTRA"
+global RENDER_MODE = "GPU_ACCELERATED"
+
+// Hardware Hooks: Mapping direct kernel access
+~hook neural_gpu -> "titan_v8_core"
+~hook audio_out  -> "chronos_sync_driver"
+
+// Atomic (Immutable) Security Key
+atom SECURITY_IV = "0xAF88_TITAN_PRO"

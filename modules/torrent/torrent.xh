@@ -1,0 +1,33 @@
+/*
+ * X-Phage Module: Omni-Network Torrent Engine
+ * Version: v3.1 (Omni-God)
+ * Powered by: Custom Bypass Network Stack (libtorrent)
+ * Ownership: AeonCoreX-Lab
+ */
+
+#define TORRENT_ENGINE_VERSION "2.0.8"
+#define ENCRYPTION_MODE "FORCED_AEON_RC4"
+#define PROTOCOL "OMNI_P2P"
+
+// --- Global Network State ---
+global DHT_ROUTING = "ACTIVE"
+global NODE_STATUS = "LISTENING"
+global PEER_EXCHANGE = "ENABLED"
+
+// --- Default Torrent Configurations ---
+atom BIND_PORT = "6881"
+atom MAX_CONNECTIONS = "5000"
+atom ALLOCATE_MEMORY = "SPARSE"
+
+shadow active_downloads = "0"
+shadow current_speed = "0_mbps"
+shadow downloaded_bytes = "0"
+
+// --- System Hooks for Kernel Network Bypass ---
+~hook network_stack -> bypass_socket
+~hook disk_io -> direct_memory_write
+~hook peer_discovery -> quantum_mesh
+~hook bandwidth_manager -> chronos_limit
+
+// Init Message
+beam ">> [TORRENT_MODULE] Omni-Network P2P Core synced successfully."

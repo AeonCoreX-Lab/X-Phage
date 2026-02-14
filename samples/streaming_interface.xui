@@ -1,0 +1,28 @@
+// 📺 X-Phage UI: StreamX Ultra Interface
+// File: samples/streaming_interface.xui
+
+@NeuralComposition(StreamX_UI) {
+    // Background layer with a vortex transition
+    Vortex(effect: "nebula_blur", speed: "500ms") {
+        
+        // Z-Plane for the Main Video Feed
+        Z_Plane(depth: "0", position: "center") {
+            Vision "Main_Viewport" { source: "stream_buffer_0", aspect_ratio: "21:9" }
+        }
+
+        // Floating Overlay Menu
+        Orbit(radius: "300px", axis: "X_Z") {
+            Signal "LIVE: 8K HDR" { color: "gold", shadow: "true" }
+            Signal "BITRATE: 125 Mbps"
+            
+            // Nested Input for instant chat or commands
+            Input "Neural_Chat" { 
+                placeholder: "Type a command...", 
+                theme: "transparent"
+            }
+        }
+    }
+
+    // Playback Controls
+    Trigger "Play_Pause" { icon: "play_vortex", scale: "1.5" }
+}

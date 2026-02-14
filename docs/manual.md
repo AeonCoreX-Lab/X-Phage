@@ -1,38 +1,74 @@
-## 🧬 X-Phage (.xp0) Technical Manual - v3.0.1 [OMNI-GOD EDITION]
-Official Documentation for AeonCoreX Intellectual Property
+# 🧬 X-Phage Technical Manual - v3.1 [OMNI-GOD FINAL BUILD]
+Official Documentation for AeonCoreX Modular Ecosystem
 
 ## 🛰 Introduction
-X-Phage v3.0.1 "Omni-God" is a high-performance engine specifically engineered for next-gen applications like **StreamX Ultra**. It merges the raw execution speed of C++ with the memory safety of Rust through the "Ghost Memory Protocol."
+X-Phage v3.1 "Omni-God" is a high-performance modular engine designed for next-gen decentralized applications. In this version, logic, design, and execution are decoupled into three distinct layers, ensuring maximum scalability and performance.
+
+## 📂 File Ecosystem & Extensions
+X-Phage now utilizes a specialized triple-file architecture:
+
+1.  **.xp0 (Main Engine):** The core execution entry point. It contains the `pulse core` block which drives the entire system.
+2.  **.xh (Logic Library):** Developer modules containing `#define` constants, `global` variables, and `~hook` hardware mappings.
+3.  **.xui (UI Design):** User Interface schematics. Uses the `@NeuralComposition` decorator to define visual layouts.
+
+
 
 ## 📂 Project Structure
- * /src: xphage_core.cpp (The Heart of the Singularity)
- * /tests: Neural logic validation and stress test files.
- * /bin: Hardware-optimized binary executables.
- * /lib: System libraries (.xh) – Aeon Ultimate, Aeon Core.
+ * `/src`: Engine Core (Lexer, Linker, Runtime, Memory).
+ * `/modules`: External libraries synced via XPM (Package Manager).
+ * `/stdlib`: System default libraries (Aeon Core, StreamX, etc.).
+ * `/bin`: Platform-optimized binaries (Linux, Windows, Android, macOS).
 
-## ⌨️ Power Keywords & Functions (v3.0.1 Update)
+## ⌨️ Power Keywords & Functions
 
-1. **Entry Point**
-   * `pulse core { ... }`: Initiates execution from the neural center.
+### 1. Global & Memory Phase (Logic Layer - .xh)
+* **`global`**: Stores data in the Universal Matrix, accessible across all modules.
+* **`atom`**: Declares an immutable constant (locked memory).
+* **`shadow`**: Volatile local memory for high-speed dynamic processing.
+* **`~link`**: Injects external modules or UI designs into the main engine.
 
-2. **Ghost Memory Protocol**
-   * `atom`: Declares an Immutable Constant. Memory is locked upon assignment (Prevents Security Violations).
-   * `shadow`: Mutable Ghost Memory for dynamic data processing.
-   * `matrix`: High-speed data structure for Audio/Video buffering and neural mapping.
+### 2. Titan Fusion UI (Design Layer - .xui)
+* **`@NeuralComposition`**: Defines the root of a UI design block.
+* **`Signal`**: Text or status display component.
+* **`Vision`**: Image, video, or camera feed container.
+* **`Vortex / Orbit`**: Real-time animation and layout transition effects.
+* **`Input`**: User interaction and data entry fields.
 
-3. **Advanced Control (New in v3.0.1)**
-   * **`quantum`**: Parallel Threading support. Runs multiple processes (e.g., Audio decode + AI Analysis) simultaneously.
-   * **`chronos`**: Time-Warp protocol. Synchronizes hardware clocks to achieve zero-latency.
-   * **`ether`**: Decentralized Cloud Uplink. Sends data directly to external nodes or decentralized storage.
-   * **`vortex`**: Security Wipe. Instantly purges all sensitive data from memory after a session.
-   * **`bypass`**: Directly hits the hardware kernel, skipping OS overhead.
-   * **`synapse`**: Creates a secure neural bridge to external APIs (e.g., Spotify, Live TV systems).
-
-4. **ALU Integration**
-   * Direct hardware-level mathematical operations: `+`, `-`, `*`, `/` are fully supported.
+### 3. Advanced Hardware Control (Engine Layer - .xp0)
+* **`bypass`**: Directly triggers the kernel to communicate with hardware, skipping OS overhead.
+* **`quantum`**: Initiates multi-threaded neural processing.
+* **`synapse`**: Establishes a secure bridge to external APIs (Spotify, Live TV, etc.).
+* **`void`**: Security protocol that instantly purges sensitive data from RAM.
 
 ## 🚀 Execution Guide
-* **Compile:** `bash build.sh`
-* **Run:** `./bin/xphage streamx_core.xp0`
 
-Copyright © 2026 AeonCoreX. All rights reserved. 🤐
+### 1. Modular Linking Example:
+
+// config.xh (Logic)
+#define VERSION "3.1"
+global SYS_MODE = "PERFORMANCE"
+~hook gpu -> "matrix_accelerator"
+
+// layout.xui (UI)
+@NeuralComposition(MainHUD) {
+    Signal "Omni-God Engine v3.1"
+    Vortex(direction: "rotate", speed: "fast")
+}
+
+// main.xp0 (Execution)
+~link "config.xh"
+~link "layout.xui"
+
+pulse core {
+    beam "System Mode: " + SYS_MODE
+    quantum "init_neural_sync"
+    bypass hardware_auth { mode: "direct" }
+}
+
+
+### 2. Terminal Commands:
+Compile: bash build.sh
+
+Run: ./bin/xphage main.xp0
+
+© 2026 AeonCoreX Intellectual Property. All Rights Reserved.

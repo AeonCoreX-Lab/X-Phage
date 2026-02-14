@@ -1,0 +1,14 @@
+{
+  "registry": "AeonCoreX-Lab/X-Phage",
+  "version": "v3.1",
+  "modules": {
+    "fusion": {
+      "type": "ui_engine",
+      "path": "modules/fusion/fusion.xh"
+    },
+    "torrent": {
+      "type": "network_engine",
+      "path": "modules/torrent/torrent.xh"
+    }
+  }
+}

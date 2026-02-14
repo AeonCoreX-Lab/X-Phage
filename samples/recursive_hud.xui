@@ -1,0 +1,28 @@
+// 🛸 X-Phage UI: Recursive Neural HUD
+// File: samples/recursive_hud.xui
+
+@NeuralComposition(NeuralHUD) {
+    // Parent Container
+    Vortex(type: "vortex_blur", intensity: "HIGH") {
+        
+        // Layer 1: Navigation Orbit
+        Orbit(radius: "120px", speed: "10s") {
+            
+            // Layer 2: Deeply Nested Z-Plane
+            Z_Plane(depth: "50") {
+                Vision "Live_Sensor_Data" { filter: "night_vision" }
+                
+                // Layer 3: Dynamic Signal Inside Z-Plane
+                Signal "TARGET_LOCKED" { animation: "blink", color: "green" }
+                
+                // Layer 4: Interactive Input inside the HUD
+                Input "Override_Code" { type: "numeric", length: "8" }
+            }
+            
+            Signal "COORDINATES: 23.8N, 90.3E"
+        }
+    }
+    
+    // Bottom Layer: Fixed UI elements
+    Trigger "Emergency_Shutdown" { type: "instant_vortex" }
+}

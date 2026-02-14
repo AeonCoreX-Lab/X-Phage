@@ -1,7 +1,7 @@
 // X-Phage Auto-Generated Test: ~LINK
-~link "aeon_core.xh"
+~link "aeon_ultimate.xh"
 
 pulse core {
-    ~link "module_196.xh"
-    beam "Handshake Successful"
+    ~link "aeon_ultimate.xh"
+    beam "Library Linked"
 }

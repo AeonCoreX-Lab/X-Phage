@@ -1,0 +1,7 @@
+// X-Phage Auto-Generated Test: MATRIX
+~link "aeon_ultimate.xh"
+
+pulse core {
+    matrix buffer_119 = [ 119, 1024 ]
+    beam "Matrix Initialized"
+}

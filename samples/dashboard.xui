@@ -1,0 +1,24 @@
+// 🎨 X-Phage UI Schematic: Advanced Dashboard
+// File: samples/dashboard.xui
+
+@NeuralComposition(MainDashboard) {
+    // Top Layer: Global Motion Effect
+    Vortex(direction: "rotate", speed: "150ms") {
+        
+        // Nested Z-Plane for 3D depth
+        Z_Plane(depth: "10") {
+            Vision "Stream_Preview" { source: "neural_feed.mp4", opacity: "0.8" }
+            Signal "Omni-God Streaming Active" { color: "neon_cyan", size: "24px" }
+        }
+
+        // Orbital Menu Elements
+        Orbit(radius: "50px", axis: "Y") {
+            Signal "CPU: 12%"
+            Signal "GPU: 45%"
+            Input "Search_Neural_Nodes" { placeholder: "Search the Ether..." }
+        }
+    }
+
+    // Interaction Trigger
+    Trigger "Emergency_Purge" { action: "void", color: "red" }
+}

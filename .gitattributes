@@ -1,2 +1,30 @@
+# Core Language Registration
 *.xp0 linguist-language=X-Phage
+*.xui linguist-language=X-Phage
 *.xh  linguist-language=X-Phage
+
+# Documentation
+manual.md linguist-documentation
+HISTORY.md linguist-documentation
+CHANGELOG.md linguist-documentation
+
+# 📂 Samples Folder (The Showcase)
+samples/*.xp0 linguist-language=X-Phage
+samples/*.xui linguist-language=X-Phage
+samples/*.xh  linguist-language=X-Phage
+samples/* linguist-detectable=true
+
+# 🧪 Test Suite Configuration
+tests/*.xp0 linguist-detectable=true
+tests/*.xh  linguist-detectable=true
+tests/*.xui linguist-detectable=true
+tests/* linguist-documentation=false
+
+# 🎨 Syntax & Tools
+syntaxes/*.json linguist-vendored
+.github/workflows/*.yml linguist-vendored
+
+# 🚀 Distribution
+*.zip binary
+*.exe binary
+

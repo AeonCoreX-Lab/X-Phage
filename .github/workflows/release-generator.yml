@@ -1,0 +1,83 @@
+name: X-Phage Titan Modular Builder
+
+on:
+  push:
+    tags:
+      - 'v*' # v3.2.0 এর মতো ট্যাগ পুশ করলে এটি চালু হবে
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: xphage_linux
+            asset_name: xphage_linux_x64
+          - os: windows-latest
+            artifact_name: xphage.exe
+            asset_name: xphage_windows_x64.exe
+          - os: macos-latest
+            artifact_name: xphage_mac
+            asset_name: xphage_macos_universal
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Compile X-Phage Titan Engine (v3.2)
+        run: |
+          # সব সোর্স ফাইল এবং রানটাইম মডিউল একসাথে কম্পাইল করা হচ্ছে
+          SOURCES="src/main.cpp src/lexer.cpp src/runtime/linker.cpp src/runtime/memory.cpp src/runtime/core_ops.cpp src/runtime/xpm_core.cpp"
+          INCLUDES="-I./include"
+          FLAGS="-std=c++17 -O3"
+          
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            g++ $SOURCES $INCLUDES -o ${{ matrix.artifact_name }} $FLAGS -static
+          else
+            clang++ $SOURCES $INCLUDES -o ${{ matrix.artifact_name }} $FLAGS
+          fi
+        shell: bash
+
+      - name: Prepare Release Bundle
+        run: |
+          # রিলিজের জন্য প্রয়োজনীয় ফোল্ডার তৈরি
+          mkdir -p release_bundle/stdlib
+          mkdir -p release_bundle/samples
+          
+          # বাইনারি কপি করা
+          cp ${{ matrix.artifact_name }} release_bundle/
+          
+          # ডিফল্ট লাইব্রেরি এবং স্যাম্পল কোড ইনক্লুড করা
+          cp stdlib/*.xh release_bundle/stdlib/ || true
+          cp samples/* release_bundle/samples/ || true
+          
+          # জিপ ফাইল তৈরি (প্লাটফর্ম অনুযায়ী)
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a ${{ matrix.asset_name }}.zip ./release_bundle/*
+          else
+            zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
+          fi
+        shell: bash
+
+      - name: Upload Titan Binaries to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ matrix.asset_name }}.zip
+          body: |
+            ## 🧬 X-Phage v3.1 [TITAN FUSION] Official Release
+            
+            ### What's New:
+            - **Tri-File Architecture**: Full support for `.xp0`, `.xh`, and `.xui`.
+            - **Recursive UI Engine**: Nested Titan Fusion rendering enabled.
+            - **XPM Cloud Sync**: Automated module resolution.
+            - **Verified Stability**: Passed 200+ unique execution tests.
+            
+            *This release includes the Titan Engine binary, Standard Libraries, and Example Modules.*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

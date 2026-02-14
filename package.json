@@ -1,0 +1,26 @@
+{
+  "name": "xphage-lang",
+  "displayName": "X-Phage",
+  "description": "Official syntax highlighting and support for X-Phage (.xp0, .xh, .xui)",
+  "version": "3.1.0",
+  "publisher": "AeonCoreX",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "xphage",
+      "aliases": ["X-Phage", "xphage"],
+      "extensions": [".xp0", ".xh", ".xui"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "xphage",
+      "scopeName": "source.xphage",
+      "path": "./syntaxes/xphage.tmLanguage.json"
+    }]
+  }
+}

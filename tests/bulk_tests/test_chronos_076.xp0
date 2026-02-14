@@ -1,0 +1,8 @@
+// X-Phage Auto-Generated Test: CHRONOS
+~link "aeon_ultimate.xh"
+
+pulse core {
+    beam "Initializing Time Warp..."
+    chronos "760"
+    beam "Time Warp Complete"
+}

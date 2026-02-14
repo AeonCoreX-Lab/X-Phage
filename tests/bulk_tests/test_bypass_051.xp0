@@ -1,9 +1,9 @@
 // X-Phage Auto-Generated Test: BYPASS
-~link "aeon_core.xh"
+~link "aeon_ultimate.xh"
 
 pulse core {
     bypass hardware_sync_51 {
-        mode: "ultra_low_latency",
+        mode: "omni_latency",
         id: "0x33"
     }
 }
