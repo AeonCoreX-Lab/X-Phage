@@ -2,14 +2,8 @@
 #include <iostream>
 #include <cstdlib>
 
-/**
- * X-Phage Package Manager (XPM) Cloud Sync
- * Automatically fetches missing modules from AeonCoreX-Lab
- */
-
 const std::string RAW_URL = "https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/";
 
-// ** FIX: Wrapped in Namespace to resolve linker error **
 namespace XPM_Cloud {
 
 bool sync_module(std::string module_name) {
@@ -38,3 +32,5 @@ bool sync_module(std::string module_name) {
         return false;
     }
 }
+
+} // End Namespace XPM_Cloud
