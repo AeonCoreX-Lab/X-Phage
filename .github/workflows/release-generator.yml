@@ -9,6 +9,11 @@ jobs:
   build:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    
+    # 👇 এই অংশটি নতুন যোগ করা হয়েছে। এটি রিলিজ তৈরির পারমিশন দিবে।
+    permissions:
+      contents: write
+      
     strategy:
       matrix:
         include:
