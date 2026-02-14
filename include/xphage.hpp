@@ -1,5 +1,5 @@
-#ifndef XPHAGE_H
-#define XPHAGE_H
+#ifndef XPHAGE_HPP
+#define XPHAGE_HPP
 
 #include <string>
 #include <vector>
@@ -7,13 +7,13 @@
 #include <iostream>
 #include <memory>
 
-// Token Types (Expanded for Complex UI)
+// --- Token Definitions ---
 enum TokenType {
     // Core
     PULSE, SHADOW, ATOM, BEAM, SCAN, LINK, MATRIX, MATH,
     BYPASS, QUANTUM, VORTEX, SYNAPSE, CHRONOS, ETHER, VOID, GLOBAL,
     
-    // Fusion UI System (Advanced)
+    // Fusion UI System
     FUSION, SIGNAL, VISION, ORBIT, TRIGGER, INPUT, Z_PLANE,
     
     // Syntax
@@ -35,12 +35,13 @@ struct MemoryCell {
 
 // Fusion UI Node (Virtual DOM)
 struct FusionNode {
-    std::string type;               // Vortex, Signal, etc.
-    std::string id;                 // Unique ID
-    std::unordered_map<std::string, std::string> props; // Style & Data
-    std::vector<std::shared_ptr<FusionNode>> children; // Recursive Nesting
+    std::string type;
+    std::string id;
+    std::unordered_map<std::string, std::string> props;
+    std::vector<std::shared_ptr<FusionNode>> children;
 };
 
+// --- Main Runtime Class ---
 class XPhageRuntime {
 public:
     std::unordered_map<std::string, MemoryCell> cell_map;
@@ -68,11 +69,15 @@ public:
     void activate_chronos(std::string ms_str);
     void activate_ether(std::string target, std::string data_ref);
 
-    // Ultimate Fusion Engine (Jetpack Killer)
+    // Ultimate Fusion Engine
     void init_fusion_engine();
     void begin_ui_component(std::string type, std::string params);
-    void end_ui_component(); // Close parsing scope
-    void render_ui_tree();   // Draw the Virtual DOM
+    
+    // ** FIX: Declared fusion_render explicitly here **
+    void fusion_render(std::string element, std::string params);
+    
+    void end_ui_component();
+    void render_ui_tree();
 };
 
 class XPhageLexer {
