@@ -3,8 +3,8 @@ name: X-Phage Titan Modular Builder (LLVM Optimized)
 on:
   push:
     tags:
-      - 'v*' # v3.2.0 এর মতো ট্যাগ পুশ করলে ট্রিগার হবে
-  workflow_dispatch: # ম্যানুয়াল রান করার সুযোগ
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,31 +18,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # 🐧 Linux (x64)
+          # 🐧 Linux
           - os: ubuntu-latest
             target: linux
             artifact_name: xphage_linux_x64
             asset_name: xphage_linux_x64
             
-          # 🪟 Windows (x64)
+          # 🪟 Windows
           - os: windows-latest
             target: windows
             artifact_name: xphage.exe
             asset_name: xphage_windows_x64
             
-          # 🍎 macOS (Universal)
+          # 🍎 macOS
           - os: macos-latest
             target: macos
             artifact_name: xphage_mac
             asset_name: xphage_macos_universal
 
-          # 🤖 Android (ARM64)
+          # 🤖 Android
           - os: ubuntu-latest
             target: android
             artifact_name: xphage_android_arm64
             asset_name: xphage_android_arm64
             
-          # 📱 iOS (ARM64)
+          # 📱 iOS (Requires macOS runner)
           - os: macos-latest
             target: ios
             artifact_name: xphage_ios_arm64
@@ -52,75 +52,58 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- LLVM ইন্সটলেশন এবং PATH ফিক্স ---
-      - name: Install LLVM (macOS/iOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install llvm
-          # সঠিক পদ্ধতি: সরাসরি ডিরেক্টরি পাথ GITHUB_PATH এ পুশ করা
-          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
-        shell: bash
-
+      # --- Setup ---
       - name: Install LLVM (Linux/Android)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm clang
-          echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
-        shell: bash
+          sudo apt-get install -y llvm clang lld
+
+      # macOS-এ আলাদা করে LLVM ইন্সটল করার দরকার নেই যদি আপনি অ্যাপল ক্ল্যাং (Xcode) ব্যবহার করেন।
+      # তবে যদি স্পেসিফিক ভার্সন লাগে, তবে রাখতে পারেন।
+      # আমি এখানে ডিফল্ট Xcode Clang ব্যবহারের রিকমেন্ড করছি iOS/Mac এর জন্য।
+
+      # --- Build Execution ---
+      - name: Make Script Executable
+        run: chmod +x build.sh
 
       - name: Run Modular Build Script
-        run: |
-          chmod +x build.sh
-          ./build.sh
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: ./build.sh
 
-      # --- প্যাকেজিং এবং রিলিজ ---
+      # --- Packaging ---
       - name: Prepare Release Bundle
         shell: bash
         run: |
           mkdir -p release_bundle/stdlib
           mkdir -p release_bundle/samples
           
-          # বাইনারি কপি
-          cp bin/${{ matrix.target }}/${{ matrix.artifact_name }} release_bundle/ || cp ${{ matrix.artifact_name }} release_bundle/
+          echo "Looking for binary in: bin/${{ matrix.target }}/${{ matrix.artifact_name }}"
           
-          # রিসোর্স কপি
-          cp stdlib/*.xh release_bundle/stdlib/ || true
-          cp samples/* release_bundle/samples/ || true
+          # পাথ চেক এবং কপি
+          if [ -f "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" ]; then
+            cp "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" release_bundle/
+          else
+            echo "::error::Binary not found at expected path!"
+            exit 1
+          fi
           
-          # আর্কাইভ তৈরি
+          # রিসোর্স কপি (যদি থাকে, এরর ইগনোর করবে)
+          cp stdlib/*.xh release_bundle/stdlib/ || echo "No stdlib found"
+          cp samples/* release_bundle/samples/ || echo "No samples found"
+          
+          # জিপ করা
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a ${{ matrix.asset_name }}.zip ./release_bundle/*
           else
             zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
           fi
 
-      # --- সিকিউরিটি চেকসাম ---
-      - name: Generate SHA256 Checksum
-        shell: bash
-        run: |
-          if command -v sha256sum >/dev/null; then
-            sha256sum ${{ matrix.asset_name }}.zip > ${{ matrix.asset_name }}.sha256
-          else
-            shasum -a 256 ${{ matrix.asset_name }}.zip > ${{ matrix.asset_name }}.sha256
-          fi
-
-      # --- রিলিজ আপলোড ---
-      - name: Upload Binaries to GitHub Release
+      # --- Upload ---
+      - name: Upload Binaries
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            ${{ matrix.asset_name }}.zip
-            ${{ matrix.asset_name }}.sha256
-          body: |
-            ## 🧬 X-Phage v3.2 [LLVM TITAN] Official Release
-            **Backend:** LLVM Native Compiler with O3 Optimization.
-            
-            ### 📦 Supported Platforms:
-            - 🐧 Linux (x64) | 🪟 Windows (x64) | 🍎 macOS (Universal)
-            - 🤖 Android (ARM64) | 📱 iOS (ARM64)
-
-            ### 🛡️ Security:
-            - SHA256 Checksums generated for supply-chain integrity.
+          files: ${{ matrix.asset_name }}.zip
