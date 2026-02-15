@@ -18,31 +18,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # 🐧 Linux
           - os: ubuntu-latest
             target: linux
             artifact_name: xphage_linux_x64
             asset_name: xphage_linux_x64
             
-          # 🪟 Windows
           - os: windows-latest
             target: windows
             artifact_name: xphage.exe
             asset_name: xphage_windows_x64
             
-          # 🍎 macOS
           - os: macos-latest
             target: macos
             artifact_name: xphage_mac
             asset_name: xphage_macos_universal
 
-          # 🤖 Android
           - os: ubuntu-latest
             target: android
             artifact_name: xphage_android_arm64
             asset_name: xphage_android_arm64
             
-          # 📱 iOS (Requires macOS runner)
           - os: macos-latest
             target: ios
             artifact_name: xphage_ios_arm64
@@ -52,16 +47,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- Setup ---
-      - name: Install LLVM (Linux/Android)
+      # --- Setup Environment ---
+      - name: Install LLVM Dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm clang lld
-
-      # macOS-এ আলাদা করে LLVM ইন্সটল করার দরকার নেই যদি আপনি অ্যাপল ক্ল্যাং (Xcode) ব্যবহার করেন।
-      # তবে যদি স্পেসিফিক ভার্সন লাগে, তবে রাখতে পারেন।
-      # আমি এখানে ডিফল্ট Xcode Clang ব্যবহারের রিকমেন্ড করছি iOS/Mac এর জন্য।
 
       # --- Build Execution ---
       - name: Make Script Executable
@@ -80,30 +71,56 @@ jobs:
           mkdir -p release_bundle/stdlib
           mkdir -p release_bundle/samples
           
-          echo "Looking for binary in: bin/${{ matrix.target }}/${{ matrix.artifact_name }}"
-          
-          # পাথ চেক এবং কপি
           if [ -f "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" ]; then
             cp "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" release_bundle/
           else
-            echo "::error::Binary not found at expected path!"
+            echo "::error::Binary not found!"
             exit 1
           fi
           
-          # রিসোর্স কপি (যদি থাকে, এরর ইগনোর করবে)
-          cp stdlib/*.xh release_bundle/stdlib/ || echo "No stdlib found"
-          cp samples/* release_bundle/samples/ || echo "No samples found"
+          cp stdlib/*.xh release_bundle/stdlib/ || true
+          cp samples/* release_bundle/samples/ || true
           
-          # জিপ করা
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a ${{ matrix.asset_name }}.zip ./release_bundle/*
           else
             zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
           fi
 
-      # --- Upload ---
-      - name: Upload Binaries
+      # --- Final Release Upload (Fixed for Parallelism) ---
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ${{ matrix.asset_name }}.zip
+          name: 🧬 X-Phage v3.2 [LLVM TITAN]
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          # Feature Rich Release Notes
+          body: |
+            ## 🧬 X-Phage v3.2 [TITAN FUSION] Official Release
+            
+            Welcome to the most powerful version of **X-Phage** yet. Built on the **AeonCoreX Titan Architecture**, this release brings direct LLVM machine code generation and multi-platform neural-native capabilities.
+
+            ### 🚀 New Features in v3.2:
+            - **Titan Fusion UI Engine:** Recursive UI rendering system with support for `VORTEX`, `ORBIT`, and `Z_PLANE` components.
+            - **LLVM Backend Integration:** Direct AOT (Ahead-of-Time) compilation to native binaries with `O3` optimization level.
+            - **Hardware-Level Bypass:** New `bypass` protocol for direct kernel interaction and torrent engine integration.
+            - **Vulkan GPU Pipeline:** Hardware acceleration for heavy matrix processing and UI rendering.
+            - **XPM Cloud Sync:** Automated module management—X-Phage now auto-fetches missing `.xh` libraries from the cloud.
+            - **Quantum Async Logic:** Support for `quantum` processes that handle asynchronous tasks on separate threads.
+
+            ### 📦 Platform Status:
+            - ✅ **Linux:** x64 Native (Clang/LLVM)
+            - ✅ **Windows:** x64 Native (MinGW-w64)
+            - ✅ **macOS:** Universal Binary (x64 + ARM64)
+            - ✅ **Android:** ARM64 Native (NDK 34+)
+            - ✅ **iOS:** ARM64 Native (Sandbox Secure Mode)
+
+            ---
+            **Checksums & Integrity:**
+            *Use SHA256 to verify your downloads for maximum security.*
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

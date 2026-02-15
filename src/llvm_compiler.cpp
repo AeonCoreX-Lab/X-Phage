@@ -199,12 +199,19 @@ void compile_to_native(std::string source_file) {
     std::string obj_file = "output.o";
     llvm_compiler.compile_tokens(tokens, obj_file);
     
-    // Link object file to final executable using clang
-    std::cout << "\033[1;33m[LINKER] 🔗 Linking object file to binary executable...\033[0m\n";
-    std::string link_cmd = "clang output.o -o output_executable";
-    int res = std::system(link_cmd.c_str());
-    
-    if (res == 0) {
-        std::cout << "\033[1;32m[SUCCESS] 💠 Native Compilation Complete. Run ./output_executable \033[0m\n";
-    }
+    // ---------------------------------------------------------
+    // 🚫 iOS RESTRICTION CHECK
+    // ---------------------------------------------------------
+    #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+        std::cout << "\033[1;33m[iOS] ⚠️ Native binary linking is skipped on iOS (Sandbox Mode).\033[0m\n";
+    #else
+        // Link object file to final executable using clang
+        std::cout << "\033[1;33m[LINKER] 🔗 Linking object file to binary executable...\033[0m\n";
+        std::string link_cmd = "clang output.o -o output_executable";
+        int res = std::system(link_cmd.c_str());
+        
+        if (res == 0) {
+            std::cout << "\033[1;32m[SUCCESS] 💠 Native Compilation Complete. Run ./output_executable \033[0m\n";
+        }
+    #endif
 }
