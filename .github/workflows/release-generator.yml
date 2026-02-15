@@ -3,8 +3,8 @@ name: X-Phage Titan Modular Builder (LLVM Optimized)
 on:
   push:
     tags:
-      - 'v*' # v3.2.0 er moto tag push korle trigger hobe
-  workflow_dispatch: # Manual run korar sujog
+      - 'v*' # v3.2.0 এর মতো ট্যাগ পুশ করলে ট্রিগার হবে
+  workflow_dispatch: # ম্যানুয়াল রান করার সুযোগ
 
 jobs:
   build:
@@ -52,54 +52,51 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- LLVM & Environment Setup ---
-      - name: Install LLVM (Linux/Android)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm clang lld
-
+      # --- LLVM ইন্সটলেশন এবং PATH ফিক্স ---
       - name: Install LLVM (macOS/iOS)
         if: matrix.os == 'macos-latest'
         run: |
           brew install llvm
-          echo "PATH=$(brew --prefix llvm)/bin:$PATH" >> $GITHUB_APPEND_PATH
-
-      # --- Build Execution ---
-      - name: Run Modular Build Script
+          # সঠিক পদ্ধতি: সরাসরি ডিরেক্টরি পাথ GITHUB_PATH এ পুশ করা
+          echo "$(brew --prefix llvm)/bin" >> $GITHUB_PATH
         shell: bash
-        env:
-          TARGET: ${{ matrix.target }}
+
+      - name: Install LLVM (Linux/Android)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm clang
+          echo "/usr/lib/llvm-14/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Run Modular Build Script
         run: |
           chmod +x build.sh
-          ./build.sh # build.sh script LLVM flags use korbe
+          ./build.sh
+        shell: bash
 
-      # --- Packaging ---
+      # --- প্যাকেজিং এবং রিলিজ ---
       - name: Prepare Release Bundle
         shell: bash
         run: |
           mkdir -p release_bundle/stdlib
           mkdir -p release_bundle/samples
           
-          # Binary copy (matrix onujayi check)
-          if [ -f "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" ]; then
-            cp bin/${{ matrix.target }}/${{ matrix.artifact_name }} release_bundle/
-          else
-            cp ${{ matrix.artifact_name }} release_bundle/ || echo "File path handled by script"
-          fi
+          # বাইনারি কপি
+          cp bin/${{ matrix.target }}/${{ matrix.artifact_name }} release_bundle/ || cp ${{ matrix.artifact_name }} release_bundle/
           
-          # Resources copy
+          # রিসোর্স কপি
           cp stdlib/*.xh release_bundle/stdlib/ || true
           cp samples/* release_bundle/samples/ || true
           
-          # Archiving
+          # আর্কাইভ তৈরি
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             7z a ${{ matrix.asset_name }}.zip ./release_bundle/*
           else
             zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
           fi
 
-      # --- Security Checksum ---
+      # --- সিকিউরিটি চেকসাম ---
       - name: Generate SHA256 Checksum
         shell: bash
         run: |
@@ -109,7 +106,7 @@ jobs:
             shasum -a 256 ${{ matrix.asset_name }}.zip > ${{ matrix.asset_name }}.sha256
           fi
 
-      # --- Release Upload ---
+      # --- রিলিজ আপলোড ---
       - name: Upload Binaries to GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -124,8 +121,6 @@ jobs:
             ### 📦 Supported Platforms:
             - 🐧 Linux (x64) | 🪟 Windows (x64) | 🍎 macOS (Universal)
             - 🤖 Android (ARM64) | 📱 iOS (ARM64)
-            
+
             ### 🛡️ Security:
-            Verified with SHA256 Checksums.
-          draft: false
-          prerelease: false
+            - SHA256 Checksums generated for supply-chain integrity.
