@@ -1,8 +1,8 @@
 {
     "id": "com.aeoncorex.xphage",
-    "name": "X-Phage Language Support",
+    "name": "X-Phage",
     "main": "main.js",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "author": "AeonCoreX",
     "description": "Native syntax highlighting for X-Phage v3.0 Singularity (.xp0)",
     "readme": "README.md",

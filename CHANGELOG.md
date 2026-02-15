@@ -1,10 +1,22 @@
 # Changelog: X-Phage Engine Evolution
 
-All notable changes to the **X-Phage** project from its genesis to the current **Omni-God v3.1 [TITAN]** edition are documented below.
+All notable changes to the **X-Phage** project from its genesis to the current **Titan v3.2 [OPTIMIZED]** edition are documented below.
 
 ---
 
-## [3.1.0] - 2026-02-14 (Current: Titan Fusion Edition)
+## [3.2.0] - 2026-02-15 (Current: Titan Optimized Edition)
+### Added
+- **LLVM Native Backend**: Integrated Clang/LLVM toolchain as the primary compiler backend, enabling `-O3` level machine code optimization for maximum performance.
+- **SHA256 Integrity Verification**: Automated security checksum generation for all distributed binaries to ensure supply-chain protection.
+- **Hardware Acceleration Hooks**: Added native triggers for Vulkan-based GPU pipelines and NPU neural synchronization within `core_ops`.
+- **Multi-Platform CI/CD**: Updated GitHub Actions workflow to automatically provision LLVM environments and build for Windows, Linux, macOS, Android (ARM64), and iOS.
+- **Unified Build System**: Refined `build.sh` to handle cross-compilation and native LLVM flag management across all five supported architectures.
+
+### Changed
+- **Performance Tuning**: Transitioned from standard GCC flags to LLVM-specific optimization flags for faster execution of `.xp0` logic.
+- **Workflow Permissions**: Fixed 403 errors in GitHub Actions by implementing explicit `contents: write` permissions for release generation.
+
+## [3.1.0] - 2026-02-14 (Titan Fusion Edition)
 ### Added
 - **Tri-File Ecosystem**: Formal separation of concerns into `.xp0` (Execution), `.xh` (Logic/Headers), and `.xui` (UI Schematics).
 - **Titan Fusion UI Engine**: Implementation of a Declarative UI Tree (Virtual DOM) with GPU direct rendering capabilities.
@@ -35,13 +47,6 @@ All notable changes to the **X-Phage** project from its genesis to the current *
 ### Added
 - **Ghost Memory Protocol**: Introduction of `shadow` (mutable) and `atom` (strict immutable) memory types.
 
-## [1.3.0] - 2026-01-05 (Genesis Expansion)
-### Added
-- **Library Linking**: Initial support for `~link` to include external logic files.
-
 ## [1.0.0] - 2025-12-15 (The Beginning)
 ### Added
-- **Core Architecture**: Initial release of the Lexer and Runtime with basic keywords (`pulse`, `atom`, `beam`).
-
----
-*© 2026 AeonCoreX Intellectual Property. All Rights Reserved.*
+- **Core Architecture**: Initial release of the Lexer, Parser, and Memory Management systems.

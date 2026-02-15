@@ -2,7 +2,7 @@
 #include <cctype>
 
 /**
- * X-Phage Lexer Module v3.1
+ * X-Phage Lexer Module v3.2
  * Supports Recursive UI Structures & Property Maps
  */
 
@@ -29,27 +29,27 @@ std::vector<Token> XPhageLexer::tokenize(const std::string& source) {
         if (c == ',') { tokens.push_back({COMMA, ","}); i++; continue; }
         if (c == '=') { tokens.push_back({EQUAL, "="}); i++; continue; }
 
+        // Strings
         if (c == '"') {
-            std::string str; i++;
-            while (i < source.length() && source[i] != '"') { 
-                str += source[i]; i++; 
-            }
-            tokens.push_back({STRING, str}); i++; continue;
+            std::string s = ""; i++;
+            while (i < source.length() && source[i] != '"') { s += source[i]; i++; }
+            tokens.push_back({STRING, s}); i++; continue;
         }
 
-        if (isalnum(c) || c == '_' || c == '.' || c == '~' || c == '@' || c == '#') {
-            std::string word;
-            while (i < source.length() && (isalnum(source[i]) || source[i] == '_' || source[i] == '.' || source[i] == '~' || source[i] == '@' || source[i] == '#')) {
+        // Keywords and Identifiers
+        if (isalpha(c) || c == '_' || c == '~' || c == '@') {
+            std::string word = "";
+            while (i < source.length() && (isalnum(source[i]) || source[i] == '_' || source[i] == '~' || source[i] == '@')) {
                 word += source[i]; i++;
             }
 
             if (word == "pulse") tokens.push_back({PULSE, word});
-            else if (word == "global") tokens.push_back({GLOBAL, word});
             else if (word == "shadow") tokens.push_back({SHADOW, word});
             else if (word == "atom") tokens.push_back({ATOM, word});
             else if (word == "beam") tokens.push_back({BEAM, word});
+            else if (word == "global") tokens.push_back({GLOBAL, word});
             else if (word == "quantum") tokens.push_back({QUANTUM, word});
-            else if (word == "vortex") tokens.push_back({VORTEX, word}); // Context dependent
+            else if (word == "vortex") tokens.push_back({VORTEX, word}); 
             else if (word == "void") tokens.push_back({VOID, word});
             else if (word == "synapse") tokens.push_back({SYNAPSE, word});
             else if (word == "bypass") tokens.push_back({BYPASS, word});
@@ -68,11 +68,20 @@ std::vector<Token> XPhageLexer::tokenize(const std::string& source) {
             else if (word == "Z_Plane") tokens.push_back({Z_PLANE, word});
             else if (word == "Input") tokens.push_back({INPUT, word});
             
-            else if (isdigit(word[0])) tokens.push_back({NUMBER, word}); 
             else tokens.push_back({IDENTIFIER, word});
             continue;
         }
-        i++;
+
+        // Numbers
+        if (isdigit(c)) {
+            std::string num = "";
+            while (i < source.length() && (isdigit(source[i]) || source[i] == '.')) {
+                num += source[i]; i++;
+            }
+            tokens.push_back({NUMBER, num}); continue;
+        }
+
+        i++; // fallback
     }
     return tokens;
 }

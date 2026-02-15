@@ -4,9 +4,13 @@
 #include <sstream>
 
 /**
- * 🧬 X-Phage Omni-God Engine v3.1
+ * 🧬 X-Phage Omni-God Engine v3.2
  * Architecture: Neural-Native | UI: Titan Fusion (Recursive)
  */
+
+namespace XPM_Cloud {
+    bool sync_module(std::string module_name);
+}
 
 // Helper to handle nested UI blocks recursively
 size_t parse_ui_block(const std::vector<Token>& tokens, size_t index, XPhageRuntime& runtime, std::shared_ptr<FusionNode> parent) {
@@ -39,41 +43,44 @@ size_t parse_ui_block(const std::vector<Token>& tokens, size_t index, XPhageRunt
                     j++;
                 }
                 params = param_build;
-                i = j + 1; // Skip past )
+                i = j + 1; 
             }
 
             // Create Node
             auto node = std::make_shared<FusionNode>();
             node->type = type;
             node->props["raw_params"] = params;
-            
-            if (parent) parent->children.push_back(node);
-            else runtime.current_ui_context->children.push_back(node); // Fallback
 
-            // If component has children { ... }
-            if (i < tokens.size() && tokens[i].type == L_BRACE) {
-                 // Recursive call for children
-                 i = parse_ui_block(tokens, i, runtime, node);
+            // Attach to parent
+            if (parent) {
+                parent->children.push_back(node);
             } else {
-                 i++;
+                runtime.current_ui_context->children.push_back(node); 
             }
-        } 
-        else {
-            i++; // Skip non-UI tokens inside UI block for safety
+
+            // Check if this component has children { ... }
+            if (i < tokens.size() && tokens[i].type == L_BRACE) {
+                i = parse_ui_block(tokens, i, runtime, node);
+            } else {
+                i++;
+            }
+        } else {
+            i++; 
         }
     }
     return i;
 }
 
-int main(int argc, char* argv[]) {
-    std::cout << "\033[1;35mX-PHAGE [OMNI-GOD v3.2 TITAN]\033[0m\n";
-    std::cout << "\033[1;90mSystem: Recursive Fusion UI | Core: Neural-Bypass\033[0m\n\n";
+void execute_file(std::string filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "\033[1;31m[SYS] ⛔ Critical Error: Cannot read Neural Pathway '" << filename << "'\033[0m\n";
+        return;
+    }
 
-    if (argc < 2) { std::cout << "Usage: xphage <file>\n"; return 1; }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
 
-    std::ifstream file(argv[1]);
-    std::stringstream buffer; buffer << file.rdbuf();
-    
     XPhageLexer lexer;
     XPhageRuntime runtime;
     XPhageLinker linker;
@@ -81,15 +88,21 @@ int main(int argc, char* argv[]) {
     std::vector<Token> tokens = lexer.tokenize(buffer.str());
 
     for (size_t i = 0; i < tokens.size(); ++i) {
-        
-        // --- 1. GLOBAL & LOGIC ---
+        // --- 1. CORE LOGIC ---
         if (tokens[i].type == GLOBAL && i + 3 < tokens.size()) {
-            runtime.write_global(tokens[i+1].value, tokens[i+3].value); i += 3;
+             runtime.write_global(tokens[i+1].value, tokens[i+3].value);
+             i += 3;
         }
-        else if (tokens[i].type == LINK) { linker.link_library(tokens[i+1].value, runtime); i++; }
-        
-        // --- 2. TITAN FUSION UI ENTRY ---
-        // Handles: fusion "Name" { ... }
+        else if (tokens[i].type == LINK) {
+             linker.link_library(tokens[i+1].value, runtime);
+             i++;
+        }
+        else if (tokens[i].type == MATRIX) {
+             runtime.process_matrix(tokens[i+1].value, "Vulkan_Buffer");
+             i++;
+        }
+
+        // --- 2. FUSION UI ENGINE ---
         else if (tokens[i].type == FUSION) {
              runtime.init_fusion_engine();
              
@@ -120,10 +133,21 @@ int main(int argc, char* argv[]) {
         else if (tokens[i].type == VOID) { runtime.activate_void_protocol(); }
         else if (tokens[i].type == BEAM) {
             MemoryCell cell = runtime.read(tokens[i+1].value);
-            std::cout << "\033[1;97m>> " << ((cell.data != "raw_ref") ? cell.data : tokens[i+1].value) << "\033[0m\n";
+            std::cout << "\033[1;32m[BEAM OUT] ⚡ \033[0m" << cell.data << "\n";
             i++;
         }
     }
+}
 
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        std::cout << "\033[1;35mX-Phage Omni-God Terminal v3.2\033[0m\nUsage: xphage run <file.xp0>\n";
+        return 1;
+    }
+    
+    if (std::string(argv[1]) == "run" && argc == 3) {
+        execute_file(argv[2]);
+    }
+    
     return 0;
 }

@@ -4,12 +4,11 @@
 #include <regex>
 
 /**
- * 🔗 X-Phage Intelligent Linker v3.1
+ * 🔗 X-Phage Intelligent Linker v3.2
  * Architecture: Logic (.xh) & UI (.xui) Separation
  * Features: Global Registry, Hardware Hooks, Cloud Sync
  */
 
-// Forward declaration for XPM Cloud (Assuming it's linked via build.sh)
 namespace XPM_Cloud {
     bool sync_module(std::string module_name);
 }
@@ -42,48 +41,24 @@ void XPhageLinker::link_library(std::string lib_name, XPhageRuntime& runtime) {
         if (XPM_Cloud::sync_module(clean_name)) {
             path = "modules/" + clean_name + "/" + lib_name;
             file.open(path);
+        } else {
+            std::cerr << "\033[1;31m[SYS PANIC] ⛔ Module resolution failed for: " << lib_name << "\033[0m\n";
+            return;
         }
     }
 
-    // FATAL ERROR
-    if (!file.is_open()) {
-        std::cerr << "\033[1;31m[LINKER FATAL] ❌ Target '" << lib_name << "' is missing or corrupted.\033[0m\n";
-        return;
-    }
+    std::cout << "\033[1;34m[LINKER] 🔗 Resolving Neural Pathways from: " << lib_name << "\033[0m\n";
 
-    // --- 2. MODE DETECTION (.xh vs .xui) ---
-    bool is_ui_mode = (lib_name.find(".xui") != std::string::npos);
-    
-    if (is_ui_mode) {
-        std::cout << "\033[1;35m[LINKER] 🎨 Loading Fusion UI Layout: " << lib_name << "...\033[0m\n";
-    } else {
-        std::cout << "\033[1;36m[LINKER] 🧠 Injecting Logic Core: " << lib_name << "...\033[0m\n";
-    }
-
-    // --- 3. PARSING LOGIC ---
     std::string line;
-    while (std::getline(file, line)) {
-        std::smatch match;
+    std::smatch match;
 
-        if (is_ui_mode) {
-            // ==========================================
-            // 🎨 .xui FILE PARSING (UI COMPONENTS)
-            // ==========================================
-            
-            // Handle: Component(param: "value") or Component "Value"
-            // Regex captures: 1=Component Name, 2=Params inside ()
-            if (std::regex_search(line, match, std::regex(R"((Signal|Vision|Orbit|Trigger|Vortex)\s*\(?([^\)]*)\)?)"))) {
-                std::string element = match[1];
-                std::string params = match[2];
-                
-                // Clean params if empty
-                if (params.empty() || params == " ") params = "Default_Layout";
-                
-                runtime.fusion_render(element, params);
-            }
-            
-            // Handle: @NeuralComposition(Name)
-            else if (std::regex_search(line, match, std::regex(R"(@NeuralComposition\(([^)]+)\))"))) {
+    while (std::getline(file, line)) {
+        
+        // ==========================================
+        // 🎨 .xui FILE PARSING (TITAN FUSION UI)
+        // ==========================================
+        if (lib_name.find(".xui") != std::string::npos) {
+            if (std::regex_search(line, match, std::regex(R"(@NeuralComposition\s+(\w+))"))) {
                 std::cout << "\033[1;35m[UI LOAD] 💠 Composition Root: " << match[1] << "\033[0m\n";
             }
         } 
@@ -110,11 +85,16 @@ void XPhageLinker::link_library(std::string lib_name, XPhageRuntime& runtime) {
 
             // 4. Hardware Hooks (~hook)
             else if (std::regex_search(line, match, std::regex(R"(~hook\s+(\w+)\s*->\s*\"?([\w\d_]+)\"?)"))) {
-                runtime.write("HOOK_" + match[1].str(), match[2], "SYS_HOOK", true);
-                // Optional: Log hook injection
-                // std::cout << "  └─ [HOOK] " << match[1] << " -> " << match[2] << "\n";
+                std::string hook_type = match[1];
+                std::string target = match[2];
+                
+                // --- NEW GPU/NPU HOOK TRIGGERS ---
+                if (hook_type == "gpu_accelerate") runtime.init_vulkan_pipeline();
+                if (hook_type == "neural_sync") runtime.npu_neural_sync(target);
+                
+                runtime.write(hook_type + "_SYS", target, "HOOK", true);
+                std::cout << "  ↳ \033[1;30mIntercepted Kernel Hook:\033[0m " << hook_type << " -> " << target << "\n";
             }
         }
     }
-    std::cout << "\033[1;32m[LINKER] ✔ Module Synced Successfully.\033[0m\n";
 }

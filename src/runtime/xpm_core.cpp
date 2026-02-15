@@ -28,9 +28,9 @@ bool sync_module(std::string module_name) {
         std::cout << "\033[1;32m[XPM] ✅ Success: '" << module_name << "' synced from AeonCoreX-Lab.\033[0m\n";
         return true;
     } else {
-        std::cerr << "\033[1;31m[XPM] ❌ Error: Failed to fetch from Global Registry. Check connection.\033[0m\n";
+        std::cout << "\033[1;31m[XPM] ❌ Failed to sync: '" << module_name << "'\033[0m\n";
         return false;
     }
 }
 
-} // End Namespace XPM_Cloud
+}

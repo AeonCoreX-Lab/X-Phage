@@ -51,6 +51,7 @@ public:
     std::shared_ptr<FusionNode> ui_root;
     std::shared_ptr<FusionNode> current_ui_context;
     bool ui_active = false;
+    bool vulkan_ready = false; // NEW
 
 public:
     // Memory Ops
@@ -69,13 +70,15 @@ public:
     void activate_chronos(std::string ms_str);
     void activate_ether(std::string target, std::string data_ref);
 
+    // Hardware & GPU Accelerators (NEW)
+    void init_vulkan_pipeline();
+    void gpu_compute_matrix(std::string matrix_id);
+    void npu_neural_sync(std::string pulse_id);
+
     // Ultimate Fusion Engine
     void init_fusion_engine();
     void begin_ui_component(std::string type, std::string params);
-    
-    // ** FIX: Declared fusion_render explicitly here **
     void fusion_render(std::string element, std::string params);
-    
     void end_ui_component();
     void render_ui_tree();
 };
