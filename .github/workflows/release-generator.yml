@@ -2,6 +2,7 @@ name: X-Phage Titan Modular Builder (LLVM Optimized)
 
 on:
   push:
+    branches: [ "main" ]      # এটা যোগ করা হয়েছে যাতে কোড পুশ করলেই চালু হয়
     tags:
       - 'v*'
   workflow_dispatch:
@@ -87,7 +88,7 @@ jobs:
             zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
           fi
 
-      # --- Final Release Upload (Fixed for Parallelism) ---
+      # --- Final Release Upload ---
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
@@ -122,5 +123,5 @@ jobs:
             ---
             **Checksums & Integrity:**
             *Use SHA256 to verify your downloads for maximum security.*
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
