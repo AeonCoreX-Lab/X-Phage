@@ -2,19 +2,19 @@ name: X-Phage Titan Modular Builder (LLVM Optimized)
 
 on:
   push:
-    branches: [ "main" ]      # এটা যোগ করা হয়েছে যাতে কোড পুশ করলেই চালু হয়
+    branches: [ "main" ]
     tags:
       - 'v*'
   workflow_dispatch:
 
 jobs:
+  # ---------------------------------------------------------
+  # Job 1: Build the artifacts for all platforms
+  # ---------------------------------------------------------
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     
-    permissions:
-      contents: write
-      
     strategy:
       fail-fast: false
       matrix:
@@ -88,12 +88,36 @@ jobs:
             zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
           fi
 
-      # --- Final Release Upload ---
+      # --- Upload Artifacts (Temporary storage) ---
+      - name: Upload Workflow Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}_zip
+          path: ${{ matrix.asset_name }}.zip
+          retention-days: 1 # ফাইলগুলো শুধু ১ দিন সেভ থাকবে স্টোরেজ বাঁচাতে
+
+  # ---------------------------------------------------------
+  # Job 2: Create a single release and upload all artifacts
+  # ---------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: build # বিল্ড জব শেষ হওয়া পর্যন্ত অপেক্ষা করবে
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Download all workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_assets # সবগুলো জিপ ফাইল এই ফোল্ডারে ডাউনলোড হবে
+          merge-multiple: true
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ matrix.asset_name }}.zip
+          files: release_assets/*.zip # একবারে সব জিপ ফাইল আপলোড করবে
           name: 🧬 X-Phage v3.2 [LLVM TITAN]
           tag_name: ${{ github.ref_name }}
           draft: false
