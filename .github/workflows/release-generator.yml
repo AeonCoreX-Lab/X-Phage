@@ -53,22 +53,25 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install LLVM Dependencies
+      # Setup for Linux/Android
+      - name: Install LLVM & Cross-Compilers (Linux)
         if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm clang lld
+          sudo apt-get install -y llvm llvm-dev clang lld
           if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
           fi
 
-      - name: Install MinGW for Windows
+      # Setup for Windows (Using Chocolatey instead of sudo)
+      - name: Install MinGW (Windows)
         if: matrix.target == 'windows'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64
-
+          choco install mingw --force
+          
+      # Build Step
       - name: Build X-Phage
+        shell: bash
         run: |
           export TARGET=${{ matrix.target }}
           bash build.sh
@@ -98,15 +101,15 @@ jobs:
           files: |
             assets/xphage_linux_x64/xphage_linux_x64
             assets/xphage_linux_arm64/xphage_linux_arm64
-            assets/xphage_windows_x64/xphage_windows_x64
-            assets/xphage_macos_universal/xphage_macos_universal
+            assets/xphage_windows_x64/xphage.exe
+            assets/xphage_macos_universal/xphage_mac
             assets/xphage_android_arm64/xphage_android_arm64
             assets/xphage_ios_arm64/xphage_ios_arm64
           body: |
-            ### 🧬 X-Phage Titan v3.3.1
-            - **Universal Installer:** `curl -sL <your-repo-link> | bash`
+            ### 🧬 X-Phage Titan v3.3.0
+            - **Fixed:** Multi-Architecture Build Support (iOS/Android/Windows).
             - **Docker Support:** Available on Docker Hub.
-            - **Architecture:** Native LLVM Code Generation.
+            - **Architecture:** Native LLVM Code Generation (Desktop Only).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -114,7 +117,7 @@ jobs:
   # Job 3: Docker Hub Auto-Publish
   # ---------------------------------------------------------
   docker-publish:
-    needs: release # রিলিজ তৈরি হলেই কেবল ডকারে পুশ হবে
+    needs: release
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
