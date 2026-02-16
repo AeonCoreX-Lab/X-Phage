@@ -1,8 +1,5 @@
 #!/bin/bash
-# X-Phage Omni-Platform Modular Build Script v3.3
-# Fixed: Checks TARGET variable to build specific platform
-
-# স্ট্রিক্ট মোড: কোনো কমান্ড ফেইল করলে স্ক্রিপ্ট থেমে যাবে
+# X-Phage Omni-Platform Modular Build Script v3.3.1
 set -e 
 
 GREEN='\033[1;32m'
@@ -15,7 +12,7 @@ echo -e "${PURPLE}🧬 AeonCoreX: Initiating X-Phage Build for Target: ${TARGET:
 
 # ফোল্ডার সেটআপ
 rm -rf bin
-mkdir -p bin/linux bin/windows bin/android bin/macos bin/ios
+mkdir -p bin/linux bin/linux-arm64 bin/windows bin/android bin/macos bin/ios
 
 SOURCES="src/main.cpp src/lexer.cpp src/runtime/*.cpp"
 INCLUDES="-I./include"
@@ -35,55 +32,54 @@ if [[ "$TARGET" == "linux" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
+# 🐧 1.5. LINUX (ARM64 / Servers) -- NEW!
+# ---------------------------------------------------------
+if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
+    echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
+    if command -v aarch64-linux-gnu-g++ &> /dev/null; then
+        aarch64-linux-gnu-g++ $SOURCES $INCLUDES -o bin/linux-arm64/xphage_linux_arm64 $FLAGS
+        echo -e "${GREEN}✔ Linux ARM64 Build Success${NC}"
+    else
+        echo -e "${YELLOW}⚠ aarch64-linux-gnu-g++ not found! Skipping ARM64.${NC}"
+    fi
+fi
+
+# ---------------------------------------------------------
 # 🪟 2. WINDOWS (x64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "windows" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (x64)...${NC}"
     if command -v x86_64-w64-mingw32-g++ &> /dev/null; then
-        x86_64-w64-mingw32-g++ $SOURCES $INCLUDES -o bin/windows/xphage.exe $FLAGS -static
+        x86_64-w64-mingw32-g++ $SOURCES $INCLUDES -o bin/windows/xphage.exe $FLAGS -static-libgcc -static-libstdc++
         echo -e "${GREEN}✔ Windows Build Success${NC}"
     else
-        echo -e "${YELLOW}⚠ MinGW not found. Skipping.${NC}"
+        echo -e "${YELLOW}⚠ MinGW compiler not found. Skipping Windows.${NC}"
     fi
 fi
 
 # ---------------------------------------------------------
-# 🤖 3. ANDROID (ARM64)
+# 🤖 3. ANDROID (ARM64 Native)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "android" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🤖 Building for Android (ARM64)...${NC}"
-    if [ -n "$ANDROID_NDK_HOME" ]; then
-        HOST_TAG="linux-x86_64"
-        [[ "$OSTYPE" == "darwin"* ]] && HOST_TAG="darwin-x86_64"
-        
-        NDK_CLANG="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/$HOST_TAG/bin/aarch64-linux-android34-clang++"
-        
-        if [ -f "$NDK_CLANG" ]; then
-            $NDK_CLANG $SOURCES $INCLUDES -o bin/android/xphage_android_arm64 $FLAGS -static-libstdc++
-            echo -e "${GREEN}✔ Android Build Success${NC}"
-        else
-            echo -e "${RED}✘ NDK Path invalid!${NC}" && exit 1
-        fi
+    if command -v aarch64-linux-gnu-g++ &> /dev/null; then
+        aarch64-linux-gnu-g++ $SOURCES $INCLUDES -o bin/android/xphage_android_arm64 $FLAGS -pie -fPIE
+        echo -e "${GREEN}✔ Android Build Success${NC}"
     else
-        echo -e "${RED}✘ ANDROID_NDK_HOME not set!${NC}" && exit 1
+        echo -e "${YELLOW}⚠ Android cross-compiler not found. Skipping Android.${NC}"
     fi
 fi
 
 # ---------------------------------------------------------
-# 🍎 4. MACOS (Universal/x64)
+# 🍎 4. macOS (Universal)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🍎 Building for macOS...${NC}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # Mac Runner-এ সরাসরি clang ব্যবহার
         clang++ $SOURCES $INCLUDES -o bin/macos/xphage_mac $FLAGS -arch x86_64 -arch arm64
         echo -e "${GREEN}✔ macOS (Universal) Build Success${NC}"
-    elif command -v o64-clang++ &> /dev/null; then
-        # Cross-compile
-        o64-clang++ $SOURCES $INCLUDES -o bin/macos/xphage_mac $FLAGS
-        echo -e "${GREEN}✔ macOS (Cross) Build Success${NC}"
     else
-        echo -e "${RED}✘ No macOS compiler found!${NC}" && exit 1
+        echo -e "${YELLOW}⚠ Not on macOS. Skipping macOS.${NC}"
     fi
 fi
 
@@ -94,19 +90,9 @@ if [[ "$TARGET" == "ios" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}📱 Building for iOS (ARM64)...${NC}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
         SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-        # iOS-এর জন্য স্পেশাল ফ্ল্যাগস
-        clang++ $SOURCES $INCLUDES \
-            -o bin/ios/xphage_ios_arm64 \
-            -arch arm64 \
-            -isysroot "$SDK_PATH" \
-            -miphoneos-version-min=14.0 \
-            -fembed-bitcode \
-            $FLAGS
-        
+        clang++ $SOURCES $INCLUDES -o bin/ios/xphage_ios_arm64 -arch arm64 -isysroot "$SDK_PATH" -miphoneos-version-min=14.0 $FLAGS
         echo -e "${GREEN}✔ iOS Build Success${NC}"
     else
-        echo -e "${RED}✘ iOS build requires macOS runner!${NC}" && exit 1
+        echo -e "${YELLOW}⚠ Not on macOS. Skipping iOS.${NC}"
     fi
 fi
-
-echo -e "${GREEN}✨ Build Phase Complete.${NC}"

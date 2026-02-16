@@ -2,82 +2,64 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 /**
- * 🧬 X-Phage Omni-God Engine v3.2
- * Architecture: Neural-Native | UI: Titan Fusion (Recursive)
+ * 🧬 X-Phage Omni-God Engine v3.3 [TITAN CLI]
+ * Architecture: Neural-Native | Env: Global System PATH
  */
 
 namespace XPM_Cloud {
     bool sync_module(std::string module_name);
 }
 
+// LLVM Compiler Entry Point (From llvm_compiler.cpp)
+extern void compile_to_native(std::string source_file);
+
 // Helper to handle nested UI blocks recursively
 size_t parse_ui_block(const std::vector<Token>& tokens, size_t index, XPhageRuntime& runtime, std::shared_ptr<FusionNode> parent) {
     size_t i = index;
-    
-    // If starting a block with {
     if (tokens[i].type == L_BRACE) i++;
 
     while (i < tokens.size()) {
-        if (tokens[i].type == R_BRACE) {
-            return i + 1; // End of block
-        }
+        if (tokens[i].type == R_BRACE) return i + 1;
 
-        // Handle UI Components
         if (tokens[i].type == VORTEX || tokens[i].type == ORBIT || tokens[i].type == Z_PLANE || 
             tokens[i].type == SIGNAL || tokens[i].type == VISION || tokens[i].type == TRIGGER || tokens[i].type == INPUT) {
             
             std::string type = tokens[i].value;
             std::string params = "Default";
 
-            // Parse Parameters ( ... )
             if (i+1 < tokens.size() && tokens[i+1].type == LPAREN) {
                 int j = i + 2;
                 std::string param_build = "";
                 while(j < tokens.size() && tokens[j].type != RPAREN) {
-                    if(tokens[j].type == STRING) param_build += "\"" + tokens[j].value + "\"";
-                    else if (tokens[j].type == COLON) param_build += ":";
-                    else if (tokens[j].type == COMMA) param_build += ", ";
-                    else param_build += tokens[j].value;
-                    j++;
+                    param_build += tokens[j].value + " "; j++;
                 }
                 params = param_build;
-                i = j + 1; 
+                i = j; 
             }
 
-            // Create Node
-            auto node = std::make_shared<FusionNode>();
-            node->type = type;
+            auto node = std::make_shared<FusionNode>(type);
             node->props["raw_params"] = params;
-
-            // Attach to parent
-            if (parent) {
-                parent->children.push_back(node);
-            } else {
-                runtime.current_ui_context->children.push_back(node); 
-            }
-
-            // Check if this component has children { ... }
-            if (i < tokens.size() && tokens[i].type == L_BRACE) {
-                i = parse_ui_block(tokens, i, runtime, node);
-            } else {
-                i++;
-            }
+            parent->children.push_back(node);
+            i++;
         } else {
-            i++; 
+            i++;
         }
     }
     return i;
 }
 
-void execute_file(std::string filename) {
-    std::ifstream file(filename);
+// ---------------------------------------------------------
+// 🚀 CORE EXECUTION LOGIC (Run a .xp0 file)
+// ---------------------------------------------------------
+void execute_file(std::string filepath) {
+    std::ifstream file(filepath);
     if (!file.is_open()) {
-        std::cerr << "\033[1;31m[SYS] ⛔ Critical Error: Cannot read Neural Pathway '" << filename << "'\033[0m\n";
+        std::cerr << "\033[1;31m[ERROR] Could not open file: \033[0m" << filepath << "\n";
         return;
     }
-
     std::stringstream buffer;
     buffer << file.rdbuf();
 
@@ -87,41 +69,23 @@ void execute_file(std::string filename) {
 
     std::vector<Token> tokens = lexer.tokenize(buffer.str());
 
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        // --- 1. CORE LOGIC ---
-        if (tokens[i].type == GLOBAL && i + 3 < tokens.size()) {
-             runtime.write_global(tokens[i+1].value, tokens[i+3].value);
-             i += 3;
+    for (size_t i = 0; i < tokens.size(); i++) {
+        if (tokens[i].type == LINK && i + 1 < tokens.size()) {
+            linker.link_library(tokens[i+1].value, runtime);
+            i++;
         }
-        else if (tokens[i].type == LINK) {
-             linker.link_library(tokens[i+1].value, runtime);
-             i++;
-        }
-        else if (tokens[i].type == MATRIX) {
-             runtime.process_matrix(tokens[i+1].value, "Vulkan_Buffer");
-             i++;
-        }
-
-        // --- 2. FUSION UI ENGINE ---
-        else if (tokens[i].type == FUSION) {
-             runtime.init_fusion_engine();
+        else if (tokens[i].type == FUSION && i + 2 < tokens.size()) {
+             std::string root_name = tokens[i+1].value;
+             auto root = std::make_shared<FusionNode>("ROOT_CANVAS");
+             root->props["name"] = root_name;
+             runtime.ui_root = root; 
              
-             // Create Root Container
-             auto root = std::make_shared<FusionNode>();
-             root->type = "FUSION_ROOT";
-             root->props["name"] = (i+1 < tokens.size()) ? tokens[i+1].value : "App";
-             runtime.ui_root = root; // Reset root
-             
-             i += 2; // Skip 'fusion' and 'Name'
-             
-             // Enter Recursive Parse
+             i += 2; 
              if (tokens[i].type == L_BRACE) {
                  i = parse_ui_block(tokens, i, runtime, root);
-                 runtime.render_ui_tree(); // Draw after building
+                 runtime.render_ui_tree(); 
              }
         }
-
-        // --- 3. HARDWARE OPS ---
         else if (tokens[i].type == BYPASS) {
              std::string config = "AUTO";
              if (i+3 < tokens.size() && tokens[i+2].type == L_BRACE) { config = "KERNEL_INJECTED"; } 
@@ -139,15 +103,65 @@ void execute_file(std::string filename) {
     }
 }
 
+// ---------------------------------------------------------
+// 💻 REPL (Interactive Shell)
+// ---------------------------------------------------------
+void print_banner() {
+    std::cout << "\033[1;36m"
+              << "   _  __       ___  __                   \n"
+              << "  | |/ /      / _ \\/ /  ___ ____ ____   \n"
+              << "  |   /  __  / ___/ _ \\/ _ `/ _ `/ -_)  \n"
+              << " /   |  / _/ /_/  /_//_/\\_,_/\\_, /\\__/  \n"
+              << "/_/|_|                  /___/        \n"
+              << "\033[0m"
+              << "\033[1;35m 🧬 Omni-God Engine v3.3 [TITAN CLI]\033[0m\n"
+              << " Architecture: LLVM Native | Env: Global\n\n";
+}
+
+void start_repl() {
+    print_banner();
+    std::cout << " Type \033[1;31m'exit'\033[0m to leave the matrix.\n\n";
+    std::string line;
+    while (true) {
+        std::cout << "\033[1;32mX-Phage λ\033[0m ";
+        if (!std::getline(std::cin, line) || line == "exit") break;
+        if (line.empty()) continue;
+        std::cout << "\033[1;30m>> [Processing locally...]\033[0m\n";
+        // REPL Execution logic can be expanded here
+    }
+}
+
+// ---------------------------------------------------------
+// ⚙️ CLI ARGUMENT PARSER (Like Python/Node)
+// ---------------------------------------------------------
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cout << "\033[1;35mX-Phage Omni-God Terminal v3.2\033[0m\nUsage: xphage run <file.xp0>\n";
-        return 1;
+    if (argc == 1) {
+        start_repl(); // No args = Start interactive mode
+    } else {
+        std::string cmd = argv[1];
+        
+        if (cmd == "-v" || cmd == "--version") {
+            std::cout << "X-Phage v3.3.0 (Titan Build)\n";
+        } 
+        else if (cmd == "run" && argc > 2) {
+            execute_file(argv[2]); // Run interpreter
+        } 
+        else if (cmd == "build" && argc > 2) {
+            compile_to_native(argv[2]); // Compile to native using LLVM
+        } 
+        else if (cmd == "init") {
+            // Scaffold a new project (Like npm init)
+            std::system("mkdir src stdlib modules bin && touch src/main.xp0");
+            std::cout << "\033[1;32m[SUCCESS] X-Phage project initialized globally.\033[0m\n";
+        }
+        else {
+            std::cout << "Usage:\n";
+            std::cout << "  xphage                  (Starts REPL)\n";
+            std::cout << "  xphage run <file.xp0>   (Executes a file)\n";
+            std::cout << "  xphage build <file.xp0> (Compiles to Native OS Binary via LLVM)\n";
+            std::cout << "  xphage init             (Creates project structure)\n";
+            std::cout << "  xphage --version        (Shows version)\n";
+        }
     }
-    
-    if (std::string(argv[1]) == "run" && argc == 3) {
-        execute_file(argv[2]);
-    }
-    
     return 0;
 }

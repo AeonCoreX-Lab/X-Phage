@@ -1,8 +1,16 @@
 # Changelog: X-Phage Engine Evolution
 
-All notable changes to the **X-Phage** project from its genesis to the current **Titan v3.2 [OPTIMIZED]** edition are documented below.
+All notable changes to the **X-Phage** project from its genesis to the current **Titan v3.3 [Docker]** edition are documented below.
 
 ---
+
+## [3.3.0] - 2026-02-16 (Current: Titan Docker Edition)
+### Added
+- **Docker Hub Integration**: Official image hosted at `cybernahid/xphage` for zero-dependency setup.
+- **Automated Docker CI/CD**: GitHub Actions now auto-builds and pushes images to Docker Hub on every release tag.
+- **ARM64 Architecture Support**: Enhanced `build.sh` and `install.sh` to support Linux ARM64 (Termux/Raspberry Pi).
+- **Universal Installer**: Redesigned `install.sh` with better OS detection and error handling.
+- **Project Scaffolding**: Added `xphage init` command to generate standard project structure automatically.
 
 ## [3.2.0] - 2026-02-15 (Current: Titan Optimized Edition)
 ### Added

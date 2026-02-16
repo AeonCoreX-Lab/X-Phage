@@ -1,4 +1,4 @@
-name: X-Phage Titan Modular Builder (LLVM Optimized)
+name: X-Phage Titan Modular Builder & Docker Auto-Sync
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   # ---------------------------------------------------------
-  # Job 1: Build the artifacts for all platforms
+  # Job 1: Build Binaries for all OS & Architectures
   # ---------------------------------------------------------
   build:
     name: Build for ${{ matrix.target }}
@@ -23,6 +23,11 @@ jobs:
             target: linux
             artifact_name: xphage_linux_x64
             asset_name: xphage_linux_x64
+            
+          - os: ubuntu-latest
+            target: linux-arm64
+            artifact_name: xphage_linux_arm64
+            asset_name: xphage_linux_arm64
             
           - os: windows-latest
             target: windows
@@ -48,104 +53,92 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- Setup Environment ---
       - name: Install LLVM Dependencies
-        if: matrix.os == 'ubuntu-latest'
+        if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
         run: |
           sudo apt-get update
           sudo apt-get install -y llvm clang lld
+          if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
+            sudo apt-get install -y g++-aarch64-linux-gnu
+          fi
 
-      # --- Build Execution ---
-      - name: Make Script Executable
-        run: chmod +x build.sh
-
-      - name: Run Modular Build Script
-        shell: bash
-        env:
-          TARGET: ${{ matrix.target }}
-        run: ./build.sh
-
-      # --- Packaging ---
-      - name: Prepare Release Bundle
-        shell: bash
+      - name: Install MinGW for Windows
+        if: matrix.target == 'windows'
         run: |
-          mkdir -p release_bundle/stdlib
-          mkdir -p release_bundle/samples
-          
-          if [ -f "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" ]; then
-            cp "bin/${{ matrix.target }}/${{ matrix.artifact_name }}" release_bundle/
-          else
-            echo "::error::Binary not found!"
-            exit 1
-          fi
-          
-          cp stdlib/*.xh release_bundle/stdlib/ || true
-          cp samples/* release_bundle/samples/ || true
-          
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            7z a ${{ matrix.asset_name }}.zip ./release_bundle/*
-          else
-            zip -r ${{ matrix.asset_name }}.zip ./release_bundle/*
-          fi
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
 
-      # --- Upload Artifacts (Temporary storage) ---
-      - name: Upload Workflow Artifact
+      - name: Build X-Phage
+        run: |
+          export TARGET=${{ matrix.target }}
+          bash build.sh
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}_zip
-          path: ${{ matrix.asset_name }}.zip
-          retention-days: 1 # ফাইলগুলো শুধু ১ দিন সেভ থাকবে স্টোরেজ বাঁচাতে
+          name: ${{ matrix.asset_name }}
+          path: bin/${{ matrix.target }}/${{ matrix.artifact_name }}
 
   # ---------------------------------------------------------
-  # Job 2: Create a single release and upload all artifacts
+  # Job 2: GitHub Release Creation
   # ---------------------------------------------------------
   release:
-    name: Publish GitHub Release
-    needs: build # বিল্ড জব শেষ হওয়া পর্যন্ত অপেক্ষা করবে
-    runs-on: ubuntu-latest
+    needs: build
     if: startsWith(github.ref, 'refs/tags/')
-    permissions:
-      contents: write
-      
+    runs-on: ubuntu-latest
     steps:
-      - name: Download all workflow artifacts
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: release_assets # সবগুলো জিপ ফাইল এই ফোল্ডারে ডাউনলোড হবে
-          merge-multiple: true
+          path: ./assets
 
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
         with:
-          files: release_assets/*.zip # একবারে সব জিপ ফাইল আপলোড করবে
-          name: 🧬 X-Phage v3.2 [LLVM TITAN]
-          tag_name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          make_latest: true
-          # Feature Rich Release Notes
+          files: |
+            assets/xphage_linux_x64/xphage_linux_x64
+            assets/xphage_linux_arm64/xphage_linux_arm64
+            assets/xphage_windows_x64/xphage_windows_x64
+            assets/xphage_macos_universal/xphage_macos_universal
+            assets/xphage_android_arm64/xphage_android_arm64
+            assets/xphage_ios_arm64/xphage_ios_arm64
           body: |
-            ## 🧬 X-Phage v3.2 [TITAN FUSION] Official Release
-            
-            Welcome to the most powerful version of **X-Phage** yet. Built on the **AeonCoreX Titan Architecture**, this release brings direct LLVM machine code generation and multi-platform neural-native capabilities.
-
-            ### 🚀 New Features in v3.2:
-            - **Titan Fusion UI Engine:** Recursive UI rendering system with support for `VORTEX`, `ORBIT`, and `Z_PLANE` components.
-            - **LLVM Backend Integration:** Direct AOT (Ahead-of-Time) compilation to native binaries with `O3` optimization level.
-            - **Hardware-Level Bypass:** New `bypass` protocol for direct kernel interaction and torrent engine integration.
-            - **Vulkan GPU Pipeline:** Hardware acceleration for heavy matrix processing and UI rendering.
-            - **XPM Cloud Sync:** Automated module management—X-Phage now auto-fetches missing `.xh` libraries from the cloud.
-            - **Quantum Async Logic:** Support for `quantum` processes that handle asynchronous tasks on separate threads.
-
-            ### 📦 Platform Status:
-            - ✅ **Linux:** x64 Native (Clang/LLVM)
-            - ✅ **Windows:** x64 Native (MinGW-w64)
-            - ✅ **macOS:** Universal Binary (x64 + ARM64)
-            - ✅ **Android:** ARM64 Native (NDK 34+)
-            - ✅ **iOS:** ARM64 Native (Sandbox Secure Mode)
-
-            ---
-            **Checksums & Integrity:**
-            *Use SHA256 to verify your downloads for maximum security.*
+            ### 🧬 X-Phage Titan v3.3.1
+            - **Universal Installer:** `curl -sL <your-repo-link> | bash`
+            - **Docker Support:** Available on Docker Hub.
+            - **Architecture:** Native LLVM Code Generation.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------
+  # Job 3: Docker Hub Auto-Publish
+  # ---------------------------------------------------------
+  docker-publish:
+    needs: release # রিলিজ তৈরি হলেই কেবল ডকারে পুশ হবে
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Tag Version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/xphage:latest
+            ${{ secrets.DOCKER_USERNAME }}/xphage:${{ env.VERSION }}
