@@ -39,6 +39,10 @@ struct FusionNode {
     std::string id;
     std::unordered_map<std::string, std::string> props;
     std::vector<std::shared_ptr<FusionNode>> children;
+
+    // --- FIX: Constructor Added for make_shared compatibility ---
+    FusionNode() = default;
+    FusionNode(std::string t) : type(t) {}
 };
 
 // --- Main Runtime Class ---
@@ -47,11 +51,11 @@ public:
     std::unordered_map<std::string, MemoryCell> cell_map;
     std::unordered_map<std::string, MemoryCell> global_registry;
     
-    // UI State
+    // Fusion UI State
     std::shared_ptr<FusionNode> ui_root;
     std::shared_ptr<FusionNode> current_ui_context;
     bool ui_active = false;
-    bool vulkan_ready = false; // NEW
+    bool vulkan_ready = false; 
 
 public:
     // Memory Ops
@@ -70,7 +74,7 @@ public:
     void activate_chronos(std::string ms_str);
     void activate_ether(std::string target, std::string data_ref);
 
-    // Hardware & GPU Accelerators (NEW)
+    // Hardware & GPU Accelerators
     void init_vulkan_pipeline();
     void gpu_compute_matrix(std::string matrix_id);
     void npu_neural_sync(std::string pulse_id);
@@ -83,14 +87,22 @@ public:
     void render_ui_tree();
 };
 
+// Lexer
 class XPhageLexer {
 public:
     std::vector<Token> tokenize(const std::string& source);
 };
 
+// Linker
 class XPhageLinker {
 public:
     void link_library(std::string lib_name, XPhageRuntime& runtime);
+};
+
+// LLVM Compiler Entry Point
+class XPhageLLVMCompiler {
+public:
+    void compile_tokens(const std::vector<Token>& tokens, std::string output_obj);
 };
 
 #endif
