@@ -4,6 +4,8 @@
 #include <string>
 #include <system_error>
 
+#ifdef ENABLE_LLVM
+
 // --- LLVM Core Dependencies ---
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -215,3 +217,14 @@ void compile_to_native(std::string source_file) {
         }
     #endif
 }
+
+#else
+
+// --- STUB IMPLEMENTATION (When LLVM is NOT available) ---
+void compile_to_native(std::string source_file) {
+    std::cout << "\033[1;31m[ERROR] ⛔ Native Compilation (LLVM) is not enabled in this build.\033[0m\n";
+    std::cout << "        This feature requires Desktop Environment (Linux/macOS) with LLVM installed.\n";
+    std::cout << "        Running in Interpreter Mode is recommended.\n";
+}
+
+#endif

@@ -33,14 +33,13 @@ struct MemoryCell {
     bool is_neural = false; 
 };
 
-// Fusion UI Node (Virtual DOM)
+// Fusion UI Node
 struct FusionNode {
     std::string type;
     std::string id;
     std::unordered_map<std::string, std::string> props;
     std::vector<std::shared_ptr<FusionNode>> children;
 
-    // --- FIX: Constructor Added for make_shared compatibility ---
     FusionNode() = default;
     FusionNode(std::string t) : type(t) {}
 };
@@ -51,19 +50,17 @@ public:
     std::unordered_map<std::string, MemoryCell> cell_map;
     std::unordered_map<std::string, MemoryCell> global_registry;
     
-    // Fusion UI State
     std::shared_ptr<FusionNode> ui_root;
     std::shared_ptr<FusionNode> current_ui_context;
     bool ui_active = false;
     bool vulkan_ready = false; 
 
 public:
-    // Memory Ops
     void write(std::string id, std::string val, std::string type, bool is_const);
     void write_global(std::string id, std::string val);
     MemoryCell read(std::string id);
     
-    // Core Ops
+    // High-Level Ops
     void launch_quantum_process(std::string task_name);
     void hardware_bypass(std::string target, std::string params);
     void activate_vortex();
@@ -74,12 +71,12 @@ public:
     void activate_chronos(std::string ms_str);
     void activate_ether(std::string target, std::string data_ref);
 
-    // Hardware & GPU Accelerators
+    // Hardware & GPU
     void init_vulkan_pipeline();
     void gpu_compute_matrix(std::string matrix_id);
     void npu_neural_sync(std::string pulse_id);
 
-    // Ultimate Fusion Engine
+    // Fusion UI
     void init_fusion_engine();
     void begin_ui_component(std::string type, std::string params);
     void fusion_render(std::string element, std::string params);
@@ -87,22 +84,28 @@ public:
     void render_ui_tree();
 };
 
-// Lexer
 class XPhageLexer {
 public:
     std::vector<Token> tokenize(const std::string& source);
 };
 
-// Linker
 class XPhageLinker {
 public:
     void link_library(std::string lib_name, XPhageRuntime& runtime);
 };
 
-// LLVM Compiler Entry Point
+// --- COMPILER ENGINES ---
+
+// 1. LLVM Engine (Desktop Only)
 class XPhageLLVMCompiler {
 public:
     void compile_tokens(const std::vector<Token>& tokens, std::string output_obj);
+};
+
+// 2. Titan Transpiler (Mobile/Universal - Generates C++)
+class XPhageTranspiler {
+public:
+    void transpile_to_cpp(const std::vector<Token>& tokens, std::string output_cpp);
 };
 
 #endif
