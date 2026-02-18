@@ -68,6 +68,10 @@ jobs:
         if: matrix.target == 'windows'
         run: |
           choco install mingw --force
+      
+      - name: Install LLVM (macOS)
+        if: runner.os == 'macOS'
+        run: brew install llvm
           
       # Build Step
       - name: Build X-Phage
@@ -98,13 +102,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            assets/xphage_linux_x64/xphage_linux_x64
-            assets/xphage_linux_arm64/xphage_linux_arm64
-            assets/xphage_windows_x64/xphage.exe
-            assets/xphage_macos_universal/xphage_mac
-            assets/xphage_android_arm64/xphage_android_arm64
-            assets/xphage_ios_arm64/xphage_ios_arm64
+          files: assets/**/*
+            
           body: |
             ### 🧬 X-Phage Titan v3.3.0
             - **Fixed:** Multi-Architecture Build Support (iOS/Android/Windows).

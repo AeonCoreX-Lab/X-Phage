@@ -48,19 +48,16 @@ function compile_smart() {
 
         # Check if LLVM Config exists
         if $LLVM_CONF --version &> /dev/null; then
-            # Capture specific flags
+            # Added --system-libs to fix Linker Errors found in logs
             local L_CFLAGS=$($LLVM_CONF --cxxflags)
-            local L_LDFLAGS=$($LLVM_CONF --ldflags --libs core)
+            local L_LDFLAGS="$($LLVM_CONF --ldflags --libs all --system-libs)"
             local L_INC="-I$($LLVM_CONF --includedir)"
             
-            # Attempt Compilation
             echo -e "${CYAN}      Using LLVM Config: $($LLVM_CONF --version)${NC}"
-            set +e # Temporarily allow failure
-            
-            # Force Enable LLVM Macro
-            $COMPILER $SOURCES $INCLUDES $L_INC -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl 2>/dev/null
+            set +e 
+            $COMPILER $SOURCES $INCLUDES $L_INC -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl
             RES=$?
-            set -e # Re-enable strict mode
+            set -e 
 
             if [[ $RES -eq 0 ]]; then
                 echo -e "${GREEN}✔ $PLATFORM (LLVM Mode) Build Success${NC}"
@@ -69,7 +66,7 @@ function compile_smart() {
                 echo -e "${YELLOW}⚠ LLVM Build Failed (Linker Error). Falling back to Titan Transpiler.${NC}"
             fi
         else
-            echo -e "${YELLOW}⚠ LLVM toolchain not found in PATH. Using Titan Transpiler.${NC}"
+            echo -e "${YELLOW}⚠ LLVM toolchain not found. Using Titan Transpiler.${NC}"
         fi
     fi
 
