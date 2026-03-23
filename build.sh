@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.0 [LLVM DYNAMIC + SHA256 + WIN ARM64]
+# X-Phage Titan Ultimate Build Script v5.1 [LLVM DYNAMIC + SHA256 + WIN ARM64]
 set -e 
 
 GREEN='\033[1;32m'
@@ -41,7 +41,7 @@ function compile_transpiler() {
     local FLAGS=$3
     local COMPILER=$4
     echo -e "${CYAN}   -> Building with Titan Transpiler Engine...${NC}"
-    $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS
+    $COMPILER $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
 
@@ -67,17 +67,22 @@ function compile_smart() {
             fi
         fi
 
-        # Windows: Aggressive LLVM Path Discovery
+        # Windows: Hardcoded Aggressive LLVM Path Discovery
         if [[ "$PLATFORM" == *"Windows"* ]]; then
-            # Inject standard Windows LLVM paths directly to the bash scope
+            # Force the MSYS/Git Bash path for LLVM
             export PATH="/c/Program Files/LLVM/bin:$PATH"
             
-            if command -v llvm-config.exe &> /dev/null; then
+            if [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
+                LLVM_CONF="/c/Program Files/LLVM/bin/llvm-config.exe"
+            elif command -v llvm-config.exe &> /dev/null; then
                 LLVM_CONF="llvm-config.exe"
             elif command -v llvm-config &> /dev/null; then
                 LLVM_CONF="llvm-config"
-            elif [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
-                LLVM_CONF="/c/Program Files/LLVM/bin/llvm-config.exe"
+            fi
+            
+            # Explicitly force Clang++ compiler path if available to avoid GCC collisions
+            if [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
+                COMPILER="/c/Program Files/LLVM/bin/clang++.exe"
             fi
         fi
 
@@ -88,8 +93,6 @@ function compile_smart() {
         fi
 
         local LLVM_VERSION=$("$LLVM_CONF" --version)
-        
-        # Get flags directly from llvm-config without manually stripping -I paths
         local L_CFLAGS=$("$LLVM_CONF" --cxxflags)
         local L_LDFLAGS=$("$LLVM_CONF" --ldflags)
         local L_LIBS=$("$LLVM_CONF" --libs all)
@@ -121,7 +124,7 @@ function compile_smart() {
 }
 
 # ---------------------------------------------------------
-# 🐧 1. LINUX (x64) - [LLVM ENABLED]
+# 🐧 1. LINUX (x64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "linux" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (x64)...${NC}"
@@ -131,7 +134,7 @@ if [[ "$TARGET" == "linux" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🐧 1.5. LINUX (ARM64) - [LLVM ENABLED]
+# 🐧 1.5. LINUX (ARM64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
@@ -150,14 +153,13 @@ if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🪟 2. WINDOWS (x64) - [LLVM ENABLED]
+# 🪟 2. WINDOWS (x64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "windows" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (x64)...${NC}"
     OUTPUT="bin/windows/${ARTIFACT_NAME:-xphage.exe}"
     
-    # Try Clang for LLVM support on Windows runner
-    if command -v clang++ &> /dev/null; then
+    if command -v clang++ &> /dev/null || [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
         compile_smart "Windows x64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
     elif command -v x86_64-w64-mingw32-clang++ &> /dev/null; then
         compile_smart "Windows x64" "$OUTPUT" "$STANDARD_FLAGS -static" "x86_64-w64-mingw32-clang++" "true"
@@ -168,14 +170,13 @@ if [[ "$TARGET" == "windows" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🪟 2.5 WINDOWS (ARM64) - [LLVM ENABLED]
+# 🪟 2.5 WINDOWS (ARM64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (ARM64)...${NC}"
     OUTPUT="bin/windows-arm64/${ARTIFACT_NAME:-xphage_arm64.exe}"
     
-    if command -v clang++ &> /dev/null; then
-        # Use Clang to cross-compile for Windows ARM64
+    if command -v clang++ &> /dev/null || [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
         compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "clang++" "true"
     else
         echo -e "${YELLOW}⚠ Clang not found for Windows ARM64. Skipping.${NC}"
@@ -184,7 +185,7 @@ if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🤖 3. ANDROID (ARM64) - [LLVM ENABLED]
+# 🤖 3. ANDROID (ARM64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "android" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🤖 Building for Android (ARM64)...${NC}"
@@ -199,7 +200,7 @@ if [[ "$TARGET" == "android" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🍎 4. macOS - [LLVM ENABLED]
+# 🍎 4. macOS
 # ---------------------------------------------------------
 if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🍎 Building for macOS...${NC}"
@@ -218,7 +219,7 @@ if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 📱 5. iOS (ARM64) - [TRANSPILER ONLY]
+# 📱 5. iOS (ARM64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "ios" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}📱 Building for iOS (ARM64)...${NC}"
