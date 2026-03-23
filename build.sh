@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v4.2 [LLVM FIXED]
+# X-Phage Titan Ultimate Build Script v4.3 [LLVM FIXED - USE RAW FLAGS]
 # Supports: Linux (x64/ARM64 - LLVM), macOS (LLVM), Android/iOS/Windows (Transpiler)
 set -e 
 
@@ -21,26 +21,6 @@ mkdir -p bin/linux bin/linux-arm64 bin/windows bin/android bin/macos bin/ios
 SOURCES="src/main.cpp src/lexer.cpp src/llvm_compiler.cpp src/transpiler.cpp src/runtime/xpm_core.cpp src/runtime/memory.cpp src/runtime/linker.cpp src/runtime/core_ops.cpp"
 INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
-
-# --- Helper: Try to find LLVM include directory containing llvm/Support/Host.h ---
-function find_llvm_include() {
-    local conf="$1"
-    local version="$2"
-    local candidates=(
-        "$($conf --includedir)"
-        "/usr/include/llvm-${version%%.*}"
-        "/usr/lib/llvm-${version%%.*}/include"
-        "/opt/homebrew/include"
-        "/usr/local/include"
-    )
-    for dir in "${candidates[@]}"; do
-        if [ -f "$dir/llvm/Support/Host.h" ]; then
-            echo "$dir"
-            return 0
-        fi
-    done
-    return 1
-}
 
 # --- Helper: Transpiler mode ---
 function compile_transpiler() {
@@ -66,6 +46,7 @@ function compile_smart() {
         
         local LLVM_CONF="llvm-config"
         
+        # macOS: Use Homebrew LLVM if available
         if [[ "$PLATFORM" == "macOS" ]]; then
             if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
                 LLVM_CONF="/opt/homebrew/opt/llvm/bin/llvm-config"
@@ -74,31 +55,19 @@ function compile_smart() {
             fi
         fi
 
+        # Check if LLVM config exists
         if ! $LLVM_CONF --version &> /dev/null; then
             echo -e "${YELLOW}⚠ LLVM toolchain not found. Using Titan Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
         fi
 
+        # Get flags directly from llvm-config
         local LLVM_VERSION=$($LLVM_CONF --version)
-        local INC_DIR=$(find_llvm_include "$LLVM_CONF" "$LLVM_VERSION")
-        
-        if [ -z "$INC_DIR" ]; then
-            echo -e "${YELLOW}⚠ Could not find llvm/Support/Host.h. Falling back to Transpiler.${NC}"
-            compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
-            return
-        fi
-
-        # Build flags
-        local L_CFLAGS="-I$INC_DIR"
-        # Add other flags from llvm-config (strip out any -I that might conflict)
-        local ADD_CFLAGS=$($LLVM_CONF --cxxflags | sed 's/-I[^ ]*//g')
-        L_CFLAGS="$L_CFLAGS $ADD_CFLAGS"
-        
+        local L_CFLAGS="$($LLVM_CONF --cxxflags)"
         local L_LDFLAGS="$($LLVM_CONF --ldflags) $($LLVM_CONF --libs all) $($LLVM_CONF --system-libs)"
         
-        echo -e "${CYAN}      Using LLVM Config: $LLVM_VERSION${NC}"
-        echo -e "${CYAN}      Include dir: $INC_DIR${NC}"
+        echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
         echo -e "${CYAN}      Compiler command: $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl${NC}"
         
         set +e 
