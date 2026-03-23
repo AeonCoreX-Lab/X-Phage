@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v4.4 [LLVM PATH FIX]
+# X-Phage Titan Ultimate Build Script v4.5 [LLVM DYNAMIC PATH FIX]
 set -e 
 
 GREEN='\033[1;32m'
@@ -32,25 +32,30 @@ function compile_transpiler() {
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
 
-# --- Helper: Find correct LLVM include path ---
+# --- Helper: Find correct LLVM include path (Fix for LLVM 17+) ---
 function get_llvm_include_path() {
     local conf="$1"
     local version="$2"
+    
     # Try the path from llvm-config first
     local inc=$($conf --includedir)
-    if [ -f "$inc/llvm/Support/Host.h" ]; then
+    if [ -f "$inc/llvm/Support/Host.h" ] || [ -f "$inc/llvm/TargetParser/Host.h" ]; then
         echo "$inc"
         return 0
     fi
-    # Otherwise search common locations
+    
+    # Otherwise search common locations (including Homebrew and Linux standard paths)
     local candidates=(
         "/usr/include/llvm-${version%%.*}"
         "/usr/lib/llvm-${version%%.*}/include"
-        "/opt/homebrew/include"
+        "/opt/homebrew/opt/llvm/include"
+        "/usr/local/opt/llvm/include"
         "/usr/local/include"
+        "/usr/include/llvm"
     )
+    
     for dir in "${candidates[@]}"; do
-        if [ -f "$dir/llvm/Support/Host.h" ]; then
+        if [ -f "$dir/llvm/Support/Host.h" ] || [ -f "$dir/llvm/TargetParser/Host.h" ]; then
             echo "$dir"
             return 0
         fi
@@ -90,7 +95,7 @@ function compile_smart() {
         local INC_DIR=$(get_llvm_include_path "$LLVM_CONF" "$LLVM_VERSION")
         
         if [ -z "$INC_DIR" ]; then
-            echo -e "${YELLOW}⚠ Could not find llvm/Support/Host.h. Falling back to Transpiler.${NC}"
+            echo -e "${YELLOW}⚠ Could not find Host.h (checked both Support and TargetParser). Falling back to Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
         fi
