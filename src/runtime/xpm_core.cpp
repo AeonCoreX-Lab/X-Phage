@@ -31,7 +31,9 @@ bool sync_module(std::string module_name) {
             std::string dir_cmd = "mkdir -p modules/" + module_name;
         #endif
         
-        std::system(dir_cmd.c_str());
+        // Fix for Android cross-compiler warning: Catching the result and casting to void
+        int dir_res = std::system(dir_cmd.c_str());
+        (void)dir_res;
 
         // Fetch header from AeonCoreX-Lab using native curl
         std::string target_file = "modules/" + module_name + "/" + module_name + ".xh";
