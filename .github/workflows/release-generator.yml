@@ -80,73 +80,21 @@ jobs:
           fi
 
       # ------------------------------------------------------------------
-      # Windows: install LLVM + MinGW via Chocolatey.
-      #
-      # ROOT CAUSE (v5.5 fix):
-      #   Chocolatey installs llvm-config.exe but it requires MSVC runtime
-      #   to execute. GitHub-hosted Windows runners do NOT have Visual Studio
-      #   unless explicitly installed. Result: llvm-config.exe exits non-zero
-      #   silently → build.sh sees empty LLVM_CONF → Transpiler fallback.
-      #
-      # Fix strategy:
-      #   1. Install LLVM + MinGW as before (LLVM headers/libs are still usable).
-      #   2. Also install LLVM static libs via winlibs or direct choco package.
-      #   3. build.sh v5.5 detects the broken llvm-config and uses a new
-      #      build_windows_llvm_manual() function that hard-codes the known
-      #      Chocolatey install paths and links directly against LLVM .a libs
-      #      using MinGW's ld.
+      # Windows: install LLVM + MinGW via MSYS2
+      # ROOT CAUSE FIX: Chocolatey does not provide LLVM dev headers (llvm-config.h).
+      # Using MSYS2 pacman guarantees we get the headers, static libs, and 
+      # a perfectly working llvm-config out of the box.
       # ------------------------------------------------------------------
-      - name: Install LLVM & MinGW (Windows)
+      - name: Install LLVM & MinGW (Windows MSYS2)
         if: startsWith(matrix.target, 'windows')
-        shell: pwsh
+        shell: bash
         run: |
-          choco install llvm mingw --force --no-progress -y
-
-          $llvmBin = "C:\Program Files\LLVM\bin"
-          "$llvmBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-          # Add MinGW to PATH so ld.exe / libstdc++ are available for LLVM manual link
-          $mingwBin = "C:\ProgramData\mingw64\mingw64\bin"
-          if (Test-Path $mingwBin) {
-            "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-            Write-Host "✔ MinGW bin added to PATH: $mingwBin"
-          }
-
-          # Verify clang++ (must exist)
-          if (Test-Path "$llvmBin\clang++.exe") {
-            Write-Host "✔ clang++.exe found: $llvmBin\clang++.exe"
-          } else {
-            Write-Host "✘ clang++.exe NOT found — build will fail"
-            exit 1
-          }
-
-          # Test llvm-config executability (expected to fail without MSVC)
-          if (Test-Path "$llvmBin\llvm-config.exe") {
-            Write-Host "llvm-config.exe binary present — testing execution..."
-            try {
-              $ver = & "$llvmBin\llvm-config.exe" --version 2>&1
-              Write-Host "✔ llvm-config.exe executable, version: $ver"
-            } catch {
-              Write-Host "⚠ llvm-config.exe not executable (MSVC runtime missing). build.sh will use manual LLVM flags."
-            }
-          } else {
-            Write-Host "⚠ llvm-config.exe not installed. build.sh will use manual LLVM flags."
-          }
-
-          # Print LLVM include path so we can confirm headers exist
-          $llvmInclude = "C:\Program Files\LLVM\include"
-          if (Test-Path "$llvmInclude\llvm\Config\llvm-config.h") {
-            Write-Host "✔ LLVM headers found at $llvmInclude"
-            $versionLine = Select-String -Path "$llvmInclude\llvm\Config\llvm-config.h" -Pattern 'LLVM_VERSION_STRING' | Select-Object -First 1
-            Write-Host "   Version header: $versionLine"
-          } else {
-            Write-Host "⚠ LLVM headers not found — LLVM manual build will fall back to Transpiler"
-          }
+          echo "Installing MSYS2 MinGW LLVM & Clang (provides dev headers & llvm-config)..."
+          C:/msys64/usr/bin/pacman.exe -S --noconfirm mingw-w64-x86_64-llvm mingw-w64-x86_64-clang mingw-w64-x86_64-gcc
+          echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
 
       # ------------------------------------------------------------------
       # Windows ARM64: ARM64 MSVC cross-compile runtime libs.
-      # NOTE: This is still needed for the --target=aarch64-pc-windows-msvc
-      # cross-compilation target even when using clang++ from LLVM.
       # ------------------------------------------------------------------
       - name: Install ARM64 cross-compile support (Windows ARM64)
         if: matrix.target == 'windows-arm64'
@@ -169,8 +117,7 @@ jobs:
           echo "/usr/local/opt/llvm/bin"    >> $GITHUB_PATH
 
       # ------------------------------------------------------------------
-      # Build step — build.sh v5.5 handles all path detection internally.
-      # On Windows: detects broken llvm-config and uses manual LLVM flags.
+      # Build step
       # ------------------------------------------------------------------
       - name: Build X-Phage
         shell: bash
@@ -180,7 +127,7 @@ jobs:
         run: bash build.sh
 
       # ------------------------------------------------------------------
-      # Upload full bin/<target>/ folder (binary + .sha256 sidecar)
+      # Upload full bin/<target>/ folder
       # ------------------------------------------------------------------
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -212,7 +159,7 @@ jobs:
             assets/**/*
           body: |
             ### 🧬 X-Phage Titan Omni-Platform Release
-            - **New:** Windows LLVM Native Build now works without MSVC (v5.5 fix).
+            - **Fixed:** Windows LLVM Native Build Missing Headers (`llvm-config.h`) fixed using MSYS2.
             - **New:** Added Windows ARM64 Architecture Support.
             - **Security:** SHA256 Checksums automatically generated and uploaded for all binaries.
             - **Architecture:** Native LLVM Code Generation enabled for Linux, macOS, Windows, and Android.

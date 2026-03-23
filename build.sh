@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.5 [WINDOWS LLVM FIX]
+# X-Phage Titan Ultimate Build Script v5.6 [WINDOWS LLVM HEADERS FIX]
 set -e
 
 GREEN='\033[1;32m'
@@ -22,32 +22,20 @@ INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 
 # ---------------------------------------------------------
-# ROOT FIX v5.5: Windows PATH — use 8.3 short paths (no spaces)
-#
-# Problem 1: Git Bash converts "C:\Program Files\LLVM\bin" to
-# "/c/Program Files/LLVM/bin". The space in "Program Files" makes
-# `command -v` skip that directory entirely when searching PATH.
-#
-# Problem 2: llvm-config.exe installed by Chocolatey requires MSVC
-# runtime. Without Visual Studio, it crashes silently. So we CANNOT
-# rely on llvm-config on GitHub-hosted Windows runners.
-#
-# Fix: On Windows, bypass llvm-config entirely. Use clang++ directly
-# with MinGW runtime libraries. Pass LLVM include/lib paths manually
-# using well-known Chocolatey install locations.
+# ROOT FIX v5.6: Windows PATH mapped to MSYS2
+# MSYS2 provides the correct llvm-dev headers and libraries.
 # ---------------------------------------------------------
 IS_WINDOWS=false
 if [[ "$RUNNER_OS" == "Windows" || "$OS" == "Windows_NT" ]]; then
     IS_WINDOWS=true
-    export PATH="/c/PROGRA~1/LLVM/bin:/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin:/c/ProgramData/mingw64/mingw64/bin:$PATH"
-    echo -e "${CYAN}   [WIN] LLVM + MinGW bin paths added to PATH (short path)${NC}"
+    export PATH="/c/msys64/mingw64/bin:$PATH"
+    echo -e "${CYAN}   [WIN] MSYS2 MinGW bin path added to PATH${NC}"
 
     if command -v llvm-config &>/dev/null; then
-        # Test if llvm-config actually runs (needs MSVC — usually fails)
         if llvm-config --version &>/dev/null 2>&1; then
             echo -e "${CYAN}   [WIN] llvm-config found and functional: $(command -v llvm-config)${NC}"
         else
-            echo -e "${YELLOW}   [WIN] llvm-config found but NOT executable (MSVC missing). Will use manual flags.${NC}"
+            echo -e "${YELLOW}   [WIN] llvm-config found but NOT executable. Will use manual flags.${NC}"
         fi
     else
         echo -e "${YELLOW}   [WIN] llvm-config not in PATH. Will use manual LLVM flags.${NC}"
@@ -63,21 +51,16 @@ function find_llvm_config() {
     local PLATFORM=$1
 
     if [[ "$PLATFORM" == *"Windows"* ]]; then
-        # On Windows: only trust llvm-config if it actually executes successfully.
-        # Chocolatey's llvm-config.exe needs MSVC and crashes without it.
         if command -v llvm-config &>/dev/null; then
             if llvm-config --version &>/dev/null 2>&1; then
                 echo "llvm-config"; return
             fi
-            # llvm-config exists but can't run — check the .exe directly
-            if [ -f "/c/PROGRA~1/LLVM/bin/llvm-config.exe" ]; then
-                if "/c/PROGRA~1/LLVM/bin/llvm-config.exe" --version &>/dev/null 2>&1; then
-                    echo "/c/PROGRA~1/LLVM/bin/llvm-config.exe"; return
-                fi
+        fi
+        if [ -f "/c/msys64/mingw64/bin/llvm-config.exe" ]; then
+            if "/c/msys64/mingw64/bin/llvm-config.exe" --version &>/dev/null 2>&1; then
+                echo "/c/msys64/mingw64/bin/llvm-config.exe"; return
             fi
         fi
-        # llvm-config is not usable on this runner — return empty
-        # build_windows_llvm_manual() will handle the manual path approach
         echo ""; return
     elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
         if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
@@ -102,8 +85,8 @@ function find_clangpp() {
         if command -v clang++ &>/dev/null; then
             echo "clang++"; return
         fi
-        if [ -f "/c/PROGRA~1/LLVM/bin/clang++.exe" ]; then
-            echo "/c/PROGRA~1/LLVM/bin/clang++.exe"; return
+        if [ -f "/c/msys64/mingw64/bin/clang++.exe" ]; then
+            echo "/c/msys64/mingw64/bin/clang++.exe"; return
         fi
     elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
         if [ -f "/opt/homebrew/opt/llvm/bin/clang++" ]; then
@@ -147,17 +130,8 @@ function compile_transpiler() {
 }
 
 # ---------------------------------------------------------
-# NEW v5.5: Windows LLVM Manual Build
-#
-# When llvm-config.exe is broken (no MSVC), we build with LLVM
-# headers + MinGW libs directly. Chocolatey installs LLVM to a
-# predictable location so we hard-code the paths using 8.3 format.
-#
-# Steps:
-#  1. Find LLVM include dir from Chocolatey install
-#  2. Find LLVM lib dir
-#  3. Detect LLVM version from llvm/Config/llvm-config.h
-#  4. Compile with -DENABLE_LLVM and manual -I / -L / -l flags
+# NEW v5.6: Windows LLVM Manual Build (MSYS2 Paths)
+# Fallback just in case llvm-config fails.
 # ---------------------------------------------------------
 function build_windows_llvm_manual() {
     local PLATFORM=$1
@@ -165,24 +139,11 @@ function build_windows_llvm_manual() {
     local FLAGS=$3
     local COMPILER=$4
 
-    # Well-known Chocolatey LLVM install paths (8.3 short form, no spaces)
-    local LLVM_INCLUDE_SHORT="/c/PROGRA~1/LLVM/include"
-    local LLVM_LIB_SHORT="/c/PROGRA~1/LLVM/lib"
-    local LLVM_INCLUDE_LONG="/c/Program Files/LLVM/include"
-    local LLVM_LIB_LONG="/c/Program Files/LLVM/lib"
+    local LLVM_INCLUDE="/c/msys64/mingw64/include"
+    local LLVM_LIB="/c/msys64/mingw64/lib"
 
-    local LLVM_INCLUDE=""
-    local LLVM_LIB=""
-
-    # Prefer short path; fall back to quoted long path
-    if [ -d "$LLVM_INCLUDE_SHORT" ]; then
-        LLVM_INCLUDE="$LLVM_INCLUDE_SHORT"
-        LLVM_LIB="$LLVM_LIB_SHORT"
-    elif [ -d "$LLVM_INCLUDE_LONG" ]; then
-        LLVM_INCLUDE="$LLVM_INCLUDE_LONG"
-        LLVM_LIB="$LLVM_LIB_LONG"
-    else
-        echo -e "${YELLOW}   [WIN] LLVM include dir not found at expected paths. Falling back to Transpiler.${NC}"
+    if [ ! -d "$LLVM_INCLUDE" ]; then
+        echo -e "${YELLOW}   [WIN] LLVM include dir not found at $LLVM_INCLUDE. Falling back to Transpiler.${NC}"
         compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
         return
     fi
@@ -190,7 +151,6 @@ function build_windows_llvm_manual() {
     echo -e "${CYAN}   [WIN] LLVM include: $LLVM_INCLUDE${NC}"
     echo -e "${CYAN}   [WIN] LLVM lib:     $LLVM_LIB${NC}"
 
-    # Detect LLVM version from the installed header
     local LLVM_VER_HEADER="$LLVM_INCLUDE/llvm/Config/llvm-config.h"
     local LLVM_VERSION="unknown"
     if [ -f "$LLVM_VER_HEADER" ]; then
@@ -198,53 +158,21 @@ function build_windows_llvm_manual() {
     fi
     echo -e "${CYAN}   [WIN] Detected LLVM version: $LLVM_VERSION${NC}"
 
-    # Core LLVM libs needed for IR + target emission (static, MinGW-compatible)
-    # Order matters for static linking — dependencies must come after dependents.
     local LLVM_CORE_LIBS=(
-        -lLLVMX86CodeGen
-        -lLLVMX86AsmParser
-        -lLLVMX86Desc
-        -lLLVMX86Disassembler
-        -lLLVMX86Info
-        -lLLVMAsmPrinter
-        -lLLVMDebugInfoCodeView
-        -lLLVMDebugInfoDWARF
-        -lLLVMCFGuard
-        -lLLVMGlobalISel
-        -lLLVMSelectionDAG
-        -lLLVMCodeGen
-        -lLLVMObjCARCOpts
-        -lLLVMipo
-        -lLLVMVectorize
-        -lLLVMLinker
-        -lLLVMInstrumentation
-        -lLLVMScalarOpts
-        -lLLVMAggressiveInstCombine
-        -lLLVMInstCombine
-        -lLLVMTarget
-        -lLLVMTransformUtils
-        -lLLVMAnalysis
-        -lLLVMProfileData
-        -lLLVMObject
-        -lLLVMMCParser
-        -lLLVMMCAsmParser
-        -lLLVMMC
-        -lLLVMDebugInfoMSF
-        -lLLVMBitReader
-        -lLLVMAsmParser
-        -lLLVMCore
-        -lLLVMRemarks
-        -lLLVMBitstreamReader
-        -lLLVMBinaryFormat
-        -lLLVMTargetParser
-        -lLLVMSupport
-        -lLLVMDemangle
+        -lLLVMX86CodeGen -lLLVMX86AsmParser -lLLVMX86Desc -lLLVMX86Disassembler -lLLVMX86Info
+        -lLLVMAsmPrinter -lLLVMDebugInfoCodeView -lLLVMDebugInfoDWARF -lLLVMCFGuard
+        -lLLVMGlobalISel -lLLVMSelectionDAG -lLLVMCodeGen -lLLVMObjCARCOpts -lLLVMipo
+        -lLLVMVectorize -lLLVMLinker -lLLVMInstrumentation -lLLVMScalarOpts
+        -lLLVMAggressiveInstCombine -lLLVMInstCombine -lLLVMTarget -lLLVMTransformUtils
+        -lLLVMAnalysis -lLLVMProfileData -lLLVMObject -lLLVMMCParser -lLLVMMCAsmParser
+        -lLLVMMC -lLLVMDebugInfoMSF -lLLVMBitReader -lLLVMAsmParser -lLLVMCore
+        -lLLVMRemarks -lLLVMBitstreamReader -lLLVMBinaryFormat -lLLVMTargetParser
+        -lLLVMSupport -lLLVMDemangle
     )
 
-    # Windows system libs required by LLVM
     local WIN_SYSLIBS=(-lpsapi -lshell32 -lole32 -luuid -ladvapi32)
 
-    echo -e "${CYAN}   -> Attempting LLVM Manual Build (Windows, MinGW)...${NC}"
+    echo -e "${CYAN}   -> Attempting LLVM Manual Build (Windows, MinGW MSYS2)...${NC}"
 
     set +e
     "$COMPILER" \
@@ -284,7 +212,6 @@ function compile_smart() {
         local LLVM_CONF
         LLVM_CONF=$(find_llvm_config "$PLATFORM")
 
-        # Re-detect compiler for Windows/macOS
         if [[ "$PLATFORM" == *"Windows"* || "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
             local DETECTED_CXX
             DETECTED_CXX=$(find_clangpp "$PLATFORM")
@@ -293,7 +220,6 @@ function compile_smart() {
             fi
         fi
 
-        # --- Windows special path: llvm-config broken → use manual build ---
         if [[ "$PLATFORM" == *"Windows"* && -z "$LLVM_CONF" ]]; then
             echo -e "${YELLOW}   [WIN] llvm-config not usable. Using manual LLVM flags with MinGW.${NC}"
             build_windows_llvm_manual "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
@@ -315,20 +241,17 @@ function compile_smart() {
         L_LDFLAGS=$("$LLVM_CONF" --ldflags 2>/dev/null || echo "")
         L_LIBS=$("$LLVM_CONF" --libs all 2>/dev/null || echo "")
 
-        # --system-libs errors out on Windows — skip it
         if [[ "$PLATFORM" == *"Windows"* ]]; then
             L_SYSLIBS=""
         else
             L_SYSLIBS=$("$LLVM_CONF" --system-libs 2>/dev/null || echo "")
         fi
 
-        # -ldl not available on Windows
         local EXTRA_LIBS="-ldl"
         if [[ "$PLATFORM" == *"Windows"* ]]; then
             EXTRA_LIBS=""
         fi
 
-        # Use bash array — handles any remaining spaces in compiler path
         local CMD=("$COMPILER")
         # shellcheck disable=SC2206
         CMD+=($SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM)
