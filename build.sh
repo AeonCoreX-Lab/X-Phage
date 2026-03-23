@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v4.0 [FIXED]
+# X-Phage Titan Ultimate Build Script v4.1 [FIXED]
 # Supports: Linux (x64/ARM64 - LLVM), macOS (LLVM), Android/iOS/Windows (Transpiler)
 set -e 
 
@@ -11,8 +11,9 @@ CYAN='\033[1;36m'
 NC='\033[0m'
 
 echo -e "${PURPLE}🧬 AeonCoreX: Initiating X-Phage Build for Target: ${TARGET:-ALL}...${NC}"
+echo -e "${PURPLE}   Artifact name: ${ARTIFACT_NAME:-not set}${NC}"
 
-# Clean
+# Clean and create directories
 rm -rf bin
 mkdir -p bin/linux bin/linux-arm64 bin/windows bin/android bin/macos bin/ios
 
@@ -34,7 +35,6 @@ function compile_smart() {
     if [[ "$TRY_LLVM" == "true" ]]; then
         echo -e "${CYAN}   -> Attempting LLVM Native Core Build...${NC}"
         
-        # specific header/lib search for LLVM
         local LLVM_CONF="llvm-config"
         
         # macOS Homebrew Path Fix
@@ -48,14 +48,15 @@ function compile_smart() {
 
         # Check if LLVM Config exists
         if $LLVM_CONF --version &> /dev/null; then
-            # Added --system-libs to fix Linker Errors found in logs
             local L_CFLAGS=$($LLVM_CONF --cxxflags)
             local L_LDFLAGS="$($LLVM_CONF --ldflags --libs all --system-libs)"
-            local L_INC="-I$($LLVM_CONF --includedir)"
+            # Do not add extra -I here; --cxxflags already includes include paths
             
             echo -e "${CYAN}      Using LLVM Config: $($LLVM_CONF --version)${NC}"
+            echo -e "${CYAN}      Compiler command: $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl${NC}"
+            
             set +e 
-            $COMPILER $SOURCES $INCLUDES $L_INC -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl
+            $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl
             RES=$?
             set -e 
 
@@ -63,7 +64,7 @@ function compile_smart() {
                 echo -e "${GREEN}✔ $PLATFORM (LLVM Mode) Build Success${NC}"
                 return 0
             else
-                echo -e "${YELLOW}⚠ LLVM Build Failed (Linker Error). Falling back to Titan Transpiler.${NC}"
+                echo -e "${YELLOW}⚠ LLVM Build Failed. Falling back to Titan Transpiler.${NC}"
             fi
         else
             echo -e "${YELLOW}⚠ LLVM toolchain not found. Using Titan Transpiler.${NC}"
@@ -81,7 +82,8 @@ function compile_smart() {
 # ---------------------------------------------------------
 if [[ "$TARGET" == "linux" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (x64)...${NC}"
-    compile_smart "Linux x64" "bin/linux/xphage" "$STANDARD_FLAGS" "clang++" "true"
+    OUTPUT="bin/linux/${ARTIFACT_NAME:-xphage_linux_x64}"
+    compile_smart "Linux x64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
 fi
 
 # ---------------------------------------------------------
@@ -89,14 +91,15 @@ fi
 # ---------------------------------------------------------
 if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
+    OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
     
     # Priority: clang++ (Better for LLVM) -> aarch64-g++ -> native g++
     if command -v clang++ &> /dev/null; then
-        compile_smart "Linux ARM64" "bin/linux-arm64/xphage_arm64" "$STANDARD_FLAGS" "clang++" "true"
+        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
     elif command -v aarch64-linux-gnu-g++ &> /dev/null; then
-        compile_smart "Linux ARM64" "bin/linux-arm64/xphage_arm64" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "true"
+        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "true"
     elif [[ $(uname -m) == "aarch64" ]]; then
-        compile_smart "Linux ARM64 (Native)" "bin/linux-arm64/xphage_arm64" "$STANDARD_FLAGS" "g++" "true"
+        compile_smart "Linux ARM64 (Native)" "$OUTPUT" "$STANDARD_FLAGS" "g++" "true"
     else
         echo -e "${YELLOW}⚠ ARM64 compiler not found. Skipping.${NC}"
     fi
@@ -107,8 +110,9 @@ fi
 # ---------------------------------------------------------
 if [[ "$TARGET" == "windows" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (x64)...${NC}"
+    OUTPUT="bin/windows/${ARTIFACT_NAME:-xphage.exe}"
     if command -v x86_64-w64-mingw32-g++ &> /dev/null; then
-        compile_smart "Windows" "bin/windows/xphage.exe" "$STANDARD_FLAGS -static-libgcc -static-libstdc++" "x86_64-w64-mingw32-g++" "false"
+        compile_smart "Windows" "$OUTPUT" "$STANDARD_FLAGS -static-libgcc -static-libstdc++" "x86_64-w64-mingw32-g++" "false"
     fi
 fi
 
@@ -117,9 +121,9 @@ fi
 # ---------------------------------------------------------
 if [[ "$TARGET" == "android" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🤖 Building for Android (ARM64)...${NC}"
+    OUTPUT="bin/android/${ARTIFACT_NAME:-xphage_android_arm64}"
     if command -v aarch64-linux-gnu-g++ &> /dev/null; then
-        # Android strictly uses Transpiler (LLVM disabled via "false")
-        compile_smart "Android" "bin/android/xphage_android" "$STANDARD_FLAGS -pie -fPIE -D__ANDROID__" "aarch64-linux-gnu-g++" "false"
+        compile_smart "Android" "$OUTPUT" "$STANDARD_FLAGS -pie -fPIE -D__ANDROID__" "aarch64-linux-gnu-g++" "false"
     fi
 fi
 
@@ -128,6 +132,7 @@ fi
 # ---------------------------------------------------------
 if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🍎 Building for macOS...${NC}"
+    OUTPUT="bin/macos/${ARTIFACT_NAME:-xphage_mac}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # Detect Homebrew LLVM Compiler
         COMPILER="clang++"
@@ -140,7 +145,7 @@ if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
         # Use native architecture (avoid fat binary linking issues)
         ARCH_FLAG="-arch $(uname -m)"
         
-        compile_smart "macOS" "bin/macos/xphage_mac" "$STANDARD_FLAGS $ARCH_FLAG" "$COMPILER" "true"
+        compile_smart "macOS" "$OUTPUT" "$STANDARD_FLAGS $ARCH_FLAG" "$COMPILER" "true"
     fi
 fi
 
@@ -149,9 +154,9 @@ fi
 # ---------------------------------------------------------
 if [[ "$TARGET" == "ios" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}📱 Building for iOS (ARM64)...${NC}"
+    OUTPUT="bin/ios/${ARTIFACT_NAME:-xphage_ios_arm64}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
         SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-        # iOS strictly uses Transpiler (LLVM disabled via "false")
-        compile_smart "iOS" "bin/ios/xphage_ios" "-arch arm64 -isysroot $SDK_PATH -miphoneos-version-min=14.0 $STANDARD_FLAGS" "clang++" "false"
+        compile_smart "iOS" "$OUTPUT" "-arch arm64 -isysroot $SDK_PATH -miphoneos-version-min=14.0 $STANDARD_FLAGS" "clang++" "false"
     fi
 fi
