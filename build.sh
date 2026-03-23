@@ -1,6 +1,6 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.1 [LLVM DYNAMIC + SHA256 + WIN ARM64]
-set -e 
+# X-Phage Titan Ultimate Build Script v5.2 [LLVM DYNAMIC + SHA256 + WIN ARM64]
+set -e
 
 GREEN='\033[1;32m'
 PURPLE='\033[1;35m'
@@ -21,16 +21,106 @@ SOURCES="src/main.cpp src/lexer.cpp src/llvm_compiler.cpp src/transpiler.cpp src
 INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 
+# --- FIX: Detect and normalize LLVM/Clang paths at script startup ---
+# This resolves the issue where choco installs LLVM but the path is not
+# available in the same step that set GITHUB_PATH. We search explicitly.
+function find_llvm_config() {
+    local PLATFORM=$1
+
+    # Windows: search known install paths from choco/scoop/winget
+    if [[ "$PLATFORM" == *"Windows"* ]]; then
+        local WIN_PATHS=(
+            "/c/Program Files/LLVM/bin/llvm-config.exe"
+            "/c/Program Files/LLVM/bin/llvm-config"
+            "/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin/llvm-config.exe"
+        )
+        for p in "${WIN_PATHS[@]}"; do
+            if [ -f "$p" ]; then
+                echo "$p"
+                return
+            fi
+        done
+        # Try adding choco LLVM to PATH and retry
+        export PATH="/c/Program Files/LLVM/bin:$PATH"
+        if command -v llvm-config.exe &>/dev/null; then
+            echo "llvm-config.exe"
+            return
+        fi
+        if command -v llvm-config &>/dev/null; then
+            echo "llvm-config"
+            return
+        fi
+
+    # macOS: search Homebrew paths
+    elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
+        if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
+            echo "/opt/homebrew/opt/llvm/bin/llvm-config"
+            return
+        elif [ -f "/usr/local/opt/llvm/bin/llvm-config" ]; then
+            echo "/usr/local/opt/llvm/bin/llvm-config"
+            return
+        fi
+    fi
+
+    # Generic fallback: try whatever is on PATH
+    if command -v llvm-config &>/dev/null; then
+        echo "llvm-config"
+        return
+    fi
+
+    echo ""
+}
+
+# --- FIX: Detect clang++ for a given platform ---
+function find_clangpp() {
+    local PLATFORM=$1
+
+    if [[ "$PLATFORM" == *"Windows"* ]]; then
+        local WIN_PATHS=(
+            "/c/Program Files/LLVM/bin/clang++.exe"
+            "/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin/clang++.exe"
+        )
+        for p in "${WIN_PATHS[@]}"; do
+            if [ -f "$p" ]; then
+                echo "$p"
+                return
+            fi
+        done
+        export PATH="/c/Program Files/LLVM/bin:$PATH"
+        if command -v clang++.exe &>/dev/null; then
+            echo "clang++.exe"
+            return
+        fi
+    elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
+        if [ -f "/opt/homebrew/opt/llvm/bin/clang++" ]; then
+            echo "/opt/homebrew/opt/llvm/bin/clang++"
+            return
+        elif [ -f "/usr/local/opt/llvm/bin/clang++" ]; then
+            echo "/usr/local/opt/llvm/bin/clang++"
+            return
+        fi
+    fi
+
+    if command -v clang++ &>/dev/null; then
+        echo "clang++"
+        return
+    fi
+
+    echo ""
+}
+
 # --- Helper: Generate SHA256 Checksum ---
 function generate_sha256() {
     local TARGET_FILE=$1
     if [ -f "$TARGET_FILE" ]; then
-        if command -v sha256sum &> /dev/null; then
+        if command -v sha256sum &>/dev/null; then
             sha256sum "$TARGET_FILE" | awk '{print $1}' > "${TARGET_FILE}.sha256"
-        elif command -v shasum &> /dev/null; then
+        elif command -v shasum &>/dev/null; then
             shasum -a 256 "$TARGET_FILE" | awk '{print $1}' > "${TARGET_FILE}.sha256"
         fi
         echo -e "${GREEN}🔒 SHA256 generated: ${TARGET_FILE}.sha256${NC}"
+    else
+        echo -e "${YELLOW}⚠ SHA256 skipped: binary not found at $TARGET_FILE${NC}"
     fi
 }
 
@@ -41,7 +131,6 @@ function compile_transpiler() {
     local FLAGS=$3
     local COMPILER=$4
     echo -e "${CYAN}   -> Building with Titan Transpiler Engine...${NC}"
-    # FIXED: Added double quotes around $COMPILER
     "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
@@ -56,74 +145,57 @@ function compile_smart() {
 
     if [[ "$TRY_LLVM" == "true" ]]; then
         echo -e "${CYAN}   -> Attempting LLVM Native Core Build...${NC}"
-        
-        local LLVM_CONF="llvm-config"
-        
-        # macOS: Use Homebrew LLVM if available
-        if [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
-            if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
-                LLVM_CONF="/opt/homebrew/opt/llvm/bin/llvm-config"
-            elif [ -f "/usr/local/opt/llvm/bin/llvm-config" ]; then
-                LLVM_CONF="/usr/local/opt/llvm/bin/llvm-config"
+
+        local LLVM_CONF
+        LLVM_CONF=$(find_llvm_config "$PLATFORM")
+
+        # Also re-detect compiler using our finder for Windows/macOS
+        if [[ "$PLATFORM" == *"Windows"* || "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
+            local DETECTED_CXX
+            DETECTED_CXX=$(find_clangpp "$PLATFORM")
+            if [ -n "$DETECTED_CXX" ]; then
+                COMPILER="$DETECTED_CXX"
             fi
         fi
 
-        # Windows: Hardcoded Aggressive LLVM Path Discovery
-        if [[ "$PLATFORM" == *"Windows"* ]]; then
-            # Force the MSYS/Git Bash path for LLVM
-            export PATH="/c/Program Files/LLVM/bin:$PATH"
-            
-            if [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
-                LLVM_CONF="/c/Program Files/LLVM/bin/llvm-config.exe"
-            elif command -v llvm-config.exe &> /dev/null; then
-                LLVM_CONF="llvm-config.exe"
-            elif command -v llvm-config &> /dev/null; then
-                LLVM_CONF="llvm-config"
-            fi
-            
-            # Explicitly force Clang++ compiler path if available to avoid GCC collisions
-            if [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
-                COMPILER="/c/Program Files/LLVM/bin/clang++.exe"
-            fi
-        fi
-
-        # FIXED: Added double quotes around $LLVM_CONF
-        if ! command -v "$LLVM_CONF" &> /dev/null && [ ! -f "$LLVM_CONF" ]; then
-            echo -e "${YELLOW}⚠ LLVM toolchain ($LLVM_CONF) not found. Using Titan Transpiler.${NC}"
+        if [ -z "$LLVM_CONF" ]; then
+            echo -e "${YELLOW}⚠ LLVM toolchain not found. Using Titan Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
         fi
 
-        # FIXED: Added double quotes around $LLVM_CONF
-        local LLVM_VERSION=$("$LLVM_CONF" --version)
-        local L_CFLAGS=$("$LLVM_CONF" --cxxflags)
-        local L_LDFLAGS=$("$LLVM_CONF" --ldflags)
-        local L_LIBS=$("$LLVM_CONF" --libs all)
-        local L_SYSLIBS=$("$LLVM_CONF" --system-libs)
-        
-        # Windows doesn't use -ldl, other OSes usually need it for LLVM JIT/dynamic loading
+        local LLVM_VERSION
+        LLVM_VERSION=$("$LLVM_CONF" --version)
+        local L_CFLAGS
+        L_CFLAGS=$("$LLVM_CONF" --cxxflags)
+        local L_LDFLAGS
+        L_LDFLAGS=$("$LLVM_CONF" --ldflags)
+        local L_LIBS
+        L_LIBS=$("$LLVM_CONF" --libs all)
+        local L_SYSLIBS
+        L_SYSLIBS=$("$LLVM_CONF" --system-libs)
+
+        # Windows does not need -ldl; Linux/macOS usually do
         local EXTRA_LIBS="-ldl"
         if [[ "$PLATFORM" == *"Windows"* ]]; then
             EXTRA_LIBS=""
         fi
 
         echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
-        echo -e "${CYAN}      Compiler command execution generated.${NC}"
-        
-        set +e 
-        # FIXED: Added double quotes around $COMPILER
+
+        set +e
         "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS $L_LIBS $L_SYSLIBS $EXTRA_LIBS
         RES=$?
-        set -e 
+        set -e
 
         if [[ $RES -eq 0 ]]; then
             echo -e "${GREEN}✔ $PLATFORM (LLVM Mode) Build Success${NC}"
             return 0
         else
-            echo -e "${YELLOW}⚠ LLVM Build Failed. Falling back to Titan Transpiler.${NC}"
+            echo -e "${YELLOW}⚠ LLVM Build Failed (exit $RES). Falling back to Titan Transpiler.${NC}"
         fi
     fi
-    
+
     compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
 }
 
@@ -143,10 +215,10 @@ fi
 if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
     OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
-    
-    if command -v clang++ &> /dev/null; then
-        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
-    elif command -v aarch64-linux-gnu-g++ &> /dev/null; then
+
+    if command -v clang++ &>/dev/null; then
+        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-linux-gnu" "clang++" "true"
+    elif command -v aarch64-linux-gnu-g++ &>/dev/null; then
         compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "true"
     elif [[ $(uname -m) == "aarch64" ]]; then
         compile_smart "Linux ARM64 (Native)" "$OUTPUT" "$STANDARD_FLAGS" "g++" "true"
@@ -162,28 +234,37 @@ fi
 if [[ "$TARGET" == "windows" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (x64)...${NC}"
     OUTPUT="bin/windows/${ARTIFACT_NAME:-xphage.exe}"
-    
-    if command -v clang++ &> /dev/null || [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
-        compile_smart "Windows x64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
-    elif command -v x86_64-w64-mingw32-clang++ &> /dev/null; then
+
+    WIN_CXX=$(find_clangpp "Windows x64")
+    if [ -n "$WIN_CXX" ]; then
+        compile_smart "Windows x64" "$OUTPUT" "$STANDARD_FLAGS" "$WIN_CXX" "true"
+    elif command -v x86_64-w64-mingw32-clang++ &>/dev/null; then
         compile_smart "Windows x64" "$OUTPUT" "$STANDARD_FLAGS -static" "x86_64-w64-mingw32-clang++" "true"
-    elif command -v x86_64-w64-mingw32-g++ &> /dev/null; then
+    elif command -v x86_64-w64-mingw32-g++ &>/dev/null; then
         compile_smart "Windows x64 (Transpiler)" "$OUTPUT" "$STANDARD_FLAGS -static-libgcc -static-libstdc++" "x86_64-w64-mingw32-g++" "false"
+    else
+        echo -e "${RED}✘ No suitable compiler found for Windows x64. Skipping.${NC}"
     fi
     generate_sha256 "$OUTPUT"
 fi
 
 # ---------------------------------------------------------
-# 🪟 2.5 WINDOWS (ARM64)
+# 🪟 2.5. WINDOWS (ARM64)
 # ---------------------------------------------------------
 if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (ARM64)...${NC}"
     OUTPUT="bin/windows-arm64/${ARTIFACT_NAME:-xphage_arm64.exe}"
-    
-    if command -v clang++ &> /dev/null || [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
+
+    # FIX: Explicitly probe for clang++ on Windows regardless of PATH state.
+    WIN_CXX=$(find_clangpp "Windows ARM64")
+
+    if [ -n "$WIN_CXX" ]; then
+        # ARM64 cross-compile target for MSVC ABI (works on GitHub hosted windows runners)
+        compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "$WIN_CXX" "true"
+    elif command -v clang++ &>/dev/null; then
         compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "clang++" "true"
     else
-        echo -e "${YELLOW}⚠ Clang not found for Windows ARM64. Skipping.${NC}"
+        echo -e "${RED}✘ Clang not found for Windows ARM64. Skipping.${NC}"
     fi
     generate_sha256 "$OUTPUT"
 fi
@@ -194,11 +275,13 @@ fi
 if [[ "$TARGET" == "android" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🤖 Building for Android (ARM64)...${NC}"
     OUTPUT="bin/android/${ARTIFACT_NAME:-xphage_android_arm64}"
-    
-    if command -v clang++ &> /dev/null; then
+
+    if command -v clang++ &>/dev/null; then
         compile_smart "Android" "$OUTPUT" "$STANDARD_FLAGS -pie -fPIE -D__ANDROID__" "clang++" "true"
-    elif command -v aarch64-linux-gnu-g++ &> /dev/null; then
+    elif command -v aarch64-linux-gnu-g++ &>/dev/null; then
         compile_smart "Android (Transpiler)" "$OUTPUT" "$STANDARD_FLAGS -pie -fPIE -D__ANDROID__" "aarch64-linux-gnu-g++" "false"
+    else
+        echo -e "${YELLOW}⚠ No suitable compiler for Android. Skipping.${NC}"
     fi
     generate_sha256 "$OUTPUT"
 fi
@@ -210,14 +293,10 @@ if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🍎 Building for macOS...${NC}"
     OUTPUT="bin/macos/${ARTIFACT_NAME:-xphage_mac}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        COMPILER="clang++"
-        if [ -f "/opt/homebrew/opt/llvm/bin/clang++" ]; then
-            COMPILER="/opt/homebrew/opt/llvm/bin/clang++"
-        elif [ -f "/usr/local/opt/llvm/bin/clang++" ]; then
-            COMPILER="/usr/local/opt/llvm/bin/clang++"
-        fi
+        MACOS_CXX=$(find_clangpp "macOS")
+        MACOS_CXX="${MACOS_CXX:-clang++}"
         ARCH_FLAG="-arch $(uname -m)"
-        compile_smart "macOS" "$OUTPUT" "$STANDARD_FLAGS $ARCH_FLAG" "$COMPILER" "true"
+        compile_smart "macOS" "$OUTPUT" "$STANDARD_FLAGS $ARCH_FLAG" "$MACOS_CXX" "true"
         generate_sha256 "$OUTPUT"
     fi
 fi

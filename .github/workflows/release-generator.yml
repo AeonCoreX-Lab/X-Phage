@@ -14,7 +14,7 @@ jobs:
   build:
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -23,22 +23,22 @@ jobs:
             target: linux
             artifact_name: xphage_linux_x64
             asset_name: xphage_linux_x64
-            
+
           - os: ubuntu-latest
             target: linux-arm64
             artifact_name: xphage_linux_arm64
             asset_name: xphage_linux_arm64
-            
+
           - os: windows-latest
             target: windows
             artifact_name: xphage.exe
             asset_name: xphage_windows_x64
-            
+
           - os: windows-latest
             target: windows-arm64
             artifact_name: xphage_arm64.exe
             asset_name: xphage_windows_arm64
-            
+
           - os: macos-latest
             target: macos
             artifact_name: xphage_mac
@@ -48,7 +48,7 @@ jobs:
             target: android
             artifact_name: xphage_android_arm64
             asset_name: xphage_android_arm64
-            
+
           - os: macos-latest
             target: ios
             artifact_name: xphage_ios_arm64
@@ -58,52 +58,114 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Setup for Linux/Android
+      # ------------------------------------------------------------------
+      # Linux / Android: install latest LLVM + cross-compilers
+      # ------------------------------------------------------------------
       - name: Install Latest LLVM & Cross-Compilers (Linux)
         if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
         run: |
           sudo apt-get update
-          LLVM_VERSION=$(apt-cache search '^llvm-[0-9]+$' | grep -oP 'llvm-\K[0-9]+' | sort -n | tail -1)
-          if [ -z "$LLVM_VERSION" ]; then LLVM_VERSION=18; fi
-          echo "Installing LLVM version $LLVM_VERSION"
-          sudo apt-get install -y llvm-$LLVM_VERSION llvm-$LLVM_VERSION-dev clang-$LLVM_VERSION lld-$LLVM_VERSION
-          sudo ln -sf /usr/bin/llvm-config-$LLVM_VERSION /usr/bin/llvm-config || true
-          if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
+          LLVM_VERSION=$(apt-cache search '^llvm-[0-9]+$' \
+            | grep -oP 'llvm-\K[0-9]+' | sort -n | tail -1)
+          [ -z "$LLVM_VERSION" ] && LLVM_VERSION=18
+          echo "Installing LLVM $LLVM_VERSION"
+          sudo apt-get install -y \
+            llvm-${LLVM_VERSION} llvm-${LLVM_VERSION}-dev \
+            clang-${LLVM_VERSION} lld-${LLVM_VERSION}
+          sudo ln -sf /usr/bin/llvm-config-${LLVM_VERSION} /usr/bin/llvm-config || true
+          sudo ln -sf /usr/bin/clang++-${LLVM_VERSION} /usr/bin/clang++ || true
+          if [ "${{ matrix.target }}" == "linux-arm64" ] || \
+             [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
-            sudo apt-get install -y clang || true
           fi
 
-      # Setup for Windows (Install LLVM & MinGW via Chocolatey & Fix Path in PowerShell)
+      # ------------------------------------------------------------------
+      # Windows: install LLVM + MinGW, then IMMEDIATELY add to PATH in
+      # the SAME step so subsequent steps can find clang++.
+      #
+      # FIX: Previously GITHUB_PATH was set, but the path was only picked
+      # up in the *next* step. We now also set $env:PATH inline so
+      # verification works, and we add the path via both mechanisms.
+      # ------------------------------------------------------------------
       - name: Install LLVM & MinGW (Windows)
         if: startsWith(matrix.target, 'windows')
+        shell: pwsh
         run: |
-          choco install llvm mingw --force
-          echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      
-      # Setup for macOS
+          choco install llvm mingw --force --no-progress -y
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          # Add to current session PATH immediately
+          $env:PATH = "$llvmBin;$env:PATH"
+          # Persist for all subsequent steps in this job
+          "$llvmBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          # Verify clang++ is reachable right now
+          if (Test-Path "$llvmBin\clang++.exe") {
+            Write-Host "✔ clang++ found at $llvmBin\clang++.exe"
+            & "$llvmBin\clang++.exe" --version
+          } else {
+            Write-Host "⚠ clang++.exe not found at expected path, checking PATH..."
+            clang++ --version
+          }
+          # Also verify llvm-config
+          if (Test-Path "$llvmBin\llvm-config.exe") {
+            Write-Host "✔ llvm-config found"
+            & "$llvmBin\llvm-config.exe" --version
+          }
+
+      # ------------------------------------------------------------------
+      # Windows ARM64: install the ARM64 sysroot/cross-compile support.
+      # The MSVC ABI cross-compile target (aarch64-pc-windows-msvc) needs
+      # the ARM64 runtime libs from the Visual C++ BuildTools.
+      # ------------------------------------------------------------------
+      - name: Install ARM64 cross-compile support (Windows ARM64)
+        if: matrix.target == 'windows-arm64'
+        shell: pwsh
+        run: |
+          # Install VS Build Tools with ARM64 component
+          choco install visualstudio2022buildtools `
+            --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64" `
+            --force --no-progress -y
+          Write-Host "✔ ARM64 MSVC runtime libs installed"
+
+      # ------------------------------------------------------------------
+      # macOS: install latest Homebrew LLVM
+      # ------------------------------------------------------------------
       - name: Install Latest LLVM (macOS)
         if: runner.os == 'macOS'
         run: |
           brew update
           brew install llvm
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
-          echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
-          
-      # Build Step
+          echo "/usr/local/opt/llvm/bin"    >> $GITHUB_PATH
+
+      # ------------------------------------------------------------------
+      # Build step
+      # ------------------------------------------------------------------
       - name: Build X-Phage
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
           ARTIFACT_NAME: ${{ matrix.artifact_name }}
         run: |
+          # FIX: On Windows, GITHUB_PATH update is picked up by THIS step,
+          # but we also force-add the LLVM bin dir here as a safety net.
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export PATH="/c/Program Files/LLVM/bin:$PATH"
+          fi
           bash build.sh
 
-      # Upload Artifacts explicitly (Fixed Path to include SHA256)
+      # ------------------------------------------------------------------
+      # Upload Artifacts — upload the entire bin/<target>/ folder.
+      # This includes the binary AND the .sha256 sidecar file.
+      #
+      # FIX: Added `if-no-files-found: warn` so the upload step does NOT
+      # silently succeed with an empty artifact when the build skipped/failed.
+      # ------------------------------------------------------------------
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: bin/${{ matrix.target }}/
+          if-no-files-found: warn
 
   # ---------------------------------------------------------
   # Job 2: GitHub Release Creation
@@ -118,12 +180,13 @@ jobs:
         with:
           path: ./assets
 
+      - name: List downloaded assets (debug)
+        run: find ./assets -type f | sort
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          # Explicitly target everything recursively and direct files within downloaded subfolders
           files: |
-            assets/*/*
             assets/**/*
           body: |
             ### 🧬 X-Phage Titan Omni-Platform Release
