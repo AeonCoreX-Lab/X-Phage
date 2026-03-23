@@ -80,12 +80,15 @@ jobs:
           fi
 
       # ------------------------------------------------------------------
-      # Windows: install LLVM + MinGW, then IMMEDIATELY add to PATH in
-      # the SAME step so subsequent steps can find clang++.
+      # Windows: install LLVM + MinGW via Chocolatey.
       #
-      # FIX: Previously GITHUB_PATH was set, but the path was only picked
-      # up in the *next* step. We now also set $env:PATH inline so
-      # verification works, and we add the path via both mechanisms.
+      # ROOT CAUSE FIX: choco installs LLVM to "C:\Program Files\LLVM\bin"
+      # which has a SPACE. Git Bash sees this as "/c/Program Files/LLVM/bin".
+      # Writing to GITHUB_PATH only takes effect in the NEXT step.
+      #
+      # Solution: build.sh v5.3 now exports the path itself at startup using
+      # $RUNNER_OS detection, so it works regardless of GITHUB_PATH timing.
+      # We still write to GITHUB_PATH here as a belt-and-suspenders measure.
       # ------------------------------------------------------------------
       - name: Install LLVM & MinGW (Windows)
         if: startsWith(matrix.target, 'windows')
@@ -93,34 +96,25 @@ jobs:
         run: |
           choco install llvm mingw --force --no-progress -y
           $llvmBin = "C:\Program Files\LLVM\bin"
-          # Add to current session PATH immediately
-          $env:PATH = "$llvmBin;$env:PATH"
-          # Persist for all subsequent steps in this job
           "$llvmBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          # Verify clang++ is reachable right now
+          # Verify install
           if (Test-Path "$llvmBin\clang++.exe") {
-            Write-Host "✔ clang++ found at $llvmBin\clang++.exe"
-            & "$llvmBin\clang++.exe" --version
+            Write-Host "✔ clang++.exe found: $llvmBin\clang++.exe"
           } else {
-            Write-Host "⚠ clang++.exe not found at expected path, checking PATH..."
-            clang++ --version
+            Write-Host "⚠ clang++.exe not at expected path - build.sh will probe fallbacks"
           }
-          # Also verify llvm-config
           if (Test-Path "$llvmBin\llvm-config.exe") {
-            Write-Host "✔ llvm-config found"
+            Write-Host "✔ llvm-config.exe found"
             & "$llvmBin\llvm-config.exe" --version
           }
 
       # ------------------------------------------------------------------
-      # Windows ARM64: install the ARM64 sysroot/cross-compile support.
-      # The MSVC ABI cross-compile target (aarch64-pc-windows-msvc) needs
-      # the ARM64 runtime libs from the Visual C++ BuildTools.
+      # Windows ARM64: ARM64 MSVC cross-compile runtime libs
       # ------------------------------------------------------------------
       - name: Install ARM64 cross-compile support (Windows ARM64)
         if: matrix.target == 'windows-arm64'
         shell: pwsh
         run: |
-          # Install VS Build Tools with ARM64 component
           choco install visualstudio2022buildtools `
             --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64" `
             --force --no-progress -y
@@ -138,27 +132,18 @@ jobs:
           echo "/usr/local/opt/llvm/bin"    >> $GITHUB_PATH
 
       # ------------------------------------------------------------------
-      # Build step
+      # Build step — PATH for Windows is now handled inside build.sh
+      # using $RUNNER_OS / $OS detection, no manual export needed here.
       # ------------------------------------------------------------------
       - name: Build X-Phage
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
           ARTIFACT_NAME: ${{ matrix.artifact_name }}
-        run: |
-          # FIX: On Windows, GITHUB_PATH update is picked up by THIS step,
-          # but we also force-add the LLVM bin dir here as a safety net.
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            export PATH="/c/Program Files/LLVM/bin:$PATH"
-          fi
-          bash build.sh
+        run: bash build.sh
 
       # ------------------------------------------------------------------
-      # Upload Artifacts — upload the entire bin/<target>/ folder.
-      # This includes the binary AND the .sha256 sidecar file.
-      #
-      # FIX: Added `if-no-files-found: warn` so the upload step does NOT
-      # silently succeed with an empty artifact when the build skipped/failed.
+      # Upload full bin/<target>/ folder (binary + .sha256 sidecar)
       # ------------------------------------------------------------------
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

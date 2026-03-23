@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.2 [LLVM DYNAMIC + SHA256 + WIN ARM64]
+# X-Phage Titan Ultimate Build Script v5.3 [LLVM DYNAMIC + SHA256 + WIN ARM64]
 set -e
 
 GREEN='\033[1;32m'
@@ -21,95 +21,80 @@ SOURCES="src/main.cpp src/lexer.cpp src/llvm_compiler.cpp src/transpiler.cpp src
 INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 
-# --- FIX: Detect and normalize LLVM/Clang paths at script startup ---
-# This resolves the issue where choco installs LLVM but the path is not
-# available in the same step that set GITHUB_PATH. We search explicitly.
+# ---------------------------------------------------------
+# ROOT FIX: Windows PATH normalization
+#
+# Git Bash converts "C:\Program Files\LLVM\bin" -> "/c/Program Files/LLVM/bin"
+# The SPACE in "Program Files" causes naive array-based path checks to split
+# and fail. Fix: add the paths to $PATH upfront — quoted export handles
+# spaces correctly, and then `command -v` works everywhere reliably.
+# ---------------------------------------------------------
+if [[ "$RUNNER_OS" == "Windows" || "$OS" == "Windows_NT" ]]; then
+    export PATH="/c/Program Files/LLVM/bin:/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin:$PATH"
+    echo -e "${CYAN}   [WIN] LLVM bin paths added to PATH${NC}"
+fi
+
+# --- Helper: Find llvm-config ---
 function find_llvm_config() {
     local PLATFORM=$1
 
-    # Windows: search known install paths from choco/scoop/winget
     if [[ "$PLATFORM" == *"Windows"* ]]; then
-        local WIN_PATHS=(
-            "/c/Program Files/LLVM/bin/llvm-config.exe"
-            "/c/Program Files/LLVM/bin/llvm-config"
-            "/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin/llvm-config.exe"
-        )
-        for p in "${WIN_PATHS[@]}"; do
-            if [ -f "$p" ]; then
-                echo "$p"
-                return
-            fi
-        done
-        # Try adding choco LLVM to PATH and retry
-        export PATH="/c/Program Files/LLVM/bin:$PATH"
+        # PATH already has LLVM bin dir from the fix above — just use command -v
         if command -v llvm-config.exe &>/dev/null; then
-            echo "llvm-config.exe"
-            return
+            echo "llvm-config.exe"; return
         fi
         if command -v llvm-config &>/dev/null; then
-            echo "llvm-config"
-            return
+            echo "llvm-config"; return
         fi
-
-    # macOS: search Homebrew paths
+        # Last resort: quoted direct path check (handles space in "Program Files")
+        if [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
+            echo "/c/Program Files/LLVM/bin/llvm-config.exe"; return
+        fi
     elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
         if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
-            echo "/opt/homebrew/opt/llvm/bin/llvm-config"
-            return
+            echo "/opt/homebrew/opt/llvm/bin/llvm-config"; return
         elif [ -f "/usr/local/opt/llvm/bin/llvm-config" ]; then
-            echo "/usr/local/opt/llvm/bin/llvm-config"
-            return
+            echo "/usr/local/opt/llvm/bin/llvm-config"; return
         fi
     fi
 
-    # Generic fallback: try whatever is on PATH
     if command -v llvm-config &>/dev/null; then
-        echo "llvm-config"
-        return
+        echo "llvm-config"; return
     fi
 
     echo ""
 }
 
-# --- FIX: Detect clang++ for a given platform ---
+# --- Helper: Find clang++ ---
 function find_clangpp() {
     local PLATFORM=$1
 
     if [[ "$PLATFORM" == *"Windows"* ]]; then
-        local WIN_PATHS=(
-            "/c/Program Files/LLVM/bin/clang++.exe"
-            "/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin/clang++.exe"
-        )
-        for p in "${WIN_PATHS[@]}"; do
-            if [ -f "$p" ]; then
-                echo "$p"
-                return
-            fi
-        done
-        export PATH="/c/Program Files/LLVM/bin:$PATH"
         if command -v clang++.exe &>/dev/null; then
-            echo "clang++.exe"
-            return
+            echo "clang++.exe"; return
+        fi
+        if command -v clang++ &>/dev/null; then
+            echo "clang++"; return
+        fi
+        if [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
+            echo "/c/Program Files/LLVM/bin/clang++.exe"; return
         fi
     elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
         if [ -f "/opt/homebrew/opt/llvm/bin/clang++" ]; then
-            echo "/opt/homebrew/opt/llvm/bin/clang++"
-            return
+            echo "/opt/homebrew/opt/llvm/bin/clang++"; return
         elif [ -f "/usr/local/opt/llvm/bin/clang++" ]; then
-            echo "/usr/local/opt/llvm/bin/clang++"
-            return
+            echo "/usr/local/opt/llvm/bin/clang++"; return
         fi
     fi
 
     if command -v clang++ &>/dev/null; then
-        echo "clang++"
-        return
+        echo "clang++"; return
     fi
 
     echo ""
 }
 
-# --- Helper: Generate SHA256 Checksum ---
+# --- Helper: Generate SHA256 ---
 function generate_sha256() {
     local TARGET_FILE=$1
     if [ -f "$TARGET_FILE" ]; then
@@ -149,7 +134,7 @@ function compile_smart() {
         local LLVM_CONF
         LLVM_CONF=$(find_llvm_config "$PLATFORM")
 
-        # Also re-detect compiler using our finder for Windows/macOS
+        # Re-detect compiler for Windows/macOS
         if [[ "$PLATFORM" == *"Windows"* || "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
             local DETECTED_CXX
             DETECTED_CXX=$(find_clangpp "$PLATFORM")
@@ -165,26 +150,42 @@ function compile_smart() {
         fi
 
         local LLVM_VERSION
-        LLVM_VERSION=$("$LLVM_CONF" --version)
-        local L_CFLAGS
-        L_CFLAGS=$("$LLVM_CONF" --cxxflags)
-        local L_LDFLAGS
-        L_LDFLAGS=$("$LLVM_CONF" --ldflags)
-        local L_LIBS
-        L_LIBS=$("$LLVM_CONF" --libs all)
-        local L_SYSLIBS
-        L_SYSLIBS=$("$LLVM_CONF" --system-libs)
+        LLVM_VERSION=$("$LLVM_CONF" --version 2>/dev/null || echo "unknown")
+        echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
 
-        # Windows does not need -ldl; Linux/macOS usually do
+        # FIX: Capture flags with error handling.
+        # --system-libs on Windows returns nothing useful or errors — skip it.
+        local L_CFLAGS L_LDFLAGS L_LIBS L_SYSLIBS
+        L_CFLAGS=$("$LLVM_CONF" --cxxflags 2>/dev/null || echo "")
+        L_LDFLAGS=$("$LLVM_CONF" --ldflags 2>/dev/null || echo "")
+        L_LIBS=$("$LLVM_CONF" --libs all 2>/dev/null || echo "")
+
+        if [[ "$PLATFORM" == *"Windows"* ]]; then
+            L_SYSLIBS=""
+        else
+            L_SYSLIBS=$("$LLVM_CONF" --system-libs 2>/dev/null || echo "")
+        fi
+
+        # -ldl not available on Windows
         local EXTRA_LIBS="-ldl"
         if [[ "$PLATFORM" == *"Windows"* ]]; then
             EXTRA_LIBS=""
         fi
 
-        echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
+        # FIX: Use a bash array to build the command.
+        # This safely handles paths with spaces (e.g. "/c/Program Files/LLVM/bin/clang++.exe")
+        # which would break if passed as a plain string.
+        local CMD=("$COMPILER")
+        # shellcheck disable=SC2206
+        CMD+=($SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM)
+        [ -n "$L_CFLAGS"   ] && CMD+=($L_CFLAGS)
+        [ -n "$L_LDFLAGS"  ] && CMD+=($L_LDFLAGS)
+        [ -n "$L_LIBS"     ] && CMD+=($L_LIBS)
+        [ -n "$L_SYSLIBS"  ] && CMD+=($L_SYSLIBS)
+        [ -n "$EXTRA_LIBS" ] && CMD+=($EXTRA_LIBS)
 
         set +e
-        "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS $L_LIBS $L_SYSLIBS $EXTRA_LIBS
+        "${CMD[@]}"
         RES=$?
         set -e
 
@@ -255,11 +256,8 @@ if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (ARM64)...${NC}"
     OUTPUT="bin/windows-arm64/${ARTIFACT_NAME:-xphage_arm64.exe}"
 
-    # FIX: Explicitly probe for clang++ on Windows regardless of PATH state.
     WIN_CXX=$(find_clangpp "Windows ARM64")
-
     if [ -n "$WIN_CXX" ]; then
-        # ARM64 cross-compile target for MSVC ABI (works on GitHub hosted windows runners)
         compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "$WIN_CXX" "true"
     elif command -v clang++ &>/dev/null; then
         compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "clang++" "true"
