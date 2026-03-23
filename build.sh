@@ -335,9 +335,10 @@ if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
 
     WIN_CXX=$(find_clangpp "Windows ARM64")
     if [ -n "$WIN_CXX" ]; then
-        compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "$WIN_CXX" "true"
+        # 🔧 FIX: Passed 'false' to disable LLVM native since MSYS2 LLVM libraries are compiled for x86_64.
+        compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "$WIN_CXX" "false"
     elif command -v clang++ &>/dev/null; then
-        compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "clang++" "true"
+        compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "clang++" "false"
     else
         echo -e "${RED}✘ Clang not found for Windows ARM64. Skipping.${NC}"
     fi

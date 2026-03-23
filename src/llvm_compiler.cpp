@@ -152,8 +152,8 @@ public:
         std::string TripleStr = sys::getDefaultTargetTriple();
         Triple TheTriple(TripleStr);
 
-        // 🔧 FIX 5: LLVM 22+ enforces passing the Triple object instead of a string
-        #if LLVM_VERSION_MAJOR >= 22
+        // 🔧 FIX 5: LLVM 21+ enforces passing the Triple object instead of a string
+        #if LLVM_VERSION_MAJOR >= 21
             TheModule->setTargetTriple(TheTriple);
         #else
             TheModule->setTargetTriple(TripleStr);
@@ -161,11 +161,7 @@ public:
 
         std::string Error;
         
-        #if LLVM_VERSION_MAJOR >= 22
-            auto Target = TargetRegistry::lookupTarget(TheTriple, Error);
-        #else
-            auto Target = TargetRegistry::lookupTarget(TripleStr, Error);
-        #endif
+        auto Target = TargetRegistry::lookupTarget(TripleStr, Error);
 
         if (!Target) {
             std::cerr << "[LLVM FATAL] " << Error << "\n";
@@ -183,7 +179,8 @@ public:
             auto RM = Optional<Reloc::Model>();
         #endif
 
-        #if LLVM_VERSION_MAJOR >= 22
+        // 🔧 FIX 7: LLVM 21+ deprecates passing the string to createTargetMachine
+        #if LLVM_VERSION_MAJOR >= 21
             auto TargetMachine = Target->createTargetMachine(TheTriple, CPU, Features, opt, RM);
         #else
             auto TargetMachine = Target->createTargetMachine(TripleStr, CPU, Features, opt, RM);
@@ -200,7 +197,7 @@ public:
 
         legacy::PassManager pass;
         
-        // 🔧 FIX 7: LLVM 18+ changed CGFT_ObjectFile to CodeGenFileType::ObjectFile
+        // 🔧 FIX 8: LLVM 18+ changed CGFT_ObjectFile to CodeGenFileType::ObjectFile
         #if LLVM_VERSION_MAJOR >= 18
             auto FileType = CodeGenFileType::ObjectFile;
         #else
@@ -231,3 +228,5 @@ void XPhageLLVMCompiler::compile_tokens(const std::vector<Token>& tokens, std::s
 }
 
 #endif
+
+}

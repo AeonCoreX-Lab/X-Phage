@@ -94,7 +94,7 @@ jobs:
           echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
 
       # ------------------------------------------------------------------
-      # Windows ARM64: ARM64 MSVC cross-compile runtime libs.
+      # Windows ARM64: ARM64 MSVC cross-compile runtime libs & Environment.
       # ------------------------------------------------------------------
       - name: Install ARM64 cross-compile support (Windows ARM64)
         if: matrix.target == 'windows-arm64'
@@ -104,6 +104,12 @@ jobs:
             --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64" `
             --force --no-progress -y
           Write-Host "✔ ARM64 MSVC runtime libs installed"
+
+      - name: Setup MSVC Environment (Windows ARM64)
+        if: matrix.target == 'windows-arm64'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64_arm64
 
       # ------------------------------------------------------------------
       # macOS: install latest Homebrew LLVM
