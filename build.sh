@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v4.1 [FIXED]
+# X-Phage Titan Ultimate Build Script v4.2 [LLVM FIXED]
 # Supports: Linux (x64/ARM64 - LLVM), macOS (LLVM), Android/iOS/Windows (Transpiler)
 set -e 
 
@@ -22,8 +22,38 @@ SOURCES="src/main.cpp src/lexer.cpp src/llvm_compiler.cpp src/transpiler.cpp src
 INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 
-# --- HELPER: COMPILE WITH FALLBACK ---
-# Tries to compile with LLVM; if it fails, falls back to Transpiler mode.
+# --- Helper: Try to find LLVM include directory containing llvm/Support/Host.h ---
+function find_llvm_include() {
+    local conf="$1"
+    local version="$2"
+    local candidates=(
+        "$($conf --includedir)"
+        "/usr/include/llvm-${version%%.*}"
+        "/usr/lib/llvm-${version%%.*}/include"
+        "/opt/homebrew/include"
+        "/usr/local/include"
+    )
+    for dir in "${candidates[@]}"; do
+        if [ -f "$dir/llvm/Support/Host.h" ]; then
+            echo "$dir"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# --- Helper: Transpiler mode ---
+function compile_transpiler() {
+    local PLATFORM=$1
+    local OUTPUT=$2
+    local FLAGS=$3
+    local COMPILER=$4
+    echo -e "${CYAN}   -> Building with Titan Transpiler Engine...${NC}"
+    $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS
+    echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
+}
+
+# --- Main compile function with LLVM fallback ---
 function compile_smart() {
     local PLATFORM=$1
     local OUTPUT=$2
@@ -31,13 +61,11 @@ function compile_smart() {
     local COMPILER=$4
     local TRY_LLVM=$5
 
-    # 1. Try LLVM Build (If requested and available)
     if [[ "$TRY_LLVM" == "true" ]]; then
         echo -e "${CYAN}   -> Attempting LLVM Native Core Build...${NC}"
         
         local LLVM_CONF="llvm-config"
         
-        # macOS Homebrew Path Fix
         if [[ "$PLATFORM" == "macOS" ]]; then
             if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
                 LLVM_CONF="/opt/homebrew/opt/llvm/bin/llvm-config"
@@ -46,35 +74,47 @@ function compile_smart() {
             fi
         fi
 
-        # Check if LLVM Config exists
-        if $LLVM_CONF --version &> /dev/null; then
-            local L_CFLAGS=$($LLVM_CONF --cxxflags)
-            local L_LDFLAGS="$($LLVM_CONF --ldflags --libs all --system-libs)"
-            # Do not add extra -I here; --cxxflags already includes include paths
-            
-            echo -e "${CYAN}      Using LLVM Config: $($LLVM_CONF --version)${NC}"
-            echo -e "${CYAN}      Compiler command: $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl${NC}"
-            
-            set +e 
-            $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl
-            RES=$?
-            set -e 
-
-            if [[ $RES -eq 0 ]]; then
-                echo -e "${GREEN}✔ $PLATFORM (LLVM Mode) Build Success${NC}"
-                return 0
-            else
-                echo -e "${YELLOW}⚠ LLVM Build Failed. Falling back to Titan Transpiler.${NC}"
-            fi
-        else
+        if ! $LLVM_CONF --version &> /dev/null; then
             echo -e "${YELLOW}⚠ LLVM toolchain not found. Using Titan Transpiler.${NC}"
+            compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
+            return
+        fi
+
+        local LLVM_VERSION=$($LLVM_CONF --version)
+        local INC_DIR=$(find_llvm_include "$LLVM_CONF" "$LLVM_VERSION")
+        
+        if [ -z "$INC_DIR" ]; then
+            echo -e "${YELLOW}⚠ Could not find llvm/Support/Host.h. Falling back to Transpiler.${NC}"
+            compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
+            return
+        fi
+
+        # Build flags
+        local L_CFLAGS="-I$INC_DIR"
+        # Add other flags from llvm-config (strip out any -I that might conflict)
+        local ADD_CFLAGS=$($LLVM_CONF --cxxflags | sed 's/-I[^ ]*//g')
+        L_CFLAGS="$L_CFLAGS $ADD_CFLAGS"
+        
+        local L_LDFLAGS="$($LLVM_CONF --ldflags) $($LLVM_CONF --libs all) $($LLVM_CONF --system-libs)"
+        
+        echo -e "${CYAN}      Using LLVM Config: $LLVM_VERSION${NC}"
+        echo -e "${CYAN}      Include dir: $INC_DIR${NC}"
+        echo -e "${CYAN}      Compiler command: $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl${NC}"
+        
+        set +e 
+        $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl
+        RES=$?
+        set -e 
+
+        if [[ $RES -eq 0 ]]; then
+            echo -e "${GREEN}✔ $PLATFORM (LLVM Mode) Build Success${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}⚠ LLVM Build Failed. Falling back to Titan Transpiler.${NC}"
         fi
     fi
-
-    # 2. Transpiler Mode (Fallback / Default for Mobile)
-    echo -e "${CYAN}   -> Building with Titan Transpiler Engine...${NC}"
-    $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS
-    echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
+    
+    compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
 }
 
 # ---------------------------------------------------------
@@ -87,13 +127,12 @@ if [[ "$TARGET" == "linux" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🐧 1.5. LINUX (ARM64) - [LLVM ENABLED - FIXED]
+# 🐧 1.5. LINUX (ARM64) - [LLVM ENABLED]
 # ---------------------------------------------------------
 if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
     OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
     
-    # Priority: clang++ (Better for LLVM) -> aarch64-g++ -> native g++
     if command -v clang++ &> /dev/null; then
         compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
     elif command -v aarch64-linux-gnu-g++ &> /dev/null; then
@@ -128,23 +167,19 @@ if [[ "$TARGET" == "android" || -z "$TARGET" ]]; then
 fi
 
 # ---------------------------------------------------------
-# 🍎 4. macOS - [LLVM ENABLED - FIXED PATHS]
+# 🍎 4. macOS - [LLVM ENABLED]
 # ---------------------------------------------------------
 if [[ "$TARGET" == "macos" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🍎 Building for macOS...${NC}"
     OUTPUT="bin/macos/${ARTIFACT_NAME:-xphage_mac}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # Detect Homebrew LLVM Compiler
         COMPILER="clang++"
         if [ -f "/opt/homebrew/opt/llvm/bin/clang++" ]; then
             COMPILER="/opt/homebrew/opt/llvm/bin/clang++"
         elif [ -f "/usr/local/opt/llvm/bin/clang++" ]; then
             COMPILER="/usr/local/opt/llvm/bin/clang++"
         fi
-        
-        # Use native architecture (avoid fat binary linking issues)
         ARCH_FLAG="-arch $(uname -m)"
-        
         compile_smart "macOS" "$OUTPUT" "$STANDARD_FLAGS $ARCH_FLAG" "$COMPILER" "true"
     fi
 fi
