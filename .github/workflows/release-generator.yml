@@ -81,12 +81,10 @@ jobs:
 
       # ------------------------------------------------------------------
       # Windows: install LLVM + MinGW via MSYS2
-      # ROOT CAUSE FIX: Chocolatey does not provide LLVM dev headers (llvm-config.h).
-      # Using MSYS2 pacman guarantees we get the headers, static libs, and 
-      # a perfectly working llvm-config out of the box.
+      # 🔧 FIX: We restrict MSYS2 *only* to the 'windows' target, avoiding 'windows-arm64'. 
       # ------------------------------------------------------------------
       - name: Install LLVM & MinGW (Windows MSYS2)
-        if: startsWith(matrix.target, 'windows')
+        if: matrix.target == 'windows' 
         shell: bash
         run: |
           echo "Installing MSYS2 MinGW LLVM & Clang (provides dev headers & llvm-config)..."
@@ -95,6 +93,7 @@ jobs:
 
       # ------------------------------------------------------------------
       # Windows ARM64: ARM64 MSVC cross-compile runtime libs & Environment.
+      # 🔧 FIX: Explicitly install the standard choco llvm alongside MSVC tools.
       # ------------------------------------------------------------------
       - name: Install ARM64 cross-compile support (Windows ARM64)
         if: matrix.target == 'windows-arm64'
@@ -103,7 +102,8 @@ jobs:
           choco install visualstudio2022buildtools `
             --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64" `
             --force --no-progress -y
-          Write-Host "✔ ARM64 MSVC runtime libs installed"
+          choco install llvm --force --no-progress -y
+          Write-Host "✔ ARM64 MSVC runtime libs & Standard LLVM installed"
 
       - name: Setup MSVC Environment (Windows ARM64)
         if: matrix.target == 'windows-arm64'
@@ -205,3 +205,4 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/xphage:latest
             ${{ secrets.DOCKER_USERNAME }}/xphage:${{ env.VERSION }}
+

@@ -28,8 +28,13 @@ STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 IS_WINDOWS=false
 if [[ "$RUNNER_OS" == "Windows" || "$OS" == "Windows_NT" ]]; then
     IS_WINDOWS=true
-    export PATH="/c/msys64/mingw64/bin:$PATH"
-    echo -e "${CYAN}   [WIN] MSYS2 MinGW bin path added to PATH${NC}"
+    # 🔧 FIX: Only inject MSYS2 into the path if we are NOT building for Windows ARM64 (MSVC)
+    if [[ "$TARGET" != "windows-arm64" ]]; then
+        export PATH="/c/msys64/mingw64/bin:$PATH"
+        echo -e "${CYAN}   [WIN] MSYS2 MinGW bin path added to PATH${NC}"
+    else
+        echo -e "${CYAN}   [WIN] MSYS2 MinGW bin path SKIPPED for ARM64 MSVC Cross-Compile${NC}"
+    fi
 
     if command -v llvm-config &>/dev/null; then
         if llvm-config --version &>/dev/null 2>&1; then
@@ -294,10 +299,11 @@ if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
     OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
 
+    # 🔧 FIX: Set try_llvm parameter strictly to "false" to prevent host x64 LLVM linkage failure
     if command -v clang++ &>/dev/null; then
-        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-linux-gnu" "clang++" "true"
+        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-linux-gnu" "clang++" "false"
     elif command -v aarch64-linux-gnu-g++ &>/dev/null; then
-        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "true"
+        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "false"
     elif [[ $(uname -m) == "aarch64" ]]; then
         compile_smart "Linux ARM64 (Native)" "$OUTPUT" "$STANDARD_FLAGS" "g++" "true"
     else
@@ -335,7 +341,6 @@ if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
 
     WIN_CXX=$(find_clangpp "Windows ARM64")
     if [ -n "$WIN_CXX" ]; then
-        # 🔧 FIX: Passed 'false' to disable LLVM native since MSYS2 LLVM libraries are compiled for x86_64.
         compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "$WIN_CXX" "false"
     elif command -v clang++ &>/dev/null; then
         compile_smart "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS --target=aarch64-pc-windows-msvc" "clang++" "false"

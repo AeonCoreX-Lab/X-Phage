@@ -161,7 +161,12 @@ public:
 
         std::string Error;
         
-        auto Target = TargetRegistry::lookupTarget(TripleStr, Error);
+        // 🔧 FIX 9: LLVM 21+ completely deprecates passing string to lookupTarget (fixes macOS warning)
+        #if LLVM_VERSION_MAJOR >= 21
+            auto Target = TargetRegistry::lookupTarget(TheTriple, Error);
+        #else
+            auto Target = TargetRegistry::lookupTarget(TripleStr, Error);
+        #endif
 
         if (!Target) {
             std::cerr << "[LLVM FATAL] " << Error << "\n";
@@ -228,3 +233,5 @@ void XPhageLLVMCompiler::compile_tokens(const std::vector<Token>& tokens, std::s
 }
 
 #endif
+
+}
