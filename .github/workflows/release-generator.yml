@@ -106,12 +106,13 @@ jobs:
         run: |
           bash build.sh
 
-      # Fix: Upload all files in the target directory WITHOUT wildcard, so it reliably gets .sha256
+      # Upload all files explicitly using the wildcard inside the folder to ensure .sha256 is included
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: bin/${{ matrix.target }}
+          path: |
+            bin/${{ matrix.target }}/*
 
   # ---------------------------------------------------------
   # Job 2: GitHub Release Creation
@@ -129,12 +130,13 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          # Wildcard catches everything inside the downloaded directories
-          files: assets/*/*
+          # Double-asterisk ensures it catches binaries and checksum files deep in any structure
+          files: |
+            assets/**/*
           body: |
             ### 🧬 X-Phage Titan Omni-Platform Release
             - **New:** Added Windows ARM64 Architecture Support.
-            - **Security:** SHA256 Checksums automatically generated for all binaries.
+            - **Security:** SHA256 Checksums automatically generated and uploaded for all binaries.
             - **Architecture:** Native LLVM Code Generation enabled for Linux, macOS, Windows, and Android.
             - **Docker Support:** Available on Docker Hub.
         env:

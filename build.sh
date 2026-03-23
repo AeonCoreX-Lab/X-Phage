@@ -67,16 +67,21 @@ function compile_smart() {
             fi
         fi
 
-        # Windows: specific paths if llvm-config not natively in PATH
+        # Windows: Aggressive LLVM Path Discovery
         if [[ "$PLATFORM" == *"Windows"* ]]; then
-            if command -v llvm-config &> /dev/null; then
+            # Inject standard Windows LLVM paths directly to the bash scope
+            export PATH="/c/Program Files/LLVM/bin:$PATH"
+            
+            if command -v llvm-config.exe &> /dev/null; then
+                LLVM_CONF="llvm-config.exe"
+            elif command -v llvm-config &> /dev/null; then
                 LLVM_CONF="llvm-config"
             elif [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
                 LLVM_CONF="/c/Program Files/LLVM/bin/llvm-config.exe"
             fi
         fi
 
-        if ! command -v "$LLVM_CONF" &> /dev/null; then
+        if ! command -v "$LLVM_CONF" &> /dev/null && [ ! -f "$LLVM_CONF" ]; then
             echo -e "${YELLOW}⚠ LLVM toolchain ($LLVM_CONF) not found. Using Titan Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
