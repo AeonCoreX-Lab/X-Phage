@@ -53,12 +53,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Setup for Linux/Android
       - name: Install LLVM & Cross-Compilers (Linux)
         if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm llvm-dev clang lld
+          sudo apt-get install -y llvm-18 llvm-18-dev clang-18 lld-18
+          # Symlink llvm-config-18 to llvm-config for convenience
+          sudo ln -sf /usr/bin/llvm-config-18 /usr/bin/llvm-config || true
           if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
           fi
