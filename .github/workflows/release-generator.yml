@@ -98,12 +98,12 @@ jobs:
         run: |
           bash build.sh
 
-      # Upload Artifacts explicitly
+      # Upload Artifacts explicitly (Fixed Path to include SHA256)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: bin/${{ matrix.target }}/*
+          path: bin/${{ matrix.target }}/
 
   # ---------------------------------------------------------
   # Job 2: GitHub Release Creation

@@ -41,7 +41,8 @@ function compile_transpiler() {
     local FLAGS=$3
     local COMPILER=$4
     echo -e "${CYAN}   -> Building with Titan Transpiler Engine...${NC}"
-    $COMPILER $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS
+    # FIXED: Added double quotes around $COMPILER
+    "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
 
@@ -86,12 +87,14 @@ function compile_smart() {
             fi
         fi
 
+        # FIXED: Added double quotes around $LLVM_CONF
         if ! command -v "$LLVM_CONF" &> /dev/null && [ ! -f "$LLVM_CONF" ]; then
             echo -e "${YELLOW}⚠ LLVM toolchain ($LLVM_CONF) not found. Using Titan Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
         fi
 
+        # FIXED: Added double quotes around $LLVM_CONF
         local LLVM_VERSION=$("$LLVM_CONF" --version)
         local L_CFLAGS=$("$LLVM_CONF" --cxxflags)
         local L_LDFLAGS=$("$LLVM_CONF" --ldflags)
@@ -108,7 +111,8 @@ function compile_smart() {
         echo -e "${CYAN}      Compiler command execution generated.${NC}"
         
         set +e 
-        $COMPILER $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS $L_LIBS $L_SYSLIBS $EXTRA_LIBS
+        # FIXED: Added double quotes around $COMPILER
+        "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS $L_LIBS $L_SYSLIBS $EXTRA_LIBS
         RES=$?
         set -e 
 
