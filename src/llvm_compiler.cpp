@@ -27,8 +27,15 @@
 // 🔧 FIX 1: LLVM 17+ moved Host.h to TargetParser
 #if LLVM_VERSION_MAJOR >= 17
     #include "llvm/TargetParser/Host.h"
+    #include "llvm/TargetParser/Triple.h"
 #else
     #include "llvm/Support/Host.h"
+    #include "llvm/ADT/Triple.h"
+#endif
+
+// 🔧 FIX 2: LLVM 18+ moved CodeGenFileType into CodeGen.h
+#if LLVM_VERSION_MAJOR >= 18
+    #include "llvm/Support/CodeGen.h"
 #endif
 
 using namespace llvm;
@@ -64,10 +71,16 @@ public:
     }
 
     void setup_external_functions() {
-        FunctionType* printfType = FunctionType::get(IntegerType::getInt32Ty(*Context), PointerType::getUnqual(Type::getInt8Ty(*Context)), true);
+        // 🔧 FIX 3: LLVM 17+ fully adopted Opaque Pointers. getUnqual no longer takes a type.
+        #if LLVM_VERSION_MAJOR >= 17
+            FunctionType* printfType = FunctionType::get(IntegerType::getInt32Ty(*Context), PointerType::getUnqual(*Context), true);
+            FunctionType* sysType = FunctionType::get(IntegerType::getInt32Ty(*Context), PointerType::getUnqual(*Context), false);
+        #else
+            FunctionType* printfType = FunctionType::get(IntegerType::getInt32Ty(*Context), PointerType::getUnqual(Type::getInt8Ty(*Context)), true);
+            FunctionType* sysType = FunctionType::get(IntegerType::getInt32Ty(*Context), PointerType::getUnqual(Type::getInt8Ty(*Context)), false);
+        #endif
+        
         PrintfFunc = TheModule->getOrInsertFunction("printf", printfType);
-
-        FunctionType* sysType = FunctionType::get(IntegerType::getInt32Ty(*Context), PointerType::getUnqual(Type::getInt8Ty(*Context)), false);
         SystemCallFunc = TheModule->getOrInsertFunction("system", sysType);
     }
 
@@ -83,24 +96,45 @@ public:
             if (tokens[i].type == GLOBAL && i + 3 < tokens.size()) {
                 std::string var_name = tokens[i+1].value;
                 std::string var_value = tokens[i+3].value;
-                Value* strVal = Builder->CreateGlobalStringPtr(var_value, var_name + "_str");
+                
+                // 🔧 FIX 4: LLVM 20+ deprecated CreateGlobalStringPtr
+                #if LLVM_VERSION_MAJOR >= 20
+                    Value* strVal = Builder->CreateGlobalString(var_value, var_name + "_str");
+                #else
+                    Value* strVal = Builder->CreateGlobalStringPtr(var_value, var_name + "_str");
+                #endif
                 GlobalMemory[var_name] = strVal;
                 i += 3;
             }
             else if (tokens[i].type == BEAM && i + 1 < tokens.size()) {
                 std::string target = tokens[i+1].value;
-                Value* formatStr = Builder->CreateGlobalStringPtr("%s\n", "fmt");
+                
+                #if LLVM_VERSION_MAJOR >= 20
+                    Value* formatStr = Builder->CreateGlobalString("%s\n", "fmt");
+                #else
+                    Value* formatStr = Builder->CreateGlobalStringPtr("%s\n", "fmt");
+                #endif
+
                 Value* targetVal;
                 if (GlobalMemory.count(target)) {
                     targetVal = GlobalMemory[target];
                 } else {
-                    targetVal = Builder->CreateGlobalStringPtr(target, target + "_raw");
+                    #if LLVM_VERSION_MAJOR >= 20
+                        targetVal = Builder->CreateGlobalString(target, target + "_raw");
+                    #else
+                        targetVal = Builder->CreateGlobalStringPtr(target, target + "_raw");
+                    #endif
                 }
                 Builder->CreateCall(PrintfFunc, {formatStr, targetVal});
                 i++;
             }
             else if (tokens[i].type == BYPASS && i + 1 < tokens.size()) {
-                Value* sysCmdStr = Builder->CreateGlobalStringPtr(tokens[i+1].value, "sys_cmd");
+                #if LLVM_VERSION_MAJOR >= 20
+                    Value* sysCmdStr = Builder->CreateGlobalString(tokens[i+1].value, "sys_cmd");
+                #else
+                    Value* sysCmdStr = Builder->CreateGlobalStringPtr(tokens[i+1].value, "sys_cmd");
+                #endif
+                
                 Builder->CreateCall(SystemCallFunc, {sysCmdStr});
                 i++;
             }
@@ -115,11 +149,23 @@ public:
     }
 
     void emit_object_file(std::string output_filename) {
-        auto TargetTriple = sys::getDefaultTargetTriple();
-        TheModule->setTargetTriple(TargetTriple);
+        std::string TripleStr = sys::getDefaultTargetTriple();
+        Triple TheTriple(TripleStr);
+
+        // 🔧 FIX 5: LLVM 22+ enforces passing the Triple object instead of a string
+        #if LLVM_VERSION_MAJOR >= 22
+            TheModule->setTargetTriple(TheTriple);
+        #else
+            TheModule->setTargetTriple(TripleStr);
+        #endif
 
         std::string Error;
-        auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
+        
+        #if LLVM_VERSION_MAJOR >= 22
+            auto Target = TargetRegistry::lookupTarget(TheTriple, Error);
+        #else
+            auto Target = TargetRegistry::lookupTarget(TripleStr, Error);
+        #endif
 
         if (!Target) {
             std::cerr << "[LLVM FATAL] " << Error << "\n";
@@ -130,14 +176,19 @@ public:
         auto Features = "";
         TargetOptions opt;
         
-        // 🔧 FIX 2: LLVM 16+ removed llvm::Optional in favor of std::optional
+        // 🔧 FIX 6: LLVM 16+ removed llvm::Optional in favor of std::optional
         #if LLVM_VERSION_MAJOR >= 16
             auto RM = std::optional<Reloc::Model>();
         #else
             auto RM = Optional<Reloc::Model>();
         #endif
 
-        auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+        #if LLVM_VERSION_MAJOR >= 22
+            auto TargetMachine = Target->createTargetMachine(TheTriple, CPU, Features, opt, RM);
+        #else
+            auto TargetMachine = Target->createTargetMachine(TripleStr, CPU, Features, opt, RM);
+        #endif
+        
         TheModule->setDataLayout(TargetMachine->createDataLayout());
 
         std::error_code EC;
@@ -148,7 +199,15 @@ public:
         }
 
         legacy::PassManager pass;
-        if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, CGFT_ObjectFile)) {
+        
+        // 🔧 FIX 7: LLVM 18+ changed CGFT_ObjectFile to CodeGenFileType::ObjectFile
+        #if LLVM_VERSION_MAJOR >= 18
+            auto FileType = CodeGenFileType::ObjectFile;
+        #else
+            auto FileType = CGFT_ObjectFile;
+        #endif
+
+        if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
             std::cerr << "[LLVM FATAL] TargetMachine can't emit a file of this type.\n";
             return;
         }
@@ -172,3 +231,5 @@ void XPhageLLVMCompiler::compile_tokens(const std::vector<Token>& tokens, std::s
 }
 
 #endif
+
+}
