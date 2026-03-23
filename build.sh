@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.3 [LLVM DYNAMIC + SHA256 + WIN ARM64]
+# X-Phage Titan Ultimate Build Script v5.4 [LLVM DYNAMIC + SHA256 + WIN ARM64]
 set -e
 
 GREEN='\033[1;32m'
@@ -22,16 +22,29 @@ INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 
 # ---------------------------------------------------------
-# ROOT FIX: Windows PATH normalization
+# ROOT FIX v5.4: Windows PATH — use 8.3 short paths (no spaces)
 #
-# Git Bash converts "C:\Program Files\LLVM\bin" -> "/c/Program Files/LLVM/bin"
-# The SPACE in "Program Files" causes naive array-based path checks to split
-# and fail. Fix: add the paths to $PATH upfront — quoted export handles
-# spaces correctly, and then `command -v` works everywhere reliably.
+# Problem: Git Bash converts "C:\Program Files\LLVM\bin" to
+# "/c/Program Files/LLVM/bin". The space in "Program Files" makes
+# `command -v` skip that directory entirely when searching PATH.
+#
+# Solution: Use Windows 8.3 short path format:
+#   "C:\Program Files" -> "C:\PROGRA~1" -> "/c/PROGRA~1" (no space)
+# This is guaranteed to exist on all Windows versions and choco
+# always installs LLVM to "C:\Program Files\LLVM".
 # ---------------------------------------------------------
 if [[ "$RUNNER_OS" == "Windows" || "$OS" == "Windows_NT" ]]; then
-    export PATH="/c/Program Files/LLVM/bin:/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin:$PATH"
-    echo -e "${CYAN}   [WIN] LLVM bin paths added to PATH${NC}"
+    export PATH="/c/PROGRA~1/LLVM/bin:/c/ProgramData/chocolatey/lib/llvm/tools/llvm/bin:$PATH"
+    echo -e "${CYAN}   [WIN] LLVM bin paths added to PATH (short path)${NC}"
+    # Debug: confirm tools are visible
+    if command -v llvm-config &>/dev/null; then
+        echo -e "${CYAN}   [WIN] llvm-config found: $(command -v llvm-config)${NC}"
+    else
+        echo -e "${YELLOW}   [WIN] llvm-config still not in PATH after export${NC}"
+    fi
+    if command -v clang++ &>/dev/null; then
+        echo -e "${CYAN}   [WIN] clang++ found: $(command -v clang++)${NC}"
+    fi
 fi
 
 # --- Helper: Find llvm-config ---
@@ -39,16 +52,13 @@ function find_llvm_config() {
     local PLATFORM=$1
 
     if [[ "$PLATFORM" == *"Windows"* ]]; then
-        # PATH already has LLVM bin dir from the fix above — just use command -v
-        if command -v llvm-config.exe &>/dev/null; then
-            echo "llvm-config.exe"; return
-        fi
+        # Short path — no spaces, command -v works reliably
         if command -v llvm-config &>/dev/null; then
             echo "llvm-config"; return
         fi
-        # Last resort: quoted direct path check (handles space in "Program Files")
-        if [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
-            echo "/c/Program Files/LLVM/bin/llvm-config.exe"; return
+        # Direct short-path file check as fallback
+        if [ -f "/c/PROGRA~1/LLVM/bin/llvm-config.exe" ]; then
+            echo "/c/PROGRA~1/LLVM/bin/llvm-config.exe"; return
         fi
     elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
         if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
@@ -70,14 +80,12 @@ function find_clangpp() {
     local PLATFORM=$1
 
     if [[ "$PLATFORM" == *"Windows"* ]]; then
-        if command -v clang++.exe &>/dev/null; then
-            echo "clang++.exe"; return
-        fi
+        # Short path — no spaces
         if command -v clang++ &>/dev/null; then
             echo "clang++"; return
         fi
-        if [ -f "/c/Program Files/LLVM/bin/clang++.exe" ]; then
-            echo "/c/Program Files/LLVM/bin/clang++.exe"; return
+        if [ -f "/c/PROGRA~1/LLVM/bin/clang++.exe" ]; then
+            echo "/c/PROGRA~1/LLVM/bin/clang++.exe"; return
         fi
     elif [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
         if [ -f "/opt/homebrew/opt/llvm/bin/clang++" ]; then
@@ -153,13 +161,12 @@ function compile_smart() {
         LLVM_VERSION=$("$LLVM_CONF" --version 2>/dev/null || echo "unknown")
         echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
 
-        # FIX: Capture flags with error handling.
-        # --system-libs on Windows returns nothing useful or errors — skip it.
         local L_CFLAGS L_LDFLAGS L_LIBS L_SYSLIBS
         L_CFLAGS=$("$LLVM_CONF" --cxxflags 2>/dev/null || echo "")
         L_LDFLAGS=$("$LLVM_CONF" --ldflags 2>/dev/null || echo "")
         L_LIBS=$("$LLVM_CONF" --libs all 2>/dev/null || echo "")
 
+        # --system-libs errors out on Windows — skip it
         if [[ "$PLATFORM" == *"Windows"* ]]; then
             L_SYSLIBS=""
         else
@@ -172,9 +179,7 @@ function compile_smart() {
             EXTRA_LIBS=""
         fi
 
-        # FIX: Use a bash array to build the command.
-        # This safely handles paths with spaces (e.g. "/c/Program Files/LLVM/bin/clang++.exe")
-        # which would break if passed as a plain string.
+        # Use bash array — handles any remaining spaces in compiler path
         local CMD=("$COMPILER")
         # shellcheck disable=SC2206
         CMD+=($SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM)
