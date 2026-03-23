@@ -228,5 +228,3 @@ void XPhageLLVMCompiler::compile_tokens(const std::vector<Token>& tokens, std::s
 }
 
 #endif
-
-}
