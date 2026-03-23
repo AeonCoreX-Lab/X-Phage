@@ -1,6 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v4.3 [LLVM FIXED - USE RAW FLAGS]
-# Supports: Linux (x64/ARM64 - LLVM), macOS (LLVM), Android/iOS/Windows (Transpiler)
+# X-Phage Titan Ultimate Build Script v4.4 [LLVM PATH FIX]
 set -e 
 
 GREEN='\033[1;32m'
@@ -33,6 +32,32 @@ function compile_transpiler() {
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
 
+# --- Helper: Find correct LLVM include path ---
+function get_llvm_include_path() {
+    local conf="$1"
+    local version="$2"
+    # Try the path from llvm-config first
+    local inc=$($conf --includedir)
+    if [ -f "$inc/llvm/Support/Host.h" ]; then
+        echo "$inc"
+        return 0
+    fi
+    # Otherwise search common locations
+    local candidates=(
+        "/usr/include/llvm-${version%%.*}"
+        "/usr/lib/llvm-${version%%.*}/include"
+        "/opt/homebrew/include"
+        "/usr/local/include"
+    )
+    for dir in "${candidates[@]}"; do
+        if [ -f "$dir/llvm/Support/Host.h" ]; then
+            echo "$dir"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # --- Main compile function with LLVM fallback ---
 function compile_smart() {
     local PLATFORM=$1
@@ -55,19 +80,30 @@ function compile_smart() {
             fi
         fi
 
-        # Check if LLVM config exists
         if ! $LLVM_CONF --version &> /dev/null; then
             echo -e "${YELLOW}⚠ LLVM toolchain not found. Using Titan Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
         fi
 
-        # Get flags directly from llvm-config
         local LLVM_VERSION=$($LLVM_CONF --version)
-        local L_CFLAGS="$($LLVM_CONF --cxxflags)"
+        local INC_DIR=$(get_llvm_include_path "$LLVM_CONF" "$LLVM_VERSION")
+        
+        if [ -z "$INC_DIR" ]; then
+            echo -e "${YELLOW}⚠ Could not find llvm/Support/Host.h. Falling back to Transpiler.${NC}"
+            compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
+            return
+        fi
+
+        # Get flags from llvm-config, but replace the include part with our found directory
+        local RAW_CFLAGS=$($LLVM_CONF --cxxflags)
+        # Remove any existing -I flags
+        local CLEAN_CFLAGS=$(echo "$RAW_CFLAGS" | sed 's/-I[^ ]*//g')
+        local L_CFLAGS="-I$INC_DIR $CLEAN_CFLAGS"
         local L_LDFLAGS="$($LLVM_CONF --ldflags) $($LLVM_CONF --libs all) $($LLVM_CONF --system-libs)"
         
         echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
+        echo -e "${CYAN}      Include dir: $INC_DIR${NC}"
         echo -e "${CYAN}      Compiler command: $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl${NC}"
         
         set +e 

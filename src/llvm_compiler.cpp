@@ -4,10 +4,12 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <optional> // 🔧 NEW: Added for modern C++ compatibility
 
 #ifdef ENABLE_LLVM
 
 // --- LLVM Core Dependencies ---
+#include <llvm/Config/llvm-config.h> // 🔧 NEW: Detects LLVM version automatically
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/IRBuilder.h"
@@ -16,12 +18,18 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/IR/LegacyPassManager.h"
+
+// 🔧 FIX 1: LLVM 17+ moved Host.h to TargetParser
+#if LLVM_VERSION_MAJOR >= 17
+    #include "llvm/TargetParser/Host.h"
+#else
+    #include "llvm/Support/Host.h"
+#endif
 
 using namespace llvm;
 
@@ -121,7 +129,14 @@ public:
         auto CPU = "generic";
         auto Features = "";
         TargetOptions opt;
-        auto RM = Optional<Reloc::Model>();
+        
+        // 🔧 FIX 2: LLVM 16+ removed llvm::Optional in favor of std::optional
+        #if LLVM_VERSION_MAJOR >= 16
+            auto RM = std::optional<Reloc::Model>();
+        #else
+            auto RM = Optional<Reloc::Model>();
+        #endif
+
         auto TargetMachine = Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
         TheModule->setDataLayout(TargetMachine->createDataLayout());
 

@@ -53,13 +53,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install LLVM & Cross-Compilers (Linux)
+      # Setup for Linux/Android
+      - name: Install Latest LLVM & Cross-Compilers (Linux)
         if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-18 llvm-18-dev clang-18 lld-18
-          # Symlink llvm-config-18 to llvm-config for convenience
-          sudo ln -sf /usr/bin/llvm-config-18 /usr/bin/llvm-config || true
+          
+          # Determine the latest available LLVM version
+          LLVM_VERSION=$(apt-cache search '^llvm-[0-9]+$' | grep -oP 'llvm-\K[0-9]+' | sort -n | tail -1)
+          if [ -z "$LLVM_VERSION" ]; then
+            LLVM_VERSION=18  # fallback
+          fi
+          echo "Installing LLVM version $LLVM_VERSION"
+          
+          sudo apt-get install -y llvm-$LLVM_VERSION llvm-$LLVM_VERSION-dev clang-$LLVM_VERSION lld-$LLVM_VERSION
+          sudo ln -sf /usr/bin/llvm-config-$LLVM_VERSION /usr/bin/llvm-config || true
+          
           if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
           fi
@@ -70,9 +79,14 @@ jobs:
         run: |
           choco install mingw --force
       
-      - name: Install LLVM (macOS)
+      - name: Install Latest LLVM (macOS)
         if: runner.os == 'macOS'
-        run: brew install llvm
+        run: |
+          brew update
+          brew install llvm
+          # Ensure the correct llvm-config is in PATH
+          echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
+          echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
           
       # Build Step - Now passes ARTIFACT_NAME
       - name: Build X-Phage
