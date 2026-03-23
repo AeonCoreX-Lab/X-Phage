@@ -45,38 +45,6 @@ function compile_transpiler() {
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
 
-# --- Helper: Find correct LLVM include path (Fix for LLVM 17+) ---
-function get_llvm_include_path() {
-    local conf="$1"
-    local version="$2"
-    
-    # Try the path from llvm-config first
-    local inc=$($conf --includedir 2>/dev/null || echo "")
-    if [ -n "$inc" ] && { [ -f "$inc/llvm/Support/Host.h" ] || [ -f "$inc/llvm/TargetParser/Host.h" ]; }; then
-        echo "$inc"
-        return 0
-    fi
-    
-    # Otherwise search common locations (including Homebrew and Linux standard paths)
-    local candidates=(
-        "/usr/include/llvm-${version%%.*}"
-        "/usr/lib/llvm-${version%%.*}/include"
-        "/opt/homebrew/opt/llvm/include"
-        "/usr/local/opt/llvm/include"
-        "/usr/local/include"
-        "/usr/include/llvm"
-        "C:/Program Files/LLVM/include"
-    )
-    
-    for dir in "${candidates[@]}"; do
-        if [ -f "$dir/llvm/Support/Host.h" ] || [ -f "$dir/llvm/TargetParser/Host.h" ]; then
-            echo "$dir"
-            return 0
-        fi
-    done
-    return 1
-}
-
 # --- Main compile function with LLVM fallback ---
 function compile_smart() {
     local PLATFORM=$1
@@ -91,7 +59,7 @@ function compile_smart() {
         local LLVM_CONF="llvm-config"
         
         # macOS: Use Homebrew LLVM if available
-        if [[ "$PLATFORM" == "macOS" || "$PLATFORM" == "iOS" ]]; then
+        if [[ "$PLATFORM" == *"macOS"* || "$PLATFORM" == *"iOS"* ]]; then
             if [ -f "/opt/homebrew/opt/llvm/bin/llvm-config" ]; then
                 LLVM_CONF="/opt/homebrew/opt/llvm/bin/llvm-config"
             elif [ -f "/usr/local/opt/llvm/bin/llvm-config" ]; then
@@ -99,33 +67,40 @@ function compile_smart() {
             fi
         fi
 
-        if ! command -v $LLVM_CONF &> /dev/null; then
-            echo -e "${YELLOW}⚠ LLVM toolchain (llvm-config) not found. Using Titan Transpiler.${NC}"
+        # Windows: specific paths if llvm-config not natively in PATH
+        if [[ "$PLATFORM" == *"Windows"* ]]; then
+            if command -v llvm-config &> /dev/null; then
+                LLVM_CONF="llvm-config"
+            elif [ -f "/c/Program Files/LLVM/bin/llvm-config.exe" ]; then
+                LLVM_CONF="/c/Program Files/LLVM/bin/llvm-config.exe"
+            fi
+        fi
+
+        if ! command -v "$LLVM_CONF" &> /dev/null; then
+            echo -e "${YELLOW}⚠ LLVM toolchain ($LLVM_CONF) not found. Using Titan Transpiler.${NC}"
             compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
             return
         fi
 
-        local LLVM_VERSION=$($LLVM_CONF --version)
-        local INC_DIR=$(get_llvm_include_path "$LLVM_CONF" "$LLVM_VERSION")
+        local LLVM_VERSION=$("$LLVM_CONF" --version)
         
-        if [ -z "$INC_DIR" ]; then
-            echo -e "${YELLOW}⚠ Could not find Host.h headers. Falling back to Transpiler.${NC}"
-            compile_transpiler "$PLATFORM" "$OUTPUT" "$FLAGS" "$COMPILER"
-            return
+        # Get flags directly from llvm-config without manually stripping -I paths
+        local L_CFLAGS=$("$LLVM_CONF" --cxxflags)
+        local L_LDFLAGS=$("$LLVM_CONF" --ldflags)
+        local L_LIBS=$("$LLVM_CONF" --libs all)
+        local L_SYSLIBS=$("$LLVM_CONF" --system-libs)
+        
+        # Windows doesn't use -ldl, other OSes usually need it for LLVM JIT/dynamic loading
+        local EXTRA_LIBS="-ldl"
+        if [[ "$PLATFORM" == *"Windows"* ]]; then
+            EXTRA_LIBS=""
         fi
 
-        # Get flags from llvm-config, replace include path with discovered directory
-        local RAW_CFLAGS=$($LLVM_CONF --cxxflags)
-        local CLEAN_CFLAGS=$(echo "$RAW_CFLAGS" | sed 's/-I[^ ]*//g')
-        local L_CFLAGS="-I\"$INC_DIR\" $CLEAN_CFLAGS"
-        local L_LDFLAGS="$($LLVM_CONF --ldflags) $($LLVM_CONF --libs all) $($LLVM_CONF --system-libs)"
-        
-        # In Windows Git Bash, paths might contain spaces, avoid quoting errors
         echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
         echo -e "${CYAN}      Compiler command execution generated.${NC}"
         
         set +e 
-        $COMPILER $SOURCES $INCLUDES -o $OUTPUT $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS -ldl
+        $COMPILER $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS -DENABLE_LLVM $L_CFLAGS $L_LDFLAGS $L_LIBS $L_SYSLIBS $EXTRA_LIBS
         RES=$?
         set -e 
 

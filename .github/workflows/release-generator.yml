@@ -76,7 +76,6 @@ jobs:
           
           if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
-            # Ensure Android target has a clang cross compiler if available in repos
             sudo apt-get install -y clang || true
           fi
 
@@ -85,6 +84,8 @@ jobs:
         if: startsWith(matrix.target, 'windows')
         run: |
           choco install llvm mingw --force
+          # Add Chocolatey LLVM path directly to the runner environment
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
       
       # Setup for macOS
       - name: Install Latest LLVM (macOS)
@@ -105,12 +106,12 @@ jobs:
         run: |
           bash build.sh
 
-      # Upload all files in the target directory (Includes both binary and .sha256)
+      # Fix: Upload all files in the target directory WITHOUT wildcard, so it reliably gets .sha256
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: bin/${{ matrix.target }}/*
+          path: bin/${{ matrix.target }}
 
   # ---------------------------------------------------------
   # Job 2: GitHub Release Creation
@@ -128,7 +129,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          # Wildcard catches everything: binaries and .sha256 files inside all asset directories
+          # Wildcard catches everything inside the downloaded directories
           files: assets/*/*
           body: |
             ### 🧬 X-Phage Titan Omni-Platform Release
