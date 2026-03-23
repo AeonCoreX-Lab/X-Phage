@@ -34,6 +34,11 @@ jobs:
             artifact_name: xphage.exe
             asset_name: xphage_windows_x64
             
+          - os: windows-latest
+            target: windows-arm64
+            artifact_name: xphage_arm64.exe
+            asset_name: xphage_windows_arm64
+            
           - os: macos-latest
             target: macos
             artifact_name: xphage_mac
@@ -71,14 +76,17 @@ jobs:
           
           if [ "${{ matrix.target }}" == "linux-arm64" ] || [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
+            # Ensure Android target has a clang cross compiler if available in repos
+            sudo apt-get install -y clang || true
           fi
 
-      # Setup for Windows (Using Chocolatey instead of sudo)
-      - name: Install MinGW (Windows)
-        if: matrix.target == 'windows'
+      # Setup for Windows (Install LLVM & MinGW via Chocolatey)
+      - name: Install LLVM & MinGW (Windows)
+        if: startsWith(matrix.target, 'windows')
         run: |
-          choco install mingw --force
+          choco install llvm mingw --force
       
+      # Setup for macOS
       - name: Install Latest LLVM (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -88,7 +96,7 @@ jobs:
           echo "/opt/homebrew/opt/llvm/bin" >> $GITHUB_PATH
           echo "/usr/local/opt/llvm/bin" >> $GITHUB_PATH
           
-      # Build Step - Now passes ARTIFACT_NAME
+      # Build Step - Passes ARTIFACT_NAME and builds targets
       - name: Build X-Phage
         shell: bash
         env:
@@ -97,11 +105,12 @@ jobs:
         run: |
           bash build.sh
 
+      # Upload all files in the target directory (Includes both binary and .sha256)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: bin/${{ matrix.target }}/${{ matrix.artifact_name }}
+          path: bin/${{ matrix.target }}/*
 
   # ---------------------------------------------------------
   # Job 2: GitHub Release Creation
@@ -119,18 +128,14 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: |
-            assets/xphage_linux_x64/xphage_linux_x64
-            assets/xphage_linux_arm64/xphage_linux_arm64
-            assets/xphage_windows_x64/xphage.exe
-            assets/xphage_macos_universal/xphage_mac
-            assets/xphage_android_arm64/xphage_android_arm64
-            assets/xphage_ios_arm64
+          # Wildcard catches everything: binaries and .sha256 files inside all asset directories
+          files: assets/*/*
           body: |
-            ### 🧬 X-Phage Titan v3.3.0
-            - **Fixed:** Multi-Architecture Build Support (iOS/Android/Windows).
+            ### 🧬 X-Phage Titan Omni-Platform Release
+            - **New:** Added Windows ARM64 Architecture Support.
+            - **Security:** SHA256 Checksums automatically generated for all binaries.
+            - **Architecture:** Native LLVM Code Generation enabled for Linux, macOS, Windows, and Android.
             - **Docker Support:** Available on Docker Hub.
-            - **Architecture:** Native LLVM Code Generation (Desktop Only).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
