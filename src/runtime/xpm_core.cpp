@@ -15,6 +15,11 @@ const std::string RAW_URL = "https://raw.githubusercontent.com/AeonCoreX-Lab/X-P
 
 namespace XPM_Cloud {
 
+// ------------------------------------------------------------------
+// Helper functions are only available on non-iOS platforms
+// ------------------------------------------------------------------
+#if !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+
 // Helper: create directory (cross‑platform)
 static bool create_directory(const std::string& path) {
     #ifdef _WIN32
@@ -30,6 +35,8 @@ static bool download_file(const std::string& url, const std::string& dest) {
     std::string cmd = "curl -sL \"" + url + "\" -o \"" + dest + "\"";
     return std::system(cmd.c_str()) == 0;
 }
+
+#endif // !iOS
 
 // ------------------------------------------------------------------
 // 1. Sync a single module (supports subdirectories)
