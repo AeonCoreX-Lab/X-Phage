@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.8 [WIN ARM64 INCLUDE/LIB ENV FIX]
+# X-Phage Titan Ultimate Build Script v5.9 [LINUX ARM64 NATIVE LLVM]
 set -e
 
 GREEN='\033[1;32m'
@@ -181,20 +181,12 @@ function build_windows_llvm_manual() {
 
 # ---------------------------------------------------------
 # Windows ARM64 MSVC Build
-#
-# ROOT FIX v5.8:
 # ilammy/msvc-dev-cmd sets INCLUDE and LIB as semicolon-separated
-# Windows paths and exports them into the bash environment.
-# We read these directly — no need to locate paths manually.
-#
-# Previous approach used -imsvc which is a clang-cl flag, NOT a
-# clang++ flag. clang++ uses -isystem for system include dirs
-# and -L for library search paths.
+# Windows paths — we read them directly and convert to clang++ flags.
 # ---------------------------------------------------------
 function build_windows_arm64_msvc() {
     local OUTPUT=$1
 
-    # Find clang++ from choco LLVM (already in PATH via ilammy env)
     local CLANGPP=""
     if command -v clang++ &>/dev/null; then
         CLANGPP="clang++"
@@ -207,16 +199,12 @@ function build_windows_arm64_msvc() {
 
     echo -e "${CYAN}   [WIN ARM64] Using compiler: $CLANGPP${NC}"
 
-    # Read INCLUDE env var set by ilammy/msvc-dev-cmd
-    # Format: "C:\path1;C:\path2;..." — convert to bash -isystem flags
     local INCLUDE_FLAGS=()
     if [ -n "$INCLUDE" ]; then
         echo -e "${CYAN}   [WIN ARM64] Reading INCLUDE from VS environment${NC}"
-        # Split on semicolon, convert Windows backslash paths to forward slash
         IFS=';' read -ra WIN_INCLUDES <<< "$INCLUDE"
         for inc in "${WIN_INCLUDES[@]}"; do
             [ -z "$inc" ] && continue
-            # Convert Windows path to Git Bash path: C:\foo -> /c/foo
             local bash_inc
             bash_inc=$(echo "$inc" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
             INCLUDE_FLAGS+=(-isystem "$bash_inc")
@@ -225,8 +213,6 @@ function build_windows_arm64_msvc() {
         echo -e "${YELLOW}   [WIN ARM64] INCLUDE env var not set — VS environment may not be active${NC}"
     fi
 
-    # Read LIB env var set by ilammy/msvc-dev-cmd
-    # Format: "C:\path1;C:\path2;..." — convert to -L flags
     local LIB_FLAGS=()
     if [ -n "$LIB" ]; then
         echo -e "${CYAN}   [WIN ARM64] Reading LIB from VS environment${NC}"
@@ -360,15 +346,17 @@ if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
     OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
 
-    # Use aarch64-linux-gnu-g++ directly — has its own ARM64 sysroot.
-    # LLVM mode disabled: host LLVM libs are x64, cannot link into ARM64 binary.
-    if command -v aarch64-linux-gnu-g++ &>/dev/null; then
-        echo -e "${CYAN}   -> Using aarch64-linux-gnu-g++ cross-compiler${NC}"
-        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "false"
-    elif [[ $(uname -m) == "aarch64" ]]; then
-        compile_smart "Linux ARM64 (Native)" "$OUTPUT" "$STANDARD_FLAGS" "g++" "true"
+    # FIX v5.9: Now running on ubuntu-24.04-arm (native ARM64 runner).
+    # clang++ runs natively — no cross-compile, no sysroot issues.
+    # LLVM is enabled: host architecture matches target, libs link correctly.
+    if command -v clang++ &>/dev/null; then
+        echo -e "${CYAN}   -> Native ARM64 runner detected, using clang++ with LLVM${NC}"
+        compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
+    elif command -v g++ &>/dev/null; then
+        echo -e "${CYAN}   -> Falling back to g++ (native)${NC}"
+        compile_smart "Linux ARM64 (g++)" "$OUTPUT" "$STANDARD_FLAGS" "g++" "true"
     else
-        echo -e "${YELLOW}⚠ aarch64-linux-gnu-g++ not found. Skipping Linux ARM64.${NC}"
+        echo -e "${YELLOW}⚠ No compiler found for Linux ARM64. Skipping.${NC}"
     fi
     generate_sha256 "$OUTPUT"
 fi

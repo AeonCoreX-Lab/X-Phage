@@ -24,7 +24,9 @@ jobs:
             artifact_name: xphage_linux_x64
             asset_name: xphage_linux_x64
 
-          - os: ubuntu-latest
+          # FIX: Use native ARM64 runner — eliminates cross-compile sysroot
+          # issues and allows LLVM to build natively on ARM64 hardware.
+          - os: ubuntu-24.04-arm
             target: linux-arm64
             artifact_name: xphage_linux_arm64
             asset_name: xphage_linux_arm64
@@ -60,6 +62,8 @@ jobs:
 
       # ------------------------------------------------------------------
       # Linux / Android: install latest LLVM + cross-compilers
+      # linux-arm64 now runs on a native ARM64 runner so no cross-compiler
+      # needed — LLVM installs and runs natively.
       # ------------------------------------------------------------------
       - name: Install Latest LLVM & Cross-Compilers (Linux)
         if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
@@ -74,17 +78,16 @@ jobs:
             clang-${LLVM_VERSION} lld-${LLVM_VERSION}
           sudo ln -sf /usr/bin/llvm-config-${LLVM_VERSION} /usr/bin/llvm-config || true
           sudo ln -sf /usr/bin/clang++-${LLVM_VERSION} /usr/bin/clang++ || true
-          if [ "${{ matrix.target }}" == "linux-arm64" ] || \
-             [ "${{ matrix.target }}" == "android" ]; then
+          # Android still needs the aarch64 cross-compiler
+          if [ "${{ matrix.target }}" == "android" ]; then
             sudo apt-get install -y g++-aarch64-linux-gnu
           fi
 
       # ------------------------------------------------------------------
       # Windows: install LLVM + MinGW via MSYS2
-      # 🔧 FIX: We restrict MSYS2 *only* to the 'windows' target, avoiding 'windows-arm64'. 
       # ------------------------------------------------------------------
       - name: Install LLVM & MinGW (Windows MSYS2)
-        if: matrix.target == 'windows' 
+        if: matrix.target == 'windows'
         shell: bash
         run: |
           echo "Installing MSYS2 MinGW LLVM & Clang (provides dev headers & llvm-config)..."
@@ -92,8 +95,7 @@ jobs:
           echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
 
       # ------------------------------------------------------------------
-      # Windows ARM64: ARM64 MSVC cross-compile runtime libs & Environment.
-      # 🔧 FIX: Explicitly install the standard choco llvm alongside MSVC tools.
+      # Windows ARM64: MSVC cross-compile environment
       # ------------------------------------------------------------------
       - name: Install ARM64 cross-compile support (Windows ARM64)
         if: matrix.target == 'windows-arm64'
@@ -133,7 +135,7 @@ jobs:
         run: bash build.sh
 
       # ------------------------------------------------------------------
-      # Upload full bin/<target>/ folder
+      # Upload full bin/<target>/ folder (binary + .sha256 sidecar)
       # ------------------------------------------------------------------
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -167,6 +169,7 @@ jobs:
             ### 🧬 X-Phage Titan Omni-Platform Release
             - **Fixed:** Windows LLVM Native Build Missing Headers (`llvm-config.h`) fixed using MSYS2.
             - **New:** Added Windows ARM64 Architecture Support.
+            - **New:** Linux ARM64 now builds natively on ARM64 hardware with full LLVM support.
             - **Security:** SHA256 Checksums automatically generated and uploaded for all binaries.
             - **Architecture:** Native LLVM Code Generation enabled for Linux, macOS, Windows, and Android.
             - **Docker Support:** Available on Docker Hub.
@@ -205,4 +208,3 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/xphage:latest
             ${{ secrets.DOCKER_USERNAME }}/xphage:${{ env.VERSION }}
-
