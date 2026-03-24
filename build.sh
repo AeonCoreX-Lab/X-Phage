@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.7 [WIN ARM64 MSVC HEADERS + LINUX ARM64 CROSS FIX]
+# X-Phage Titan Ultimate Build Script v5.8 [WIN ARM64 INCLUDE/LIB ENV FIX]
 set -e
 
 GREEN='\033[1;32m'
@@ -180,124 +180,77 @@ function build_windows_llvm_manual() {
 }
 
 # ---------------------------------------------------------
-# FIX: Windows ARM64 MSVC Build
+# Windows ARM64 MSVC Build
 #
-# Problem: clang++ with --target=aarch64-pc-windows-msvc needs MSVC
-# include/lib paths. These exist in the VS environment but bash shell
-# does NOT inherit them from the pwsh setup step.
+# ROOT FIX v5.8:
+# ilammy/msvc-dev-cmd sets INCLUDE and LIB as semicolon-separated
+# Windows paths and exports them into the bash environment.
+# We read these directly — no need to locate paths manually.
 #
-# Solution: Locate MSVC and WinSDK paths ourselves and pass them
-# explicitly via -imsvc (clang's MSVC-compatible include flag).
+# Previous approach used -imsvc which is a clang-cl flag, NOT a
+# clang++ flag. clang++ uses -isystem for system include dirs
+# and -L for library search paths.
 # ---------------------------------------------------------
 function build_windows_arm64_msvc() {
     local OUTPUT=$1
 
-    # Find clang++ (from choco LLVM install)
+    # Find clang++ from choco LLVM (already in PATH via ilammy env)
     local CLANGPP=""
     if command -v clang++ &>/dev/null; then
         CLANGPP="clang++"
     elif [ -f "/c/PROGRA~1/LLVM/bin/clang++.exe" ]; then
         CLANGPP="/c/PROGRA~1/LLVM/bin/clang++.exe"
     else
-        echo -e "${RED}✘ clang++ not found for Windows ARM64.${NC}"
+        echo -e "${RED}✘ clang++ not found for Windows ARM64. Skipping.${NC}"
         return 1
     fi
 
     echo -e "${CYAN}   [WIN ARM64] Using compiler: $CLANGPP${NC}"
 
-    # Locate MSVC toolchain
-    # VS BuildTools installs to "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
-    # MSYS2/Git Bash path: /c/PROGRA~2/Microsoft Visual Studio/2022/BuildTools
-    local VS_BASE=""
-    local VS_CANDIDATES=(
-        "/c/PROGRA~2/Microsoft Visual Studio/2022/BuildTools"
-        "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools"
-        "/c/PROGRA~2/Microsoft Visual Studio/2022/Enterprise"
-        "/c/PROGRA~2/Microsoft Visual Studio/2022/Community"
-    )
-    for d in "${VS_CANDIDATES[@]}"; do
-        if [ -d "$d" ]; then
-            VS_BASE="$d"
-            break
-        fi
-    done
-
-    if [ -z "$VS_BASE" ]; then
-        echo -e "${YELLOW}   [WIN ARM64] VS BuildTools not found. Trying Transpiler fallback.${NC}"
-        compile_transpiler "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS" "$CLANGPP"
-        return
+    # Read INCLUDE env var set by ilammy/msvc-dev-cmd
+    # Format: "C:\path1;C:\path2;..." — convert to bash -isystem flags
+    local INCLUDE_FLAGS=()
+    if [ -n "$INCLUDE" ]; then
+        echo -e "${CYAN}   [WIN ARM64] Reading INCLUDE from VS environment${NC}"
+        # Split on semicolon, convert Windows backslash paths to forward slash
+        IFS=';' read -ra WIN_INCLUDES <<< "$INCLUDE"
+        for inc in "${WIN_INCLUDES[@]}"; do
+            [ -z "$inc" ] && continue
+            # Convert Windows path to Git Bash path: C:\foo -> /c/foo
+            local bash_inc
+            bash_inc=$(echo "$inc" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
+            INCLUDE_FLAGS+=(-isystem "$bash_inc")
+        done
+    else
+        echo -e "${YELLOW}   [WIN ARM64] INCLUDE env var not set — VS environment may not be active${NC}"
     fi
 
-    echo -e "${CYAN}   [WIN ARM64] VS Base: $VS_BASE${NC}"
-
-    # Find MSVC version directory (e.g. 14.xx.xxxxx)
-    local MSVC_VER_DIR=""
-    local MSVC_TOOLS_BASE="$VS_BASE/VC/Tools/MSVC"
-    if [ -d "$MSVC_TOOLS_BASE" ]; then
-        # Pick the highest version
-        MSVC_VER_DIR=$(ls "$MSVC_TOOLS_BASE" 2>/dev/null | sort -V | tail -1)
+    # Read LIB env var set by ilammy/msvc-dev-cmd
+    # Format: "C:\path1;C:\path2;..." — convert to -L flags
+    local LIB_FLAGS=()
+    if [ -n "$LIB" ]; then
+        echo -e "${CYAN}   [WIN ARM64] Reading LIB from VS environment${NC}"
+        IFS=';' read -ra WIN_LIBS <<< "$LIB"
+        for lib in "${WIN_LIBS[@]}"; do
+            [ -z "$lib" ] && continue
+            local bash_lib
+            bash_lib=$(echo "$lib" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
+            LIB_FLAGS+=(-L"$bash_lib")
+        done
+    else
+        echo -e "${YELLOW}   [WIN ARM64] LIB env var not set — VS environment may not be active${NC}"
     fi
-
-    if [ -z "$MSVC_VER_DIR" ]; then
-        echo -e "${YELLOW}   [WIN ARM64] MSVC tools not found. Trying Transpiler fallback.${NC}"
-        compile_transpiler "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS" "$CLANGPP"
-        return
-    fi
-
-    local MSVC_PATH="$MSVC_TOOLS_BASE/$MSVC_VER_DIR"
-    echo -e "${CYAN}   [WIN ARM64] MSVC: $MSVC_PATH${NC}"
-
-    # Find Windows SDK
-    local WINSDK_BASE="/c/PROGRA~2/Windows Kits/10"
-    if [ ! -d "$WINSDK_BASE" ]; then
-        WINSDK_BASE="/c/Program Files (x86)/Windows Kits/10"
-    fi
-
-    local WINSDK_VER=""
-    if [ -d "$WINSDK_BASE/Include" ]; then
-        WINSDK_VER=$(ls "$WINSDK_BASE/Include" 2>/dev/null | grep '10\.' | sort -V | tail -1)
-    fi
-
-    if [ -z "$WINSDK_VER" ]; then
-        echo -e "${YELLOW}   [WIN ARM64] Windows SDK not found. Trying Transpiler fallback.${NC}"
-        compile_transpiler "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS" "$CLANGPP"
-        return
-    fi
-
-    echo -e "${CYAN}   [WIN ARM64] WinSDK: $WINSDK_BASE (version $WINSDK_VER)${NC}"
-
-    # Build include flags — use -imsvc so clang treats them as system headers (no warnings)
-    local MSVC_INCLUDE_FLAGS=(
-        -imsvc "$MSVC_PATH/include"
-        -imsvc "$WINSDK_BASE/Include/$WINSDK_VER/ucrt"
-        -imsvc "$WINSDK_BASE/Include/$WINSDK_VER/um"
-        -imsvc "$WINSDK_BASE/Include/$WINSDK_VER/shared"
-        -imsvc "$WINSDK_BASE/Include/$WINSDK_VER/winrt"
-    )
-
-    # Build lib flags
-    local MSVC_LIB_FLAGS=(
-        -libpath:"$MSVC_PATH/lib/arm64"
-        -libpath:"$WINSDK_BASE/Lib/$WINSDK_VER/ucrt/arm64"
-        -libpath:"$WINSDK_BASE/Lib/$WINSDK_VER/um/arm64"
-    )
-
-    # Convert lib flags to -Wl, format for clang linker
-    local LINK_FLAGS=()
-    for lf in "${MSVC_LIB_FLAGS[@]}"; do
-        LINK_FLAGS+=(-Wl,"$lf")
-    done
 
     echo -e "${CYAN}   -> Attempting Windows ARM64 MSVC Build...${NC}"
     set +e
     "$CLANGPP" \
         $SOURCES \
         $INCLUDES \
-        "${MSVC_INCLUDE_FLAGS[@]}" \
+        "${INCLUDE_FLAGS[@]}" \
         -o "$OUTPUT" \
         -std=c++17 -O3 \
         --target=aarch64-pc-windows-msvc \
-        "${LINK_FLAGS[@]}" \
+        "${LIB_FLAGS[@]}" \
         -Wno-unused-command-line-argument
     local RES=$?
     set -e
@@ -306,8 +259,7 @@ function build_windows_arm64_msvc() {
         echo -e "${GREEN}✔ Windows ARM64 (MSVC Mode) Build Success${NC}"
         return 0
     else
-        echo -e "${YELLOW}   [WIN ARM64] MSVC Build failed (exit $RES). Trying MinGW Transpiler fallback.${NC}"
-        # Last resort: try with MinGW clang++ without MSVC target
+        echo -e "${YELLOW}   [WIN ARM64] MSVC Build failed (exit $RES). Falling back to Transpiler.${NC}"
         compile_transpiler "Windows ARM64" "$OUTPUT" "$STANDARD_FLAGS" "$CLANGPP"
     fi
 }
@@ -408,15 +360,12 @@ if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
     OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
 
-    # FIX: Do NOT use clang++ with --target=aarch64-linux-gnu for cross-compile
-    # because it requires a separate ARM64 sysroot that is not installed.
-    # Use aarch64-linux-gnu-g++ directly — it has its own sysroot built in.
-    # LLVM mode is disabled for cross-compile (host LLVM libs are x64, not ARM64).
+    # Use aarch64-linux-gnu-g++ directly — has its own ARM64 sysroot.
+    # LLVM mode disabled: host LLVM libs are x64, cannot link into ARM64 binary.
     if command -v aarch64-linux-gnu-g++ &>/dev/null; then
         echo -e "${CYAN}   -> Using aarch64-linux-gnu-g++ cross-compiler${NC}"
         compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "aarch64-linux-gnu-g++" "false"
     elif [[ $(uname -m) == "aarch64" ]]; then
-        # Native ARM64 build — LLVM is fine here
         compile_smart "Linux ARM64 (Native)" "$OUTPUT" "$STANDARD_FLAGS" "g++" "true"
     else
         echo -e "${YELLOW}⚠ aarch64-linux-gnu-g++ not found. Skipping Linux ARM64.${NC}"
@@ -450,10 +399,6 @@ fi
 if [[ "$TARGET" == "windows-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🪟 Building for Windows (ARM64)...${NC}"
     OUTPUT="bin/windows-arm64/${ARTIFACT_NAME:-xphage_arm64.exe}"
-
-    # FIX: Use dedicated function that locates MSVC include/lib paths
-    # manually and passes them via -imsvc flags, bypassing the bash shell's
-    # inability to inherit the VS environment from the pwsh setup step.
     build_windows_arm64_msvc "$OUTPUT"
     generate_sha256 "$OUTPUT"
 fi
