@@ -24,8 +24,6 @@ jobs:
             artifact_name: xphage_linux_x64
             asset_name: xphage_linux_x64
 
-          # FIX: Use native ARM64 runner — eliminates cross-compile sysroot
-          # issues and allows LLVM to build natively on ARM64 hardware.
           - os: ubuntu-24.04-arm
             target: linux-arm64
             artifact_name: xphage_linux_arm64
@@ -62,8 +60,7 @@ jobs:
 
       # ------------------------------------------------------------------
       # Linux / Android: install latest LLVM + cross-compilers
-      # linux-arm64 now runs on a native ARM64 runner so no cross-compiler
-      # needed — LLVM installs and runs natively.
+      # linux-arm64 runs on ubuntu-24.04-arm (native) so no cross-compiler needed.
       # ------------------------------------------------------------------
       - name: Install Latest LLVM & Cross-Compilers (Linux)
         if: startsWith(matrix.target, 'linux') || matrix.target == 'android'
@@ -84,29 +81,26 @@ jobs:
           fi
 
       # ------------------------------------------------------------------
-      # Windows: install LLVM + MinGW via MSYS2
+      # Windows x64: install LLVM + MinGW via MSYS2
       # ------------------------------------------------------------------
-      - name: Install LLVM & MinGW (Windows MSYS2)
+      - name: Install LLVM & MinGW (Windows x64)
         if: matrix.target == 'windows'
         shell: bash
         run: |
-          echo "Installing MSYS2 MinGW LLVM & Clang (provides dev headers & llvm-config)..."
+          echo "Installing MSYS2 MinGW LLVM & Clang..."
           C:/msys64/usr/bin/pacman.exe -S --noconfirm mingw-w64-x86_64-llvm mingw-w64-x86_64-clang mingw-w64-x86_64-gcc
           echo "C:\msys64\mingw64\bin" >> $GITHUB_PATH
 
       # ------------------------------------------------------------------
-      # Windows ARM64: MSVC cross-compile environment
+      # Windows ARM64: Setup MSVC environment using VS Enterprise
+      # which is pre-installed on windows-latest runners.
+      #
+      # ROOT FIX: Do NOT install visualstudio2022buildtools via choco.
+      # When VS Enterprise is already installed, choco BuildTools install
+      # produces an incomplete INCLUDE env (missing MSVC STL headers).
+      # ilammy/msvc-dev-cmd finds VS Enterprise automatically via vswhere
+      # and sets the full correct INCLUDE + LIB environment.
       # ------------------------------------------------------------------
-      - name: Install ARM64 cross-compile support (Windows ARM64)
-        if: matrix.target == 'windows-arm64'
-        shell: pwsh
-        run: |
-          choco install visualstudio2022buildtools `
-            --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.ARM64" `
-            --force --no-progress -y
-          choco install llvm --force --no-progress -y
-          Write-Host "✔ ARM64 MSVC runtime libs & Standard LLVM installed"
-
       - name: Setup MSVC Environment (Windows ARM64)
         if: matrix.target == 'windows-arm64'
         uses: ilammy/msvc-dev-cmd@v1
@@ -166,10 +160,9 @@ jobs:
           files: |
             assets/**/*
           body: |
-            ### 🧬 X-Phage Titan Omni-Platform Release
-            - **Fixed:** Windows LLVM Native Build Missing Headers (`llvm-config.h`) fixed using MSYS2.
-            - **New:** Added Windows ARM64 Architecture Support.
-            - **New:** Linux ARM64 now builds natively on ARM64 hardware with full LLVM support.
+            ### �妞 X-Phage Titan Omni-Platform Release
+            - **New:** Linux ARM64 builds natively on ARM64 hardware with full LLVM support.
+            - **New:** Windows ARM64 uses VS Enterprise MSVC environment for correct STL headers.
             - **Security:** SHA256 Checksums automatically generated and uploaded for all binaries.
             - **Architecture:** Native LLVM Code Generation enabled for Linux, macOS, Windows, and Android.
             - **Docker Support:** Available on Docker Hub.

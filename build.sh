@@ -1,5 +1,5 @@
 #!/bin/bash
-# X-Phage Titan Ultimate Build Script v5.9 [LINUX ARM64 NATIVE LLVM]
+# X-Phage Titan Ultimate Build Script v5.10 [WIN ARM64 VS ENTERPRISE FIX]
 set -e
 
 GREEN='\033[1;32m'
@@ -22,8 +22,7 @@ INCLUDES="-I./include"
 STANDARD_FLAGS="-std=c++17 -O3 -pthread"
 
 # ---------------------------------------------------------
-# Windows PATH setup — only inject MSYS2 for x64 target
-# ARM64 uses MSVC ABI so MSYS2 MinGW headers would conflict
+# Windows PATH setup
 # ---------------------------------------------------------
 IS_WINDOWS=false
 if [[ "$RUNNER_OS" == "Windows" || "$OS" == "Windows_NT" ]]; then
@@ -181,12 +180,28 @@ function build_windows_llvm_manual() {
 
 # ---------------------------------------------------------
 # Windows ARM64 MSVC Build
-# ilammy/msvc-dev-cmd sets INCLUDE and LIB as semicolon-separated
-# Windows paths — we read them directly and convert to clang++ flags.
+#
+# ROOT FIX v5.10:
+# Do NOT use choco to install visualstudio2022buildtools.
+# windows-latest has VS Enterprise pre-installed. ilammy/msvc-dev-cmd
+# finds it via vswhere and sets the FULL INCLUDE + LIB env including
+# MSVC STL headers (VC\Tools\MSVC\xx\include).
+#
+# When BuildTools is installed via choco alongside VS Enterprise,
+# ilammy falls back to BuildTools which has an INCOMPLETE INCLUDE
+# (no MSVC STL — only WinSDK ucrt/um/shared). This causes
+# 'string' file not found.
+#
+# Strategy:
+# 1. Read INCLUDE from env (set by ilammy/msvc-dev-cmd)
+# 2. If MSVC STL headers missing from INCLUDE, find them from
+#    VSINSTALLDIR env var (also set by ilammy) as a safety net
+# 3. Read LIB from env
 # ---------------------------------------------------------
 function build_windows_arm64_msvc() {
     local OUTPUT=$1
 
+    # Find clang++
     local CLANGPP=""
     if command -v clang++ &>/dev/null; then
         CLANGPP="clang++"
@@ -199,7 +214,11 @@ function build_windows_arm64_msvc() {
 
     echo -e "${CYAN}   [WIN ARM64] Using compiler: $CLANGPP${NC}"
 
+    # ---------------------------------------------------------
+    # Build INCLUDE flags from $INCLUDE env var
+    # ---------------------------------------------------------
     local INCLUDE_FLAGS=()
+
     if [ -n "$INCLUDE" ]; then
         echo -e "${CYAN}   [WIN ARM64] Reading INCLUDE from VS environment${NC}"
         IFS=';' read -ra WIN_INCLUDES <<< "$INCLUDE"
@@ -210,9 +229,62 @@ function build_windows_arm64_msvc() {
             INCLUDE_FLAGS+=(-isystem "$bash_inc")
         done
     else
-        echo -e "${YELLOW}   [WIN ARM64] INCLUDE env var not set — VS environment may not be active${NC}"
+        echo -e "${YELLOW}   [WIN ARM64] INCLUDE env var not set${NC}"
     fi
 
+    # ---------------------------------------------------------
+    # Safety net: check if MSVC STL is present in INCLUDE_FLAGS
+    # If not (e.g. incomplete BuildTools env), find it from
+    # VSINSTALLDIR or VCToolsInstallDir env vars set by ilammy.
+    # ---------------------------------------------------------
+    local HAS_MSVC_STL=false
+    for flag in "${INCLUDE_FLAGS[@]}"; do
+        if [[ "$flag" == *"MSVC"* || "$flag" == *"VC/Tools/MSVC"* || "$flag" == *"VC\\Tools\\MSVC"* ]]; then
+            HAS_MSVC_STL=true
+            break
+        fi
+    done
+
+    if [[ "$HAS_MSVC_STL" == "false" ]]; then
+        echo -e "${YELLOW}   [WIN ARM64] MSVC STL not in INCLUDE — searching from VS install${NC}"
+
+        # Try VCToolsInstallDir first (set by ilammy when VS Enterprise found)
+        local MSVC_INCLUDE=""
+        if [ -n "$VCToolsInstallDir" ]; then
+            local bash_vct
+            bash_vct=$(echo "$VCToolsInstallDir" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
+            if [ -d "${bash_vct}include" ]; then
+                MSVC_INCLUDE="${bash_vct}include"
+            fi
+        fi
+
+        # Fallback: scan VSINSTALLDIR
+        if [ -z "$MSVC_INCLUDE" ] && [ -n "$VSINSTALLDIR" ]; then
+            local bash_vs
+            bash_vs=$(echo "$VSINSTALLDIR" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
+            local MSVC_TOOLS_BASE="${bash_vs}VC/Tools/MSVC"
+            if [ -d "$MSVC_TOOLS_BASE" ]; then
+                local MSVC_VER
+                MSVC_VER=$(ls "$MSVC_TOOLS_BASE" 2>/dev/null | sort -V | tail -1)
+                if [ -n "$MSVC_VER" ] && [ -d "$MSVC_TOOLS_BASE/$MSVC_VER/include" ]; then
+                    MSVC_INCLUDE="$MSVC_TOOLS_BASE/$MSVC_VER/include"
+                fi
+            fi
+        fi
+
+        if [ -n "$MSVC_INCLUDE" ]; then
+            echo -e "${CYAN}   [WIN ARM64] Found MSVC STL: $MSVC_INCLUDE${NC}"
+            INCLUDE_FLAGS=(-isystem "$MSVC_INCLUDE" "${INCLUDE_FLAGS[@]}")
+        else
+            echo -e "${YELLOW}   [WIN ARM64] Could not locate MSVC STL headers${NC}"
+        fi
+    else
+        echo -e "${CYAN}   [WIN ARM64] MSVC STL headers present in INCLUDE${NC}"
+    fi
+
+    # ---------------------------------------------------------
+    # Build LIB flags from $LIB env var
+    # ---------------------------------------------------------
     local LIB_FLAGS=()
     if [ -n "$LIB" ]; then
         echo -e "${CYAN}   [WIN ARM64] Reading LIB from VS environment${NC}"
@@ -224,7 +296,28 @@ function build_windows_arm64_msvc() {
             LIB_FLAGS+=(-L"$bash_lib")
         done
     else
-        echo -e "${YELLOW}   [WIN ARM64] LIB env var not set — VS environment may not be active${NC}"
+        echo -e "${YELLOW}   [WIN ARM64] LIB env var not set${NC}"
+    fi
+
+    # Safety net for LIB: add MSVC ARM64 lib if missing
+    local HAS_MSVC_LIB=false
+    for flag in "${LIB_FLAGS[@]}"; do
+        if [[ "$flag" == *"MSVC"* ]]; then
+            HAS_MSVC_LIB=true
+            break
+        fi
+    done
+
+    if [[ "$HAS_MSVC_LIB" == "false" ]]; then
+        echo -e "${YELLOW}   [WIN ARM64] MSVC ARM64 lib not in LIB — searching${NC}"
+        if [ -n "$VCToolsInstallDir" ]; then
+            local bash_vct
+            bash_vct=$(echo "$VCToolsInstallDir" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
+            if [ -d "${bash_vct}lib/arm64" ]; then
+                echo -e "${CYAN}   [WIN ARM64] Found MSVC ARM64 lib: ${bash_vct}lib/arm64${NC}"
+                LIB_FLAGS=(-L"${bash_vct}lib/arm64" "${LIB_FLAGS[@]}")
+            fi
+        fi
     fi
 
     echo -e "${CYAN}   -> Attempting Windows ARM64 MSVC Build...${NC}"
@@ -346,11 +439,10 @@ if [[ "$TARGET" == "linux-arm64" || -z "$TARGET" ]]; then
     echo -e "${PURPLE}🐧 Building for Linux (ARM64)...${NC}"
     OUTPUT="bin/linux-arm64/${ARTIFACT_NAME:-xphage_linux_arm64}"
 
-    # FIX v5.9: Now running on ubuntu-24.04-arm (native ARM64 runner).
-    # clang++ runs natively — no cross-compile, no sysroot issues.
-    # LLVM is enabled: host architecture matches target, libs link correctly.
+    # Native ARM64 runner (ubuntu-24.04-arm) — clang++ runs natively,
+    # LLVM libs match target architecture.
     if command -v clang++ &>/dev/null; then
-        echo -e "${CYAN}   -> Native ARM64 runner detected, using clang++ with LLVM${NC}"
+        echo -e "${CYAN}   -> Native ARM64 runner, using clang++ with LLVM${NC}"
         compile_smart "Linux ARM64" "$OUTPUT" "$STANDARD_FLAGS" "clang++" "true"
     elif command -v g++ &>/dev/null; then
         echo -e "${CYAN}   -> Falling back to g++ (native)${NC}"
