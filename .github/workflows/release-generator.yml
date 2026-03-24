@@ -166,12 +166,65 @@ jobs:
           files: |
             assets/**/*
           body: |
-            ### �妞 X-Phage Titan Omni-Platform Release
-            - **New:** Linux ARM64 builds natively on ARM64 hardware with full LLVM support.
-            - **New:** Windows ARM64 uses VS Enterprise MSVC environment for correct STL headers.
-            - **Security:** SHA256 Checksums automatically generated and uploaded for all binaries.
-            - **Architecture:** Native LLVM Code Generation enabled for Linux, macOS, Windows, and Android.
-            - **Docker Support:** Available on Docker Hub.
+            ## 🧬 X-Phage v3.4.0 – Standard Library & Package Manager Expansion
+            
+            Welcome to the **v3.4.0** release of X-Phage! This update brings a fully production‑ready standard library and a powerful package manager, making the language self‑sufficient and easier than ever to use.
+
+            ### 🚀 New Features
+            - **Complete Standard Library (`stdlib/`)**  
+              Pre‑built modules for:
+              - `core/` – system info, process control, memory management
+              - `math/` – trigonometry, vectors, matrices, GPU/NPU support
+              - `io/` – file operations, colored console logging
+              - `net/` – HTTP requests, TCP/UDP sockets
+              - `data/` – SIMD‑optimized JSON, advanced string handling
+              - `media/` – hardware‑accelerated streaming (MPV, ExoPlayer)
+              - `security/` – AES‑256, SHA‑3, Void protocol memory wipe
+              - `ui/` – Titan Fusion UI components (Vortex, Orbit, etc.)
+            - **XPM (X‑Phage Package Manager) Upgrades**
+              - `xphage update-stdlib` – downloads the entire standard library with a single command.
+              - `xphage sync <module>` now supports nested paths (e.g., `net/http`).
+            - **REPL Banner & Help**  
+              Interactive shell now displays a clean ASCII banner, version, and developer info. Type `help` for available commands.
+            - **Improved Linker**  
+              The `~link` directive automatically resolves includes from both `stdlib/` and `modules/`, so you can import system libraries without extra configuration.
+
+            ### ⚡ Performance & Compatibility
+            - **LLVM Backend** upgraded to support LLVM 16–22+ with version‑aware code.
+            - **Windows ARM64** builds now use the correct MSVC environment (no more missing STL headers).
+            - **Linux ARM64** builds run natively on Ubuntu 24.04 ARM runners.
+            - **iOS builds** are now fixed – all system calls are properly guarded, and the compiler passes.
+            - **SHA256 checksums** are automatically generated for every binary, ensuring supply‑chain security.
+
+            ### 📦 Docker Integration
+            The official Docker image has been updated to include the new stdlib. Pull it with:
+            ```bash
+            docker pull aeoncorex/x-phage:latest
+            docker run --rm aeoncorex/x-phage --version
+            ```
+
+            ### 📚 Documentation
+            The manual (`manual.md`) has been completely revised with examples and explanations of the new stdlib modules and XPM commands.
+
+            ### 🛠 How to Get Started
+            1. **Install the binary** (see [README](https://github.com/AeonCoreX-Lab/X-Phage#installation)).
+            2. **Update the standard library**:
+               ```bash
+               xphage update-stdlib
+               ```
+            3. **Create a new project**:
+               ```bash
+               xphage init
+               ```
+            4. **Start coding** – write your `.xp0` file and import libraries with `~link`.
+
+            ### 🙏 Contributors
+            Special thanks to the AeonCoreX Lab team and the open‑source community for testing and feedback.
+
+            ### 🔮 Roadmap Ahead
+            Next up: v3.5 will bring neural interface integration and real‑time synthesis.
+
+            Happy coding! 🚀
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
