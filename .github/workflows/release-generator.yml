@@ -6,6 +6,12 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+  
+# ---------------------------------------------------------
+# 🔐 FIX: Grant Write Permissions for GitHub Release
+# ---------------------------------------------------------
+permissions:
+  contents: write
 
 jobs:
   # ---------------------------------------------------------
