@@ -1,6 +1,10 @@
 #include "../../include/xphage.hpp"
 #include <iostream>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <algorithm>
 
 // Apple Platform Detection
 #ifdef __APPLE__
@@ -11,44 +15,118 @@ const std::string RAW_URL = "https://raw.githubusercontent.com/AeonCoreX-Lab/X-P
 
 namespace XPM_Cloud {
 
+// Helper: create directory (cross‑platform)
+static bool create_directory(const std::string& path) {
+    #ifdef _WIN32
+        std::string cmd = "if not exist \"" + path + "\" mkdir \"" + path + "\"";
+    #else
+        std::string cmd = "mkdir -p \"" + path + "\"";
+    #endif
+    return std::system(cmd.c_str()) == 0;
+}
+
+// Helper: download a single file
+static bool download_file(const std::string& url, const std::string& dest) {
+    std::string cmd = "curl -sL \"" + url + "\" -o \"" + dest + "\"";
+    return std::system(cmd.c_str()) == 0;
+}
+
+// ------------------------------------------------------------------
+// 1. Sync a single module (supports subdirectories)
+// ------------------------------------------------------------------
 bool sync_module(std::string module_name) {
     std::cout << "\033[1;34m[XPM] 🌐 Cloud Sync Initiated for: " << module_name << "...\033[0m\n";
-    
-    // ---------------------------------------------------------
-    // 🚫 iOS SECURITY CHECK
-    // iOS does not allow 'system()' calls or shell subprocesses.
-    // ---------------------------------------------------------
+
     #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
         std::cerr << "\033[1;31m[iOS RESTRICTION] ⛔ Cloud Sync & Shell commands are disabled on iOS.\033[0m\n";
         return false;
     #else
-        // Desktop/Android Logic
+        // Normalise path: replace backslashes with forward slashes
+        std::replace(module_name.begin(), module_name.end(), '\\', '/');
         
-        // Create directory path based on target OS
-        #ifdef _WIN32
-            std::string dir_cmd = "if not exist \"modules\\" + module_name + "\" mkdir \"modules\\" + module_name + "\"";
-        #else
-            std::string dir_cmd = "mkdir -p modules/" + module_name;
-        #endif
+        // Determine target directory and file name
+        std::string target_dir = "modules";
+        size_t last_slash = module_name.find_last_of('/');
+        if (last_slash != std::string::npos) {
+            std::string subdir = module_name.substr(0, last_slash);
+            target_dir += "/" + subdir;
+            module_name = module_name.substr(last_slash + 1);
+        }
         
-        // Fix for Android cross-compiler warning: Catching the result and casting to void
-        int dir_res = std::system(dir_cmd.c_str());
-        (void)dir_res;
-
-        // Fetch header from AeonCoreX-Lab using native curl
-        std::string target_file = "modules/" + module_name + "/" + module_name + ".xh";
-        std::string cmd = "curl -sL " + RAW_URL + target_file + " -o " + target_file;
-        
-        int result = std::system(cmd.c_str());
-        
-        if (result == 0) {
-            std::cout << "\033[1;32m[XPM] ✅ Success: '" << module_name << "' synced from AeonCoreX-Lab.\033[0m\n";
-            return true;
-        } else {
-            std::cout << "\033[1;31m[XPM] ❌ Failed to sync: '" << module_name << "'\033[0m\n";
+        // Ensure the directory exists
+        if (!create_directory(target_dir)) {
+            std::cerr << "[XPM] Failed to create directory: " << target_dir << "\n";
             return false;
         }
+        
+        // Target file path
+        std::string target_file = target_dir + "/" + module_name + ".xh";
+        
+        // Download
+        std::string url = RAW_URL + "modules/" + module_name + "/" + module_name + ".xh";
+        if (!download_file(url, target_file)) {
+            std::cerr << "[XPM] Failed to download: " << url << "\n";
+            return false;
+        }
+        
+        std::cout << "\033[1;32m[XPM] ✅ Success: '" << module_name << "' synced to " << target_file << "\033[0m\n";
+        return true;
     #endif
 }
 
+// ------------------------------------------------------------------
+// 2. Update the entire standard library (stdlib)
+// ------------------------------------------------------------------
+bool update_stdlib() {
+    std::cout << "\033[1;35m[XPM] 🧬 Initiating Titan Stdlib Pulse Update...\033[0m\n";
+
+    #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+        std::cerr << "\033[1;31m[iOS RESTRICTION] ⛔ Standard library update is disabled on iOS.\033[0m\n";
+        return false;
+    #else
+        // List of all standard library files (relative to stdlib/)
+        std::vector<std::string> libs = {
+            "core/types.xh",
+            "core/system.xh",
+            "math/basic.xh",
+            "math/linalg.xh",
+            "io/file.xh",
+            "io/console.xh",
+            "net/http.xh",
+            "net/socket.xh",
+            "data/json.xh",
+            "data/string.xh",
+            "media/engine.xh",
+            "media/stream.xh",
+            "security/crypt.xh",
+            "ui/fusion.xh"
+        };
+        
+        bool all_ok = true;
+        for (const auto& lib : libs) {
+            std::string dest = "stdlib/" + lib;
+            
+            // Extract directory path (e.g., stdlib/net)
+            size_t last_slash = dest.find_last_of('/');
+            if (last_slash != std::string::npos) {
+                std::string dir = dest.substr(0, last_slash);
+                create_directory(dir);  // ensure subfolder exists
+            }
+            
+            std::string url = RAW_URL + "stdlib/" + lib;
+            if (!download_file(url, dest)) {
+                std::cerr << "\033[1;31m  ✖ Failed to download: " << lib << "\033[0m\n";
+                all_ok = false;
+            } else {
+                std::cout << "  \033[1;32m✔ Updated:\033[0m " << lib << "\n";
+            }
+        }
+        
+        if (all_ok) {
+            std::cout << "\033[1;32m[XPM] ✅ All systems operational. Stdlib is now v4.0 Alpha.\033[0m\n";
+        }
+        return all_ok;
+    #endif
 }
+
+} // namespace XPM_Cloud

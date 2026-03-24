@@ -11,14 +11,9 @@
     #include <TargetConditionals.h>
 #endif
 
-/**
- * 🧬 X-Phage Omni-God Engine v3.5 [TITAN CLI]
- * Architecture: Hybrid (LLVM Native + C++ Transpiler)
- * Env: Global System PATH
- */
-
 namespace XPM_Cloud {
     bool sync_module(std::string module_name);
+    bool update_stdlib();
 }
 
 // ---------------------------------------------------------
@@ -36,46 +31,30 @@ void compile_project(std::string source_file) {
     XPhageLexer lexer;
     std::vector<Token> tokens = lexer.tokenize(buffer.str());
 
-    // --- STRATEGY: CHOOSE BACKEND ---
     #ifdef ENABLE_LLVM
-        // 🖥️ DESKTOP MODE (Linux/macOS x64) -> LLVM Machine Code
         std::cout << "\033[1;35m[BUILDER] 🧬 Selected Backend: LLVM (Titan Core)\033[0m\n";
-        
         XPhageLLVMCompiler llvm_compiler;
         llvm_compiler.compile_tokens(tokens, "output.o");
-        
-        // Link Object File
         std::cout << "\033[1;33m[LINKER] 🔗 Linking native object...\033[0m\n";
         int res = std::system("clang output.o -o output_app -lm");
         if(res == 0) std::cout << "\033[1;32m[SUCCESS] ✅ Native Binary Built: ./output_app\033[0m\n";
-
     #else
-        // 📱 MOBILE/ARM MODE (Android/iOS/Windows/ARM64) -> C++ Transpilation
         std::cout << "\033[1;35m[BUILDER] 🚀 Selected Backend: Titan Transpiler (Universal C++)\033[0m\n";
-        
         XPhageTranspiler transpiler;
         std::string cpp_out = "output_gen.cpp";
         transpiler.transpile_to_cpp(tokens, cpp_out);
         
-        // ---------------------------------------------------------
-        // ⚙️ NATIVE COMPILATION OF GENERATED CODE
-        // ---------------------------------------------------------
         #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-            // iOS Sandbox: Cannot run system compiler inside app
             std::cout << "\033[1;32m[iOS] ✅ Source generated: " << cpp_out << " (Add this to your Xcode project)\033[0m\n";
         #else
-            // Android / Linux ARM / Windows / macOS
             std::string compiler_cmd;
-            
             #ifdef _WIN32
                 compiler_cmd = "g++ " + cpp_out + " -o output_app.exe -std=c++17 -O3";
             #else
                 compiler_cmd = "c++ " + cpp_out + " -o output_app -std=c++17 -O3 -pthread";
             #endif
-
             std::cout << "\033[1;33m[GCC/CLANG] 🔨 Compiling generated engine code...\033[0m\n";
             int res = std::system(compiler_cmd.c_str());
-            
             if(res == 0) {
                 std::cout << "\033[1;32m[SUCCESS] ✅ Binary Built: ./output_app\033[0m\n";
             } else {
@@ -134,10 +113,32 @@ size_t parse_ui_block(const std::vector<Token>& tokens, size_t index, XPhageRunt
 }
 
 // ---------------------------------------------------------
+// 📢 BANNER & HELP
+// ---------------------------------------------------------
+void print_banner() {
+    std::cout << "\033[1;36m"; // cyan
+    std::cout << "  _  _  ____  __  __ \n";
+    std::cout << " ( \\/ )(  _ \\(  \\/  )\n";
+    std::cout << "  )  (  )___/ )    ( \n";
+    std::cout << " (_/\\_)(__)  (_/\\/\\_) \033[1;32mv3.4.0\033[0m\n\n";
+    std::cout << "\033[1;35mXPM - X-Phage Package Manager\033[0m\n";
+    std::cout << "\033[1;33m⚡ Developed by AeonCoreX Lab | Architecture: Hybrid LLVM + Transpiler\033[0m\n";
+    std::cout << "\033[1;36m💡 Type 'exit' to quit. Use 'help' for commands.\033[0m\n";
+}
+
+void repl_help() {
+    std::cout << "\n\033[1;33mAvailable REPL commands:\033[0m\n";
+    std::cout << "  exit          - Exit the shell\n";
+    std::cout << "  help          - Show this help\n";
+    std::cout << "  fusion { ... } - Declare a UI block (experimental)\n";
+    std::cout << "\nYou can also type any X-Phage expression (currently limited).\n";
+}
+
+// ---------------------------------------------------------
 // 🔄 REPL & EXECUTION
 // ---------------------------------------------------------
 void start_repl() {
-    std::cout << "\033[1;35mX-Phage Titan Shell [v3.5] | Type 'exit' to quit\033[0m\n";
+    print_banner();
     std::string line;
     XPhageRuntime runtime;
     XPhageLexer lexer;
@@ -148,6 +149,11 @@ void start_repl() {
         std::getline(std::cin, line);
         if (line == "exit") break;
         if (line.empty()) continue;
+
+        if (line == "help") {
+            repl_help();
+            continue;
+        }
 
         std::vector<Token> tokens = lexer.tokenize(line);
         if (!tokens.empty() && tokens[0].type == FUSION) {
@@ -189,13 +195,13 @@ int main(int argc, char* argv[]) {
         std::string cmd = argv[1];
         
         if (cmd == "-v" || cmd == "--version") {
-            std::cout << "X-Phage v3.5 (Titan Hybrid Build)\n";
+            std::cout << "XPM v3.4.0 (X-Phage Package Manager)\n";
+            std::cout << "Developed by AeonCoreX Lab\n";
         } 
         else if (cmd == "run" && argc > 2) {
             execute_file(argv[2]); 
         } 
         else if (cmd == "build" && argc > 2) {
-            // New Smart Build Command
             compile_project(argv[2]); 
         } 
         else if (cmd == "init") {
@@ -207,12 +213,20 @@ int main(int argc, char* argv[]) {
                 std::cout << "\033[1;32m[SUCCESS] X-Phage project initialized globally.\033[0m\n";
             #endif
         }
+        else if (cmd == "sync" && argc > 2) {
+            XPM_Cloud::sync_module(argv[2]);
+        }
+        else if (cmd == "update-stdlib") {
+            XPM_Cloud::update_stdlib();
+        }
         else {
             std::cout << "Usage:\n";
-            std::cout << "  xphage                  (Starts REPL)\n";
-            std::cout << "  xphage run <file.xp0>   (Executes a file)\n";
-            std::cout << "  xphage build <file.xp0> (Compiles to Native Executable)\n";
-            std::cout << "  xphage init             (Creates new project)\n";
+            std::cout << "  xphage                     (Starts REPL)\n";
+            std::cout << "  xphage run <file.xp0>      (Executes a file)\n";
+            std::cout << "  xphage build <file.xp0>    (Compiles to Native Executable)\n";
+            std::cout << "  xphage init                (Creates new project)\n";
+            std::cout << "  xphage sync <module>       (Downloads a module, e.g., net/http)\n";
+            std::cout << "  xphage update-stdlib       (Downloads the full standard library)\n";
         }
     }
     return 0;

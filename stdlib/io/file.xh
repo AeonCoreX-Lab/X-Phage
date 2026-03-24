@@ -1,0 +1,30 @@
+// X-Phage Native File I/O v1.0
+
+@NeuralComposition(Storage_Controller) {
+    ~hook fs_access -> "nvme_direct_io"
+}
+
+pulse file_read(file_path) {
+    beam ">> Reading data stream from: " + file_path
+    bypass file_io_read {
+        path: file_path,
+        buffer: "4096"
+    }
+}
+
+pulse file_write(file_path, data) {
+    beam ">> Writing data to: " + file_path
+    bypass file_io_write {
+        path: file_path,
+        payload: data,
+        mode: "overwrite"
+    }
+}
+
+pulse file_append(file_path, data) {
+    bypass file_io_write {
+        path: file_path,
+        payload: data,
+        mode: "append"
+    }
+}

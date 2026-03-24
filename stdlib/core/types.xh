@@ -1,0 +1,16 @@
+// X-Phage Core Types Definition v1.0
+// Ownership: AeonCoreX
+
+#define INT_MAX "2147483647"
+#define INT_MIN "-2147483648"
+#define FLOAT_PRECISION "64"
+#define NULL_PTR "0x00000000"
+
+global SYS_ARCH = "x86_64_ARM_Hybrid"
+
+pulse type_check(var_id) {
+    beam ">> Running type inspection on shadow memory..."
+    scan var_id {
+        mode: "strict"
+    }
+}

@@ -1,8 +1,27 @@
 # Changelog: X-Phage Engine Evolution
 
-All notable changes to the **X-Phage** project from its genesis to the current **Titan v3.3 [Docker]** edition are documented below.
+All notable changes to the **X-Phage** project from its genesis to the current **Titan v3.4 [Stdlib]** edition are documented below.
 
 ---
+
+## [3.4.0] - 2026-03-24 (Current: Stdlib & XPM Edition)
+### Added
+- **Full Standard Library (stdlib)**: Production‑ready modules for `core`, `math`, `io`, `net`, `data`, `media`, `security`, and `ui`.  
+- **XPM (X-Phage Package Manager)**: Enhanced with `update-stdlib` command to fetch the entire standard library from GitHub.  
+- **Subdirectory Support**: `sync_module` now handles nested modules (e.g., `net/http`).  
+- **Improved Error Handling**: Clear color‑coded feedback and iOS sandbox protection.  
+- **REPL Banner**: Interactive shell now shows ASCII art, version, developer info, and `help` command.
+
+### Changed
+- **Linker Intelligence**: The `~link` directive now searches both `stdlib/` and `modules/` for includes.  
+- **Project Init**: `xphage init` creates the `stdlib/` folder structure automatically.  
+- **Documentation**: Added in‑line comments to all stdlib files for better IDE support.
+
+### Fixed
+- **Windows ARM64**: Correct MSVC environment setup via `ilammy/msvc-dev-cmd`.  
+- **Linux ARM64**: Native builds on Ubuntu 24.04 ARM runners.  
+- **LLVM Compatibility**: Supports LLVM 16 through 22+ with version‑aware code.
+
 
 ## [3.3.0] - 2026-02-16 (Current: Titan Docker Edition)
 ### Added
@@ -12,7 +31,7 @@ All notable changes to the **X-Phage** project from its genesis to the current *
 - **Universal Installer**: Redesigned `install.sh` with better OS detection and error handling.
 - **Project Scaffolding**: Added `xphage init` command to generate standard project structure automatically.
 
-## [3.2.0] - 2026-02-15 (Current: Titan Optimized Edition)
+## [3.2.0] - 2026-02-15 (Titan Optimized Edition)
 ### Added
 - **LLVM Native Backend**: Integrated Clang/LLVM toolchain as the primary compiler backend, enabling `-O3` level machine code optimization for maximum performance.
 - **SHA256 Integrity Verification**: Automated security checksum generation for all distributed binaries to ensure supply-chain protection.

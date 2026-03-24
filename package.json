@@ -2,7 +2,7 @@
   "name": "xphage-lang",
   "displayName": "X-Phage",
   "description": "Official syntax highlighting and support for X-Phage (.xp0, .xh, .xui)",
-  "version": "3.1.0",
+  "version": "3.3.0",
   "publisher": "AeonCoreX",
   "engines": {
     "vscode": "^1.70.0"
