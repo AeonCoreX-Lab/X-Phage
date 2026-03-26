@@ -169,8 +169,19 @@ echo ""
 echo -e "${CYAN}[2/4] Downloading binary: ${BINARY_NAME}...${NC}"
 echo -e "  URL: ${RELEASE_BASE}/${BINARY_NAME}"
 
+if [ -n "$TERMUX_VERSION" ] || [ -d "/data/data/com.termux" ]; then
+    
+# use termux own temporary path
+    
+TMP_BIN="$(mktemp "${TMPDIR:-/data/data/com.termux/files/usr/tmp}/xphage_install.XXXXXX")"
+    TMP_SHA="$(mktemp "${TMPDIR:-/data/data/com.termux/files/usr/tmp}/xphage_sha.XXXXXX")"
+else
+
+# others os remain the same
+
 TMP_BIN="$(mktemp /tmp/xphage_install.XXXXXX)"
 TMP_SHA="$(mktemp /tmp/xphage_sha.XXXXXX)"
+fi
 
 # Download binary with progress
 if ! curl -L --progress-bar "${RELEASE_BASE}/${BINARY_NAME}" -o "$TMP_BIN"; then
