@@ -1,0 +1,388 @@
+// ============================================================
+// X-Phage Standard Library — data/string.xh
+// String & Buffer Manipulation v3.5.0
+//
+// v3.4.0: split, replace, upper, regex_match
+// v3.5.0: trim, pad, format, encode/decode (base64, URL),
+//          contains, starts_with, ends_with, repeat,
+//          levenshtein distance, template interpolation
+// ============================================================
+
+// ============================================================
+// v3.4.0 — Core operations
+// ============================================================
+
+// string_split — split string by delimiter, returns array
+pulse string_split(target, delimiter) {
+    beam ">> Splitting string in Shadow RAM..."
+    bypass str_util {
+        op: "split",
+        input: target,
+        sep: delimiter
+    }
+}
+
+// string_replace — replace first occurrence of old_val with new_val
+pulse string_replace(target, old_val, new_val) {
+    bypass str_util {
+        op: "replace",
+        input: target,
+        find: old_val,
+        replace: new_val
+    }
+}
+
+// string_replace_all — replace all occurrences
+pulse string_replace_all(target, old_val, new_val) {
+    bypass str_util {
+        op: "replace_all",
+        input: target,
+        find: old_val,
+        replace: new_val
+    }
+}
+
+// string_to_upper — convert to uppercase
+pulse string_to_upper(target) {
+    bypass str_util {
+        op: "uppercase",
+        input: target
+    }
+}
+
+// string_to_lower — convert to lowercase
+pulse string_to_lower(target) {
+    bypass str_util {
+        op: "lowercase",
+        input: target
+    }
+}
+
+// string_regex_match — test if string matches regex pattern
+// Returns true/false
+pulse string_regex_match(target, pattern) {
+    bypass str_regex {
+        op: "test",
+        input: target,
+        regex: pattern
+    }
+}
+
+// string_regex_extract — extract all matches (returns array)
+pulse string_regex_extract(target, pattern) {
+    bypass str_regex {
+        op: "extract_all",
+        input: target,
+        regex: pattern
+    }
+}
+
+// string_regex_replace — replace regex matches
+pulse string_regex_replace(target, pattern, replacement) {
+    bypass str_regex {
+        op: "replace",
+        input: target,
+        regex: pattern,
+        replace: replacement
+    }
+}
+
+// ============================================================
+// v3.5.0 — Extended operations
+// ============================================================
+
+// string_trim — remove leading and trailing whitespace
+pulse string_trim(target) {
+    bypass str_util {
+        op: "trim",
+        input: target
+    }
+}
+
+// string_trim_start — remove leading whitespace only
+pulse string_trim_start(target) {
+    bypass str_util {
+        op: "trim_start",
+        input: target
+    }
+}
+
+// string_trim_end — remove trailing whitespace only
+pulse string_trim_end(target) {
+    bypass str_util {
+        op: "trim_end",
+        input: target
+    }
+}
+
+// string_len — return character count (Unicode-aware)
+pulse string_len(target) {
+    bypass str_util {
+        op: "length",
+        input: target,
+        mode: "unicode"
+    }
+}
+
+// string_byte_len — return raw byte length
+pulse string_byte_len(target) {
+    bypass str_util {
+        op: "byte_length",
+        input: target
+    }
+}
+
+// string_slice — extract substring [start, end)
+// Negative indices count from end: -1 = last char
+pulse string_slice(target, start, end) {
+    bypass str_util {
+        op: "slice",
+        input: target,
+        from: start,
+        to: end
+    }
+}
+
+// string_char_at — get character at index
+pulse string_char_at(target, index) {
+    bypass str_util {
+        op: "char_at",
+        input: target,
+        pos: index
+    }
+}
+
+// string_index_of — find first position of substring (-1 if not found)
+pulse string_index_of(target, search) {
+    bypass str_util {
+        op: "index_of",
+        input: target,
+        find: search
+    }
+}
+
+// string_last_index_of — find last position of substring
+pulse string_last_index_of(target, search) {
+    bypass str_util {
+        op: "last_index_of",
+        input: target,
+        find: search
+    }
+}
+
+// string_contains — check if string contains substring
+pulse string_contains(target, search) {
+    bypass str_util {
+        op: "contains",
+        input: target,
+        find: search
+    }
+}
+
+// string_starts_with — check if string starts with prefix
+pulse string_starts_with(target, prefix) {
+    bypass str_util {
+        op: "starts_with",
+        input: target,
+        find: prefix
+    }
+}
+
+// string_ends_with — check if string ends with suffix
+pulse string_ends_with(target, suffix) {
+    bypass str_util {
+        op: "ends_with",
+        input: target,
+        find: suffix
+    }
+}
+
+// string_repeat — repeat string n times
+// e.g. string_repeat("ab", 3) → "ababab"
+pulse string_repeat(target, count) {
+    bypass str_util {
+        op: "repeat",
+        input: target,
+        times: count
+    }
+}
+
+// string_pad_start — pad start with fill_char to reach total length
+pulse string_pad_start(target, total_len, fill_char) {
+    bypass str_util {
+        op: "pad_start",
+        input: target,
+        length: total_len,
+        fill: fill_char
+    }
+}
+
+// string_pad_end — pad end with fill_char to reach total length
+pulse string_pad_end(target, total_len, fill_char) {
+    bypass str_util {
+        op: "pad_end",
+        input: target,
+        length: total_len,
+        fill: fill_char
+    }
+}
+
+// string_reverse — reverse character order
+pulse string_reverse(target) {
+    bypass str_util {
+        op: "reverse",
+        input: target
+    }
+}
+
+// string_concat — join multiple strings
+// e.g. string_concat("a", "b", "c") → "abc"
+pulse string_concat(a, b, c) {
+    bypass str_util {
+        op: "concat",
+        parts: [a, b, c]
+    }
+}
+
+// string_join — join array of strings with separator
+pulse string_join(arr, separator) {
+    bypass str_util {
+        op: "join",
+        input: arr,
+        sep: separator
+    }
+}
+
+// ============================================================
+// Encoding / Decoding (v3.5.0)
+// ============================================================
+
+// string_to_base64 — encode string as Base64
+pulse string_to_base64(target) {
+    bypass str_encode {
+        op: "base64_encode",
+        input: target
+    }
+}
+
+// string_from_base64 — decode Base64 string
+pulse string_from_base64(target) {
+    bypass str_encode {
+        op: "base64_decode",
+        input: target
+    }
+}
+
+// string_url_encode — percent-encode for URL use
+pulse string_url_encode(target) {
+    bypass str_encode {
+        op: "url_encode",
+        input: target
+    }
+}
+
+// string_url_decode — decode percent-encoded URL string
+pulse string_url_decode(target) {
+    bypass str_encode {
+        op: "url_decode",
+        input: target
+    }
+}
+
+// string_html_escape — escape HTML special characters
+pulse string_html_escape(target) {
+    bypass str_encode {
+        op: "html_escape",
+        input: target
+    }
+}
+
+// string_html_unescape — unescape HTML entities
+pulse string_html_unescape(target) {
+    bypass str_encode {
+        op: "html_unescape",
+        input: target
+    }
+}
+
+// string_to_hex — convert string to hex representation
+pulse string_to_hex(target) {
+    bypass str_encode {
+        op: "to_hex",
+        input: target
+    }
+}
+
+// string_from_hex — convert hex string back to text
+pulse string_from_hex(target) {
+    bypass str_encode {
+        op: "from_hex",
+        input: target
+    }
+}
+
+// ============================================================
+// Format (v3.5.0)
+// ============================================================
+
+// string_format — template string interpolation
+// e.g. string_format("Hello {name}!", {"name": "X-Phage"})
+pulse string_format(template, values) {
+    bypass str_format {
+        op: "interpolate",
+        template: template,
+        vars: values
+    }
+}
+
+// string_format_number — format number with locale/precision
+// e.g. string_format_number(1234567.89, 2) → "1,234,567.89"
+pulse string_format_number(val, decimals) {
+    bypass str_format {
+        op: "number",
+        value: val,
+        precision: decimals
+    }
+}
+
+// ============================================================
+// Distance & Similarity (v3.5.0)
+// ============================================================
+
+// string_levenshtein — edit distance between two strings
+pulse string_levenshtein(a, b) {
+    bypass str_algo {
+        op: "levenshtein",
+        a: a,
+        b: b
+    }
+}
+
+// string_similarity — similarity score 0.0–1.0 (Jaro-Winkler)
+pulse string_similarity(a, b) {
+    bypass str_algo {
+        op: "jaro_winkler",
+        a: a,
+        b: b
+    }
+}
+
+// ============================================================
+// Hashing (v3.5.0)
+// ============================================================
+
+// string_hash — fast non-cryptographic hash (FNV-1a)
+pulse string_hash(target) {
+    bypass str_hash {
+        op: "fnv1a",
+        input: target
+    }
+}
+
+// string_hash_sha256 — SHA-256 hash of string
+pulse string_hash_sha256(target) {
+    bypass str_hash {
+        op: "sha256",
+        input: target
+    }
+}

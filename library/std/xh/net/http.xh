@@ -1,0 +1,217 @@
+// ============================================================
+// X-Phage stdlib — net/http.xh v3.5.0
+// HTTP/HTTPS client + WebSocket
+// Usage: ~link net/http
+// ============================================================
+
+// ── Response type ─────────────────────────────────────────────
+/// Represents an HTTP response with status, body and headers
+pulse HttpResponse {
+    atom status   = "0"
+    atom body     = ""
+    atom ok       = "false"
+    atom error    = ""
+}
+
+// ── GET ───────────────────────────────────────────────────────
+/// Send HTTP GET request to url
+/// Returns HttpResponse
+pulse http_get(url) {
+    bypass http_client {
+        method: "GET",
+        url: url,
+        timeout: "30"
+    }
+}
+
+/// GET with custom headers
+pulse http_get_headers(url, headers) {
+    bypass http_client {
+        method: "GET",
+        url: url,
+        headers: headers,
+        timeout: "30"
+    }
+}
+
+// ── POST ──────────────────────────────────────────────────────
+/// Send HTTP POST with raw body
+pulse http_post(url, body) {
+    bypass http_client {
+        method: "POST",
+        url: url,
+        body: body,
+        timeout: "30"
+    }
+}
+
+/// POST with JSON Content-Type
+pulse http_post_json(url, json_body) {
+    bypass http_client {
+        method: "POST",
+        url: url,
+        body: json_body,
+        content_type: "application/json",
+        timeout: "30"
+    }
+}
+
+// ── PUT / DELETE ──────────────────────────────────────────────
+pulse http_put(url, body) {
+    bypass http_client { method: "PUT", url: url, body: body }
+}
+
+pulse http_delete(url) {
+    bypass http_client { method: "DELETE", url: url }
+}
+
+// ── Async ─────────────────────────────────────────────────────
+/// Non-blocking GET — invokes callback when complete
+pulse http_get_async(url, callback) {
+    quantum "http_async_worker"
+    bypass http_client {
+        method: "GET",
+        url: url,
+        async: "true",
+        callback: callback
+    }
+}
+
+/// Non-blocking POST
+pulse http_post_async(url, body, callback) {
+    quantum "http_async_worker"
+    bypass http_client {
+        method: "POST",
+        url: url,
+        body: body,
+        async: "true",
+        callback: callback
+    }
+}
+
+// ── File upload ───────────────────────────────────────────────
+/// Upload a file via multipart/form-data
+pulse http_upload_file(url, field_name, file_path) {
+    bypass http_client {
+        method: "POST",
+        url: url,
+        multipart_field: field_name,
+        file: file_path
+    }
+}
+
+// ── Response streaming ────────────────────────────────────────
+/// Stream response body line by line, invoking callback per line
+pulse http_stream(url, line_callback) {
+    bypass http_client {
+        method: "GET",
+        url: url,
+        stream: "true",
+        callback: line_callback
+    }
+}
+
+// ── Retry ─────────────────────────────────────────────────────
+/// GET with automatic retry on failure
+/// max_retries: number of retries, retry_delay_ms: wait between retries
+pulse http_get_retry(url, max_retries, retry_delay_ms) {
+    bypass http_client {
+        method: "GET",
+        url: url,
+        retries: max_retries,
+        retry_delay: retry_delay_ms
+    }
+}
+
+// ── WebSocket ─────────────────────────────────────────────────
+/// Connect to WebSocket server
+/// Returns ws_handle for subsequent calls
+pulse ws_connect(url) {
+    beam ">> WebSocket connect: " + url
+    bypass websocket_client {
+        op: "connect",
+        url: url
+    }
+}
+
+/// Connect with on_message callback (continuous receive)
+pulse ws_connect_listen(url, on_message) {
+    beam ">> WebSocket listen: " + url
+    bypass websocket_client {
+        op: "connect_listen",
+        url: url,
+        callback: on_message
+    }
+}
+
+/// Send text message over WebSocket
+pulse ws_send(handle, message) {
+    bypass websocket_client {
+        op: "send",
+        ref: handle,
+        payload: message
+    }
+}
+
+/// Receive one message (blocking, optional timeout_ms)
+pulse ws_recv(handle, timeout_ms) {
+    bypass websocket_client {
+        op: "recv",
+        ref: handle,
+        timeout: timeout_ms
+    }
+}
+
+/// Close WebSocket connection
+pulse ws_close(handle) {
+    bypass websocket_client {
+        op: "close",
+        ref: handle
+    }
+}
+
+// ── HttpClient factory (base URL) ────────────────────────────
+/// Create an HTTP client with a base URL prefix
+pulse http_client_new(base_url) {
+    bypass http_client {
+        op: "create",
+        base: base_url
+    }
+}
+
+pulse http_client_get(client, path) {
+    bypass http_client {
+        op: "get",
+        ref: client,
+        path: path
+    }
+}
+
+pulse http_client_post_json(client, path, json_body) {
+    bypass http_client {
+        op: "post_json",
+        ref: client,
+        path: path,
+        body: json_body
+    }
+}
+
+// ── Auth helpers ──────────────────────────────────────────────
+/// GET with Bearer token Authorization header
+pulse http_get_bearer(url, token) {
+    bypass http_client {
+        method: "GET",
+        url: url,
+        auth_bearer: token
+    }
+}
+
+/// GET with Basic auth
+pulse http_get_basic(url, username, password) {
+    bypass http_client {
+        method: "GET",
+        url: url,
+        auth_basic_user: username,
+        auth_basic_pass: password
+    }
+}

@@ -27,13 +27,13 @@ curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/install.sh
 
 ```bash
 # Pull the latest engine
-docker pull aeoncorex/x-phage:latest
+docker pull aeoncorex/xphage:latest
 
 # Check version
-docker run --rm aeoncorex/x-phage --version
+docker run --rm aeoncorex/xphage --version
 
 # Run your project
-docker run --rm -v $(pwd):/app aeoncorex/x-phage run main.xp0
+docker run --rm -v $(pwd):/app aeoncorex/xphage run main.xp0
 ```
 
 ---

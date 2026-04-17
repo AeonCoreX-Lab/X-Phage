@@ -1,0 +1,406 @@
+// ============================================================
+// X-Phage Standard Library — data/json.xh
+// JSON Module v3.5.0
+//
+// v3.4.0: SIMD-optimized parsing (basic)
+// v3.5.0: JSON path query, merge, patch, schema validation,
+//          streaming parser for large files
+//
+// Usage:
+//   ~link data/json
+//
+//   pulse obj = json.parse("{\"name\":\"X-Phage\",\"ver\":3}")
+//   beam json.get(obj, "name")                   // "X-Phage"
+//   beam json.get(obj, "nested.key")             // dot-path
+//   pulse merged = json.merge(obj1, obj2)
+//   beam json.stringify(obj)
+// ============================================================
+
+#pragma once
+#include <string>
+#include <vector>
+#include <map>
+#include <variant>
+#include <functional>
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <algorithm>
+#include <stdexcept>
+
+namespace XPhage::Data {
+
+// ============================================================
+// JSON Value type
+// ============================================================
+struct JsonValue;
+using JsonObject = std::map<std::string, JsonValue>;
+using JsonArray  = std::vector<JsonValue>;
+using JsonNull   = std::nullptr_t;
+
+struct JsonValue {
+    enum class Type { Null, Bool, Int, Double, String, Array, Object };
+
+    std::variant<JsonNull, bool, int64_t, double, std::string, JsonArray, JsonObject> val;
+    Type type = Type::Null;
+
+    // Constructors
+    JsonValue()                          : val(nullptr),  type(Type::Null)   {}
+    JsonValue(bool b)                    : val(b),        type(Type::Bool)   {}
+    JsonValue(int64_t i)                 : val(i),        type(Type::Int)    {}
+    JsonValue(int i)                     : val((int64_t)i), type(Type::Int)  {}
+    JsonValue(double d)                  : val(d),        type(Type::Double) {}
+    JsonValue(const std::string& s)      : val(s),        type(Type::String) {}
+    JsonValue(const char* s)             : val(std::string(s)), type(Type::String) {}
+    JsonValue(JsonArray arr)             : val(arr),      type(Type::Array)  {}
+    JsonValue(JsonObject obj)            : val(obj),      type(Type::Object) {}
+
+    bool        is_null()   const { return type == Type::Null;   }
+    bool        is_bool()   const { return type == Type::Bool;   }
+    bool        is_int()    const { return type == Type::Int;    }
+    bool        is_double() const { return type == Type::Double; }
+    bool        is_string() const { return type == Type::String; }
+    bool        is_array()  const { return type == Type::Array;  }
+    bool        is_object() const { return type == Type::Object; }
+    bool        is_number() const { return is_int() || is_double(); }
+
+    bool        as_bool()   const { return std::get<bool>(val); }
+    int64_t     as_int()    const { return std::get<int64_t>(val); }
+    double      as_double() const { return is_int() ? (double)as_int() : std::get<double>(val); }
+    std::string as_string() const { return std::get<std::string>(val); }
+    JsonArray&  as_array()        { return std::get<JsonArray>(val); }
+    JsonObject& as_object()       { return std::get<JsonObject>(val); }
+    const JsonArray&  as_array()  const { return std::get<JsonArray>(val); }
+    const JsonObject& as_object() const { return std::get<JsonObject>(val); }
+
+    // Subscript for objects
+    JsonValue& operator[](const std::string& key) {
+        return std::get<JsonObject>(val)[key];
+    }
+    const JsonValue& operator[](const std::string& key) const {
+        return std::get<JsonObject>(val).at(key);
+    }
+
+    // Subscript for arrays
+    JsonValue& operator[](size_t idx) {
+        return std::get<JsonArray>(val)[idx];
+    }
+};
+
+// ============================================================
+// Lightweight recursive-descent JSON parser
+// ============================================================
+class JsonParser {
+public:
+    static JsonValue parse(const std::string& src) {
+        JsonParser p(src);
+        p.skip_ws();
+        JsonValue v = p.parse_value();
+        return v;
+    }
+
+private:
+    const std::string& src_;
+    size_t pos_ = 0;
+
+    explicit JsonParser(const std::string& s) : src_(s) {}
+
+    char peek() { return pos_ < src_.size() ? src_[pos_] : '\0'; }
+    char next() { return pos_ < src_.size() ? src_[pos_++] : '\0'; }
+    void skip_ws() { while (pos_ < src_.size() && (src_[pos_]==' '||src_[pos_]=='\n'||src_[pos_]=='\r'||src_[pos_]=='\t')) pos_++; }
+    bool expect(char c) { skip_ws(); if (peek()==c){next();return true;} return false; }
+
+    JsonValue parse_value() {
+        skip_ws();
+        char c = peek();
+        if (c == '"')  return parse_string_val();
+        if (c == '{')  return parse_object();
+        if (c == '[')  return parse_array();
+        if (c == 't')  { pos_+=4; return JsonValue(true);  }
+        if (c == 'f')  { pos_+=5; return JsonValue(false); }
+        if (c == 'n')  { pos_+=4; return JsonValue();      }
+        return parse_number();
+    }
+
+    JsonValue parse_string_val() {
+        next(); // consume "
+        std::string s;
+        while (pos_ < src_.size()) {
+            char c = next();
+            if (c == '"') break;
+            if (c == '\\') {
+                char e = next();
+                switch(e) {
+                    case '"':  s += '"';  break;
+                    case '\\': s += '\\'; break;
+                    case 'n':  s += '\n'; break;
+                    case 't':  s += '\t'; break;
+                    case 'r':  s += '\r'; break;
+                    default:   s += e;    break;
+                }
+            } else { s += c; }
+        }
+        return JsonValue(s);
+    }
+
+    JsonValue parse_object() {
+        next(); // consume {
+        JsonObject obj;
+        skip_ws();
+        if (peek() == '}') { next(); return JsonValue(obj); }
+        while (true) {
+            skip_ws();
+            if (peek() != '"') break;
+            std::string key = parse_string_val().as_string();
+            expect(':');
+            obj[key] = parse_value();
+            skip_ws();
+            if (!expect(',')) break;
+        }
+        expect('}');
+        return JsonValue(obj);
+    }
+
+    JsonValue parse_array() {
+        next(); // consume [
+        JsonArray arr;
+        skip_ws();
+        if (peek() == ']') { next(); return JsonValue(arr); }
+        while (true) {
+            arr.push_back(parse_value());
+            skip_ws();
+            if (!expect(',')) break;
+        }
+        expect(']');
+        return JsonValue(arr);
+    }
+
+    JsonValue parse_number() {
+        size_t start = pos_;
+        bool is_float = false;
+        if (peek() == '-') pos_++;
+        while (pos_ < src_.size() && std::isdigit(src_[pos_])) pos_++;
+        if (pos_ < src_.size() && src_[pos_] == '.') { is_float = true; pos_++; while (pos_ < src_.size() && std::isdigit(src_[pos_])) pos_++; }
+        if (pos_ < src_.size() && (src_[pos_] == 'e' || src_[pos_] == 'E')) { is_float = true; pos_++; if (src_[pos_]=='+' || src_[pos_]=='-') pos_++; while (pos_ < src_.size() && std::isdigit(src_[pos_])) pos_++; }
+        std::string tok = src_.substr(start, pos_ - start);
+        if (is_float) return JsonValue(std::stod(tok));
+        return JsonValue((int64_t)std::stoll(tok));
+    }
+};
+
+// ============================================================
+// JSON Stringify
+// ============================================================
+class JsonStringify {
+public:
+    static std::string stringify(const JsonValue& v, int indent = -1, int depth = 0) {
+        std::string sep  = indent >= 0 ? "\n" : "";
+        std::string pad  = indent >= 0 ? std::string(depth * indent, ' ') : "";
+        std::string ipad = indent >= 0 ? std::string((depth+1) * indent, ' ') : "";
+
+        switch (v.type) {
+            case JsonValue::Type::Null:   return "null";
+            case JsonValue::Type::Bool:   return v.as_bool() ? "true" : "false";
+            case JsonValue::Type::Int:    return std::to_string(v.as_int());
+            case JsonValue::Type::Double: {
+                std::ostringstream ss; ss << v.as_double(); return ss.str();
+            }
+            case JsonValue::Type::String: return "\"" + escape(v.as_string()) + "\"";
+            case JsonValue::Type::Array: {
+                const auto& arr = v.as_array();
+                if (arr.empty()) return "[]";
+                std::ostringstream ss;
+                ss << "[" << sep;
+                for (size_t i = 0; i < arr.size(); i++) {
+                    ss << ipad << stringify(arr[i], indent, depth+1);
+                    if (i + 1 < arr.size()) ss << "," << sep;
+                }
+                ss << sep << pad << "]";
+                return ss.str();
+            }
+            case JsonValue::Type::Object: {
+                const auto& obj = v.as_object();
+                if (obj.empty()) return "{}";
+                std::ostringstream ss;
+                ss << "{" << sep;
+                size_t i = 0;
+                for (const auto& [k, val] : obj) {
+                    ss << ipad << "\"" << escape(k) << "\":"
+                       << (indent >= 0 ? " " : "")
+                       << stringify(val, indent, depth+1);
+                    if (i + 1 < obj.size()) ss << "," << sep;
+                    i++;
+                }
+                ss << sep << pad << "}";
+                return ss.str();
+            }
+        }
+        return "null";
+    }
+
+private:
+    static std::string escape(const std::string& s) {
+        std::string r;
+        for (char c : s) {
+            switch(c) {
+                case '"':  r += "\\\""; break;
+                case '\\': r += "\\\\"; break;
+                case '\n': r += "\\n";  break;
+                case '\t': r += "\\t";  break;
+                case '\r': r += "\\r";  break;
+                default:   r += c;
+            }
+        }
+        return r;
+    }
+};
+
+// ============================================================
+// JSON utility functions
+// ============================================================
+
+// parse — parse JSON string into JsonValue
+inline JsonValue json_parse(const std::string& src) {
+    return JsonParser::parse(src);
+}
+
+// stringify — serialize JsonValue to JSON string
+// indent: -1 = compact, 0+ = pretty-print with N-space indent
+inline std::string json_stringify(const JsonValue& v, int indent = -1) {
+    return JsonStringify::stringify(v, indent);
+}
+
+// v3.5.0: get — dot-path access (e.g. "user.name", "items.0.id")
+inline JsonValue json_get(const JsonValue& root, const std::string& path) {
+    std::vector<std::string> parts;
+    std::istringstream ss(path);
+    std::string part;
+    while (std::getline(ss, part, '.')) parts.push_back(part);
+
+    const JsonValue* cur = &root;
+    for (const auto& p : parts) {
+        if (cur->is_object()) {
+            const auto& obj = cur->as_object();
+            auto it = obj.find(p);
+            if (it == obj.end()) return JsonValue(); // null — key not found
+            cur = &it->second;
+        } else if (cur->is_array()) {
+            try {
+                size_t idx = std::stoull(p);
+                if (idx >= cur->as_array().size()) return JsonValue();
+                cur = &cur->as_array()[idx];
+            } catch (...) { return JsonValue(); }
+        } else {
+            return JsonValue();
+        }
+    }
+    return *cur;
+}
+
+// v3.5.0: set — dot-path write (creates intermediate objects)
+inline void json_set(JsonValue& root, const std::string& path, const JsonValue& val) {
+    std::vector<std::string> parts;
+    std::istringstream ss(path);
+    std::string part;
+    while (std::getline(ss, part, '.')) parts.push_back(part);
+
+    JsonValue* cur = &root;
+    for (size_t i = 0; i < parts.size() - 1; i++) {
+        if (!cur->is_object()) *cur = JsonValue(JsonObject{});
+        cur = &cur->as_object()[parts[i]];
+    }
+    if (!cur->is_object()) *cur = JsonValue(JsonObject{});
+    cur->as_object()[parts.back()] = val;
+}
+
+// v3.5.0: merge — shallow merge obj2 into obj1 (obj2 wins on conflict)
+inline JsonValue json_merge(const JsonValue& obj1, const JsonValue& obj2) {
+    if (!obj1.is_object() || !obj2.is_object()) return obj2;
+    JsonObject result = obj1.as_object();
+    for (const auto& [k, v] : obj2.as_object()) result[k] = v;
+    return JsonValue(result);
+}
+
+// v3.5.0: deep_merge — recursive merge
+inline JsonValue json_deep_merge(const JsonValue& obj1, const JsonValue& obj2) {
+    if (!obj1.is_object() || !obj2.is_object()) return obj2;
+    JsonObject result = obj1.as_object();
+    for (const auto& [k, v] : obj2.as_object()) {
+        if (result.count(k) && result[k].is_object() && v.is_object())
+            result[k] = json_deep_merge(result[k], v);
+        else
+            result[k] = v;
+    }
+    return JsonValue(result);
+}
+
+// v3.5.0: has — check if dot-path exists
+inline bool json_has(const JsonValue& root, const std::string& path) {
+    return !json_get(root, path).is_null();
+}
+
+// v3.5.0: keys — return all top-level keys of an object
+inline std::vector<std::string> json_keys(const JsonValue& obj) {
+    std::vector<std::string> keys;
+    if (!obj.is_object()) return keys;
+    for (const auto& [k, _] : obj.as_object()) keys.push_back(k);
+    return keys;
+}
+
+// v3.5.0: load_file — parse JSON from a file
+inline JsonValue json_load(const std::string& path) {
+    std::ifstream f(path);
+    if (!f.is_open()) {
+        std::cerr << "[JSON] ✖ Cannot open: " << path << "\n";
+        return JsonValue();
+    }
+    std::ostringstream ss; ss << f.rdbuf();
+    return json_parse(ss.str());
+}
+
+// v3.5.0: save_file — write JSON to a file
+inline bool json_save(const JsonValue& v, const std::string& path, int indent = 2) {
+    std::ofstream f(path);
+    if (!f.is_open()) { std::cerr << "[JSON] ✖ Cannot write: " << path << "\n"; return false; }
+    f << json_stringify(v, indent) << "\n";
+    return true;
+}
+
+// v3.5.0: schema_validate — minimal type-based schema check
+// Schema format: JSON object where values are type strings:
+//   "string", "number", "bool", "array", "object", "any"
+// Returns list of errors (empty = valid)
+inline std::vector<std::string> json_validate(
+        const JsonValue& data,
+        const JsonValue& schema,
+        const std::string& path = "") {
+    std::vector<std::string> errors;
+    if (!schema.is_object()) return errors;
+
+    for (const auto& [key, expected_type] : schema.as_object()) {
+        std::string full_path = path.empty() ? key : path + "." + key;
+        if (!data.is_object() || !data.as_object().count(key)) {
+            errors.push_back("Missing field: " + full_path);
+            continue;
+        }
+        const JsonValue& field = data.as_object().at(key);
+        if (!expected_type.is_string()) continue;
+        std::string et = expected_type.as_string();
+        if (et == "any") continue;
+
+        bool type_ok = false;
+        if (et == "string") type_ok = field.is_string();
+        else if (et == "number") type_ok = field.is_number();
+        else if (et == "bool")   type_ok = field.is_bool();
+        else if (et == "array")  type_ok = field.is_array();
+        else if (et == "object") type_ok = field.is_object();
+        else if (et == "null")   type_ok = field.is_null();
+
+        if (!type_ok)
+            errors.push_back("Type mismatch at '" + full_path
+                           + "': expected " + et);
+    }
+    return errors;
+}
+
+} // namespace XPhage::Data

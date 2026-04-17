@@ -1,7 +1,0 @@
-// X-Phage Auto-Generated Test: ~LINK
-~link "aeon_ultimate.xh"
-
-pulse core {
-    ~link "aeon_ultimate.xh"
-    beam "Library Linked"
-}

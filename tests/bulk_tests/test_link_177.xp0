@@ -1,7 +1,0 @@
-// X-Phage Auto-Generated Test: ~LINK
-~link "aeon_core.xh"
-
-pulse core {
-    ~link "module_177.xh"
-    beam "Handshake Successful"
-}

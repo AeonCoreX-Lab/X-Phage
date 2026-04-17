@@ -1,7 +1,0 @@
-// Titan Logic Library v3.2 - Build 14
-#define MODULE_ID "TITAN_CORE_14"
-global SYSTEM_STATUS = "ACTIVE"
-global CLOUD_NODE = "https://node-14.aeoncorex.lab"
-
-atom SECURITY_KEY = "LOCKED_0x000e"
-~hook gpu -> "matrix_accelerator_14"

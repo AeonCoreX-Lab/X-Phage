@@ -1,0 +1,122 @@
+name: X-Phage CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    name: Linux x64 (LLVM + Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM + CMake
+        run: |
+          sudo apt-get update
+          LLVM=$(apt-cache search '^llvm-[0-9]+$' | grep -oP 'llvm-\K[0-9]+' | sort -n | tail -1)
+          [ -z "$LLVM" ] && LLVM=18
+          sudo apt-get install -y llvm-${LLVM} llvm-${LLVM}-dev \
+            clang-${LLVM} lld-${LLVM} cmake ninja-build
+          sudo ln -sf /usr/bin/llvm-config-${LLVM} /usr/bin/llvm-config || true
+          sudo ln -sf /usr/bin/clang++-${LLVM} /usr/bin/clang++ || true
+
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+            -DXPHAGE_ENABLE_LLVM=ON -DXPHAGE_ENABLE_TESTS=ON \
+            -DXPHAGE_ENABLE_TOOLS=ON
+          cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4 --timeout 30
+
+      - name: Smoke test
+        run: |
+          ./build/xphage --version
+          echo 'pulse main { beam "CI OK" }' > /tmp/ci.xp0
+          ./build/xphage run /tmp/ci.xp0
+
+  build-transpiler-only:
+    name: Linux x64 (Transpiler, no LLVM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CMake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+      - name: Build without LLVM
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DXPHAGE_ENABLE_LLVM=OFF -DXPHAGE_ENABLE_TESTS=ON
+          cmake --build build --parallel
+      - name: Smoke test
+        run: ./build/xphage --version
+
+  build-linux-arm64:
+    name: Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          LLVM=$(apt-cache search '^llvm-[0-9]+$' | grep -oP 'llvm-\K[0-9]+' | sort -n | tail -1)
+          [ -z "$LLVM" ] && LLVM=18
+          sudo apt-get install -y llvm-${LLVM} llvm-${LLVM}-dev \
+            clang-${LLVM} cmake ninja-build
+          sudo ln -sf /usr/bin/llvm-config-${LLVM} /usr/bin/llvm-config || true
+          sudo ln -sf /usr/bin/clang++-${LLVM} /usr/bin/clang++ || true
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DXPHAGE_ENABLE_LLVM=ON -DXPHAGE_ENABLE_TESTS=ON
+          cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4 --timeout 30
+
+  build-macos:
+    name: macOS Universal
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew update && brew install llvm cmake ninja
+      - name: Build
+        run: |
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DXPHAGE_ENABLE_LLVM=ON -DXPHAGE_ENABLE_TESTS=ON
+          cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --parallel 4 --timeout 30
+      - name: Smoke test
+        run: ./build/xphage --version
+
+  build-windows:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MinGW LLVM
+        shell: bash
+        run: |
+          C:/msys64/usr/bin/pacman.exe -S --noconfirm \
+            mingw-w64-x86_64-llvm mingw-w64-x86_64-clang \
+            mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake
+          echo "C:\\msys64\\mingw64\\bin" >> $GITHUB_PATH
+      - name: Build
+        shell: bash
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DXPHAGE_ENABLE_LLVM=ON -DXPHAGE_ENABLE_TESTS=OFF
+          cmake --build build --parallel --config Release
+      - name: Smoke test
+        shell: bash
+        run: ./build/xphage.exe --version || ./build/Release/xphage.exe --version

@@ -1,0 +1,56 @@
+// X-Phage Example: StreamX Ultra
+// Version: 5.0 [Omni-God]
+// Architecture: Neural-Native
+// Usage: xphage run examples/streamx_core.xp0
+
+~link core/system
+~link media/engine
+~link media/stream
+~link net/socket
+~link security/crypt
+~link neural/bci
+
+pulse core {
+    beam ">> Initializing StreamX Ultra (Neural Edition)..."
+
+    // 1. NPU Activation
+    bypass neural_npu {
+        mode: "tensor_flow_direct",
+        cores: "all_active",
+        latency: "0ms"
+    }
+
+    // 2. Audio Kernel Injection
+    bypass audio_dac {
+        sync: "direct_kernel",
+        profile: "lossless_32bit"
+    }
+
+    // 3. Parallel Intelligence
+    quantum "thread_hifi_decode"
+    quantum "thread_user_prediction"
+
+    // 4. Chronos Sync
+    beam ">> Syncing Chronos with Audio Server..."
+    chronos "500"
+    beam ">> Chronos Synced. Buffer Zero."
+
+    // 5. Media Playback
+    atom user_id  = "X_PHAGE_ADMIN"
+    shadow song   = "Cyberpunk_Anthem_2077.wav"
+    beam ">> Now Playing via Neural Engine: "
+    beam song
+
+    // 6. Cloud Uplink
+    shadow stats = "Volume:100|Bitrate:320k|NPU_Usage:12%"
+    ether "Aeon_Cloud_DB" stats
+
+    // 7. Security & Cleanup
+    scan user_id {
+        synapse "spotify.premium.api"
+        beam ">> Premium Content Unlocked."
+    }
+
+    beam ">> Session Ending... Initiating Blackhole Protocol."
+    vortex
+}

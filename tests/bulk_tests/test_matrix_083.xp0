@@ -1,7 +1,0 @@
-// X-Phage Auto-Generated Test: MATRIX
-~link "aeon_core.xh"
-
-pulse core {
-    matrix buffer_83 = [ 83, 1024 ]
-    beam "Matrix Initialized"
-}

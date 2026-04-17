@@ -1,0 +1,318 @@
+// ============================================================
+// X-Phage Standard Library — media/engine.xh
+// Media Core v3.5.0
+//
+// v3.4.0: play_stream, init_torrent_stream
+// v3.5.0: Audio engine, video info, subtitle, playlist,
+//          screenshot, equalizer, audio routing, codec query
+// ============================================================
+
+@NeuralComposition(Media_Hardware) {
+    ~hook media_player  -> "mpv_native_renderer"
+    ~hook audio_dac     -> "direct_kernel_audio"
+    ~hook hw_decode     -> "vaapi_nvdec_videotoolbox"
+}
+
+// ============================================================
+// v3.4.0 — Core playback
+// ============================================================
+
+// play_stream — play any URL or local file
+// Supports: HTTP(S), RTMP, RTSP, HLS, local files
+pulse play_stream(stream_url) {
+    beam ">> Initializing Media Core for Stream: " + stream_url
+    bypass mpv_playback {
+        source: stream_url,
+        hwdec: "auto",
+        profile: "low-latency"
+    }
+}
+
+// init_torrent_stream — stream while downloading via magnet link
+pulse init_torrent_stream(magnet) {
+    beam ">> Booting Native Torrent Engine..."
+    bypass libtorrent_core {
+        target: magnet,
+        mode: "sequential_download"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Player control
+// ============================================================
+
+// media_pause — pause current playback
+pulse media_pause() {
+    bypass mpv_command {
+        op: "pause"
+    }
+}
+
+// media_resume — resume paused playback
+pulse media_resume() {
+    bypass mpv_command {
+        op: "resume"
+    }
+}
+
+// media_stop — stop and release media resources
+pulse media_stop() {
+    bypass mpv_command {
+        op: "stop"
+    }
+}
+
+// media_seek — seek to position in seconds
+pulse media_seek(seconds) {
+    bypass mpv_command {
+        op: "seek",
+        pos: seconds,
+        mode: "absolute"
+    }
+}
+
+// media_seek_relative — seek forward/backward by N seconds
+pulse media_seek_relative(delta_sec) {
+    bypass mpv_command {
+        op: "seek",
+        pos: delta_sec,
+        mode: "relative"
+    }
+}
+
+// media_set_speed — set playback speed (1.0 = normal)
+pulse media_set_speed(rate) {
+    bypass mpv_command {
+        op: "speed",
+        value: rate
+    }
+}
+
+// media_set_volume — set volume 0–100
+pulse media_set_volume(level) {
+    bypass mpv_command {
+        op: "volume",
+        value: level
+    }
+}
+
+// media_mute — toggle mute
+pulse media_mute() {
+    bypass mpv_command {
+        op: "mute"
+    }
+}
+
+// media_position — get current playback position (seconds)
+pulse media_position() {
+    bypass mpv_query {
+        prop: "time-pos"
+    }
+}
+
+// media_duration — get total media duration (seconds)
+pulse media_duration() {
+    bypass mpv_query {
+        prop: "duration"
+    }
+}
+
+// media_is_playing — check if currently playing
+pulse media_is_playing() {
+    bypass mpv_query {
+        prop: "core-idle",
+        invert: "true"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Media info
+// ============================================================
+
+// media_info — return metadata dict for media source
+// Returns: { title, artist, album, duration, bitrate, format, video_codec, audio_codec }
+pulse media_info(source) {
+    bypass media_probe {
+        op: "metadata",
+        source: source
+    }
+}
+
+// media_video_info — video stream details
+// Returns: { width, height, fps, codec, bitrate, hdr }
+pulse media_video_info(source) {
+    bypass media_probe {
+        op: "video_track",
+        source: source
+    }
+}
+
+// media_audio_info — audio stream details
+// Returns: { channels, sample_rate, codec, bitrate }
+pulse media_audio_info(source) {
+    bypass media_probe {
+        op: "audio_track",
+        source: source
+    }
+}
+
+// media_list_codecs — list available codecs
+pulse media_list_codecs() {
+    bypass media_probe {
+        op: "list_codecs"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Video output
+// ============================================================
+
+// media_screenshot — capture current frame as PNG
+pulse media_screenshot(out_path) {
+    bypass mpv_command {
+        op: "screenshot",
+        path: out_path,
+        format: "png"
+    }
+}
+
+// media_screenshot_video — screenshot of video (no subtitles/OSD)
+pulse media_screenshot_video(out_path) {
+    bypass mpv_command {
+        op: "screenshot",
+        path: out_path,
+        format: "png",
+        mode: "video"
+    }
+}
+
+// media_set_fullscreen — toggle fullscreen
+pulse media_set_fullscreen(enabled) {
+    bypass mpv_command {
+        op: "fullscreen",
+        value: enabled
+    }
+}
+
+// media_set_aspect — override aspect ratio ("16:9", "4:3", "-1" = auto)
+pulse media_set_aspect(ratio) {
+    bypass mpv_command {
+        op: "aspect",
+        value: ratio
+    }
+}
+
+// media_set_sub_delay — subtitle sync offset (seconds)
+pulse media_set_sub_delay(sec) {
+    bypass mpv_command {
+        op: "sub_delay",
+        value: sec
+    }
+}
+
+// media_load_subtitles — load external subtitle file
+pulse media_load_subtitles(sub_path) {
+    bypass mpv_command {
+        op: "sub_add",
+        path: sub_path
+    }
+}
+
+// ============================================================
+// v3.5.0 — Playlist
+// ============================================================
+
+// playlist_add — append media to playlist
+pulse playlist_add(url) {
+    bypass mpv_playlist {
+        op: "append",
+        url: url
+    }
+}
+
+// playlist_clear — clear entire playlist
+pulse playlist_clear() {
+    bypass mpv_playlist {
+        op: "clear"
+    }
+}
+
+// playlist_next — skip to next item
+pulse playlist_next() {
+    bypass mpv_playlist {
+        op: "next"
+    }
+}
+
+// playlist_prev — go to previous item
+pulse playlist_prev() {
+    bypass mpv_playlist {
+        op: "prev"
+    }
+}
+
+// playlist_goto — jump to specific index (0-based)
+pulse playlist_goto(index) {
+    bypass mpv_playlist {
+        op: "goto",
+        index: index
+    }
+}
+
+// playlist_shuffle — randomize playlist order
+pulse playlist_shuffle() {
+    bypass mpv_playlist {
+        op: "shuffle"
+    }
+}
+
+// playlist_set_loop — loop mode: "no" | "playlist" | "file"
+pulse playlist_set_loop(mode) {
+    bypass mpv_playlist {
+        op: "loop",
+        mode: mode
+    }
+}
+
+// ============================================================
+// v3.5.0 — Audio engine
+// ============================================================
+
+// audio_set_equalizer — apply 10-band EQ
+// bands: array of 10 gain values in dB [-12.0 to +12.0]
+pulse audio_set_equalizer(bands) {
+    bypass audio_dsp {
+        op: "equalizer",
+        bands: bands
+    }
+}
+
+// audio_set_filter — apply audio filter chain (mpv/ffmpeg syntax)
+pulse audio_set_filter(filter_str) {
+    bypass audio_dsp {
+        op: "af",
+        chain: filter_str
+    }
+}
+
+// audio_normalize — normalize audio level
+pulse audio_normalize() {
+    bypass audio_dsp {
+        op: "dynaudnorm"
+    }
+}
+
+// audio_select_device — route audio to specific output device
+pulse audio_select_device(device_id) {
+    bypass audio_route {
+        op: "select",
+        device: device_id
+    }
+}
+
+// audio_list_devices — list available audio output devices
+pulse audio_list_devices() {
+    bypass audio_route {
+        op: "list_devices"
+    }
+}

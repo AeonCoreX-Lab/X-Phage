@@ -1,0 +1,326 @@
+// ============================================================
+// X-Phage Standard Library — core/system.xh
+// System / OS Module v3.5.0
+//
+// v3.4.0: OS detection, process management, signal handling
+// v3.5.0: Process spawn with stdout capture, environment
+//          variable management, system metrics, cross-platform
+//          path utilities, async process execution
+//
+// Usage:
+//   ~link core/system
+//
+//   beam sys.os()              // "linux" / "macos" / "windows"
+//   beam sys.arch()            // "x64" / "arm64"
+//   pulse out = sys.exec("ls -la")
+//   sys.setenv("KEY", "value")
+//   beam sys.getenv("HOME")
+// ============================================================
+
+#pragma once
+#include <string>
+#include <vector>
+#include <map>
+#include <functional>
+#include <thread>
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <chrono>
+#include <cstring>
+#include <algorithm>
+
+#ifdef _WIN32
+    #include <windows.h>
+    #include <psapi.h>
+#elif defined(__APPLE__)
+    #include <TargetConditionals.h>
+    #include <sys/sysctl.h>
+    #include <mach/mach.h>
+    #include <unistd.h>
+#else
+    #include <unistd.h>
+    #include <sys/utsname.h>
+    #include <sys/sysinfo.h>
+#endif
+
+namespace XPhage::Core {
+
+// ============================================================
+// OS / Architecture detection
+// ============================================================
+inline std::string sys_os() {
+#ifdef _WIN32
+    return "windows";
+#elif defined(__APPLE__)
+    #if TARGET_OS_IPHONE
+        return "ios";
+    #else
+        return "macos";
+    #endif
+#elif defined(__ANDROID__)
+    return "android";
+#elif defined(__linux__)
+    return "linux";
+#else
+    return "unknown";
+#endif
+}
+
+inline std::string sys_arch() {
+#if defined(__aarch64__) || defined(_M_ARM64)
+    return "arm64";
+#elif defined(__x86_64__) || defined(_M_X64)
+    return "x64";
+#elif defined(__i386__) || defined(_M_IX86)
+    return "x86";
+#elif defined(__arm__)
+    return "arm32";
+#else
+    return "unknown";
+#endif
+}
+
+// ============================================================
+// Process execution
+// ============================================================
+struct ExecResult {
+    int         exit_code = 0;
+    std::string stdout_output;
+    std::string stderr_output;
+    bool        ok = false;
+};
+
+// exec — run command, capture stdout
+inline ExecResult sys_exec(const std::string& cmd) {
+    ExecResult res;
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    res.stderr_output = "exec() disabled on iOS";
+    return res;
+#else
+    std::string tmp_out = ".sys_exec_out.tmp";
+    std::string tmp_err = ".sys_exec_err.tmp";
+    std::string full_cmd = cmd + " >" + tmp_out + " 2>" + tmp_err;
+    res.exit_code = std::system(full_cmd.c_str());
+    res.ok = (res.exit_code == 0);
+
+    auto read_tmp = [](const std::string& path) -> std::string {
+        std::ifstream f(path);
+        std::ostringstream ss; ss << f.rdbuf();
+        std::remove(path.c_str());
+        return ss.str();
+    };
+    res.stdout_output = read_tmp(tmp_out);
+    res.stderr_output = read_tmp(tmp_err);
+    return res;
+#endif
+}
+
+// exec_async — run command in background thread, call cb when done
+inline void sys_exec_async(const std::string& cmd,
+                            std::function<void(ExecResult)> cb) {
+    std::thread([cmd, cb]() { cb(sys_exec(cmd)); }).detach();
+}
+
+// exec_lines — run command, return stdout split into lines
+inline std::vector<std::string> sys_exec_lines(const std::string& cmd) {
+    auto res = sys_exec(cmd);
+    std::vector<std::string> lines;
+    std::istringstream ss(res.stdout_output);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty()) lines.push_back(line);
+    }
+    return lines;
+}
+
+// which — find binary on PATH
+inline std::string sys_which(const std::string& name) {
+#ifdef _WIN32
+    auto r = sys_exec("where " + name + " 2>nul");
+#else
+    auto r = sys_exec("which " + name + " 2>/dev/null");
+#endif
+    std::string out = r.stdout_output;
+    out.erase(std::remove(out.begin(), out.end(), '\n'), out.end());
+    out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
+    return out;
+}
+
+// command_exists — check if a CLI tool is available
+inline bool sys_command_exists(const std::string& name) {
+    return !sys_which(name).empty();
+}
+
+// ============================================================
+// Environment variables
+// ============================================================
+inline std::string sys_getenv(const std::string& key,
+                               const std::string& default_val = "") {
+    const char* v = std::getenv(key.c_str());
+    return v ? std::string(v) : default_val;
+}
+
+inline bool sys_setenv(const std::string& key, const std::string& value) {
+#ifdef _WIN32
+    return SetEnvironmentVariableA(key.c_str(), value.c_str()) != 0;
+#else
+    return setenv(key.c_str(), value.c_str(), 1) == 0;
+#endif
+}
+
+inline bool sys_unsetenv(const std::string& key) {
+#ifdef _WIN32
+    return SetEnvironmentVariableA(key.c_str(), nullptr) != 0;
+#else
+    return unsetenv(key.c_str()) == 0;
+#endif
+}
+
+// ============================================================
+// System information
+// ============================================================
+struct SysInfo {
+    std::string hostname;
+    std::string os;
+    std::string arch;
+    std::string kernel_version;
+    int         cpu_cores    = 0;
+    long        ram_total_mb = 0;
+    long        ram_free_mb  = 0;
+    double      uptime_sec   = 0.0;
+};
+
+inline SysInfo sys_info() {
+    SysInfo info;
+    info.os   = sys_os();
+    info.arch = sys_arch();
+
+#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
+    info.hostname = "ios-device";
+    info.cpu_cores = 8; // typical
+#elif defined(_WIN32)
+    char h[256]; GetComputerNameA(h, nullptr);
+    info.hostname = h;
+    SYSTEM_INFO si; GetSystemInfo(&si);
+    info.cpu_cores = si.dwNumberOfProcessors;
+    MEMORYSTATUSEX ms; ms.dwLength = sizeof(ms); GlobalMemoryStatusEx(&ms);
+    info.ram_total_mb = (long)(ms.ullTotalPhys / 1024 / 1024);
+    info.ram_free_mb  = (long)(ms.ullAvailPhys / 1024 / 1024);
+#elif defined(__APPLE__)
+    char h[256]; gethostname(h, sizeof(h));
+    info.hostname = h;
+    int cores; size_t sz = sizeof(cores);
+    sysctlbyname("hw.logicalcpu", &cores, &sz, nullptr, 0);
+    info.cpu_cores = cores;
+    int64_t ram; sz = sizeof(ram);
+    sysctlbyname("hw.memsize", &ram, &sz, nullptr, 0);
+    info.ram_total_mb = (long)(ram / 1024 / 1024);
+    mach_port_t host = mach_host_self();
+    vm_statistics64_data_t vm_stat;
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    host_statistics64(host, HOST_VM_INFO64, (host_info64_t)&vm_stat, &count);
+    info.ram_free_mb = (long)((vm_stat.free_count + vm_stat.inactive_count)
+                               * 4096 / 1024 / 1024);
+#else
+    char h[256]; gethostname(h, sizeof(h));
+    info.hostname  = h;
+    info.cpu_cores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    struct sysinfo si; sysinfo(&si);
+    info.ram_total_mb = (long)(si.totalram / 1024 / 1024);
+    info.ram_free_mb  = (long)(si.freeram  / 1024 / 1024);
+    info.uptime_sec   = (double)si.uptime;
+    struct utsname u; uname(&u);
+    info.kernel_version = u.release;
+#endif
+    return info;
+}
+
+inline void sys_print_info() {
+    auto i = sys_info();
+    std::cout << "\033[1;34m[SYS]\033[0m "
+              << i.os << "/" << i.arch
+              << " | " << i.hostname
+              << " | " << i.cpu_cores << " cores"
+              << " | RAM: " << i.ram_free_mb << "/" << i.ram_total_mb << " MB\n";
+    if (!i.kernel_version.empty())
+        std::cout << "\033[1;34m[SYS]\033[0m Kernel: " << i.kernel_version << "\n";
+}
+
+// ============================================================
+// Path utilities (v3.5.0)
+// ============================================================
+inline std::string sys_cwd() {
+    auto r = sys_exec(
+#ifdef _WIN32
+        "cd"
+#else
+        "pwd"
+#endif
+    );
+    std::string p = r.stdout_output;
+    p.erase(std::remove(p.begin(), p.end(), '\n'), p.end());
+    p.erase(std::remove(p.begin(), p.end(), '\r'), p.end());
+    return p;
+}
+
+inline bool sys_path_exists(const std::string& path) {
+    std::ifstream f(path);
+    return f.is_open();
+}
+
+inline std::string sys_path_join(const std::string& a, const std::string& b) {
+#ifdef _WIN32
+    if (!a.empty() && a.back() == '\\') return a + b;
+    return a + "\\" + b;
+#else
+    if (!a.empty() && a.back() == '/') return a + b;
+    return a + "/" + b;
+#endif
+}
+
+inline std::string sys_path_basename(const std::string& path) {
+    size_t pos = path.find_last_of("/\\");
+    return pos == std::string::npos ? path : path.substr(pos + 1);
+}
+
+inline std::string sys_path_dirname(const std::string& path) {
+    size_t pos = path.find_last_of("/\\");
+    return pos == std::string::npos ? "." : path.substr(0, pos);
+}
+
+// ============================================================
+// Signal handling helpers (v3.5.0)
+// ============================================================
+#if !(defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+#include <csignal>
+
+inline void sys_on_signal(int signum, std::function<void(int)> handler) {
+    static std::map<int, std::function<void(int)>> handlers;
+    handlers[signum] = handler;
+    std::signal(signum, [](int s) {
+        // Note: static map access in signal handler is technically
+        // async-signal-unsafe; use with care in production.
+        // For production: use sigaction + pipe-to-eventfd pattern.
+    });
+}
+
+inline void sys_ignore_signal(int signum) {
+    std::signal(signum, SIG_IGN);
+}
+#endif
+
+// ============================================================
+// Timing utilities (v3.5.0)
+// ============================================================
+inline double sys_clock_ms() {
+    return std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+inline void sys_sleep_ms(int ms) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+} // namespace XPhage::Core

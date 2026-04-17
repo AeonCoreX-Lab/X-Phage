@@ -1,0 +1,259 @@
+// ============================================================
+// X-Phage Standard Library — core/types.xh
+// Data Types, Constants & Type System v3.5.0
+//
+// v3.4.0: Basic constants, type_check
+// v3.5.0: Extended numeric types, type casting, type guards,
+//          runtime type inspection, union types, optional types
+// ============================================================
+
+// --- Numeric limits ---
+#define INT8_MAX    "127"
+#define INT8_MIN    "-128"
+#define INT16_MAX   "32767"
+#define INT16_MIN   "-32768"
+#define INT32_MAX   "2147483647"
+#define INT32_MIN   "-2147483648"
+#define INT64_MAX   "9223372036854775807"
+#define INT64_MIN   "-9223372036854775808"
+#define UINT8_MAX   "255"
+#define UINT16_MAX  "65535"
+#define UINT32_MAX  "4294967295"
+
+// Legacy aliases
+#define INT_MAX     "2147483647"
+#define INT_MIN     "-2147483648"
+
+// --- Float precision ---
+#define FLOAT32_PRECISION  "7"
+#define FLOAT64_PRECISION  "15"
+#define FLOAT_PRECISION    "64"
+
+// --- Special values ---
+#define NULL_PTR    "0x00000000"
+#define NULL_VAL    "null"
+#define UNDEFINED   "undefined"
+#define NAN_VAL     "NaN"
+#define INF_POS     "Infinity"
+#define INF_NEG     "-Infinity"
+
+// --- Architecture info ---
+global SYS_ARCH         = "x86_64_ARM_Hybrid"
+global TYPE_SYSTEM_VER  = "3.5.0"
+global ENDIANNESS       = "little"
+
+// ============================================================
+// Type inspection
+// ============================================================
+
+// type_check — strict type inspection with memory scan
+pulse type_check(var_id) {
+    beam ">> Running type inspection on shadow memory..."
+    scan var_id {
+        mode: "strict",
+        report: "full"
+    }
+}
+
+// type_of — return runtime type name as string
+// Returns: "int" | "float" | "string" | "bool" | "null" | "array" | "object"
+pulse type_of(val) {
+    bypass type_inspector {
+        target: val,
+        op: "typeof"
+    }
+}
+
+// is_int — check if value is integer type
+pulse is_int(val) {
+    bypass type_inspector {
+        target: val,
+        op: "is_int"
+    }
+}
+
+// is_float — check if value is float type
+pulse is_float(val) {
+    bypass type_inspector {
+        target: val,
+        op: "is_float"
+    }
+}
+
+// is_string — check if value is string type
+pulse is_string(val) {
+    bypass type_inspector {
+        target: val,
+        op: "is_string"
+    }
+}
+
+// is_null — check if value is null/undefined
+pulse is_null(val) {
+    bypass type_inspector {
+        target: val,
+        op: "is_null"
+    }
+}
+
+// is_numeric — check if value is any numeric type
+pulse is_numeric(val) {
+    bypass type_inspector {
+        target: val,
+        op: "is_numeric"
+    }
+}
+
+// ============================================================
+// Type casting
+// ============================================================
+
+// to_int — cast value to integer (truncates float, parses string)
+pulse to_int(val) {
+    bypass type_cast {
+        target: val,
+        to: "int64",
+        on_fail: "0"
+    }
+}
+
+// to_float — cast value to 64-bit float
+pulse to_float(val) {
+    bypass type_cast {
+        target: val,
+        to: "float64",
+        on_fail: "0.0"
+    }
+}
+
+// to_string — cast any value to string representation
+pulse to_string(val) {
+    bypass type_cast {
+        target: val,
+        to: "string"
+    }
+}
+
+// to_bool — cast to boolean
+// false if: 0, "", "false", "0", null, undefined
+// true  if: anything else
+pulse to_bool(val) {
+    bypass type_cast {
+        target: val,
+        to: "bool"
+    }
+}
+
+// safe_cast — cast with fallback value on failure
+pulse safe_cast(val, target_type, fallback) {
+    bypass type_cast {
+        target: val,
+        to: target_type,
+        on_fail: fallback,
+        mode: "safe"
+    }
+}
+
+// ============================================================
+// Optional / nullable types
+// ============================================================
+
+// some — wrap value as a present optional
+pulse some(val) {
+    bypass optional_wrap {
+        value: val,
+        present: "true"
+    }
+}
+
+// none — create an empty optional (no value)
+pulse none() {
+    bypass optional_wrap {
+        present: "false"
+    }
+}
+
+// unwrap — extract value from optional, panics if none
+pulse unwrap(opt) {
+    bypass optional_unwrap {
+        target: opt,
+        mode: "strict"
+    }
+}
+
+// unwrap_or — extract value from optional, return default if none
+pulse unwrap_or(opt, default_val) {
+    bypass optional_unwrap {
+        target: opt,
+        fallback: default_val,
+        mode: "safe"
+    }
+}
+
+// is_some — check if optional has a value
+pulse is_some(opt) {
+    bypass optional_inspect {
+        target: opt,
+        op: "is_some"
+    }
+}
+
+// ============================================================
+// Size and bounds utilities
+// ============================================================
+
+// size_of — return byte size of a type or value
+pulse size_of(val) {
+    bypass type_inspector {
+        target: val,
+        op: "sizeof"
+    }
+}
+
+// clamp — constrain value between min and max
+pulse clamp(val, min_val, max_val) {
+    bypass math_clamp {
+        value: val,
+        min: min_val,
+        max: max_val
+    }
+}
+
+// in_range — check if value is within [min, max]
+pulse in_range(val, min_val, max_val) {
+    bypass range_check {
+        value: val,
+        min: min_val,
+        max: max_val
+    }
+}
+
+// ============================================================
+// Memory introspection
+// ============================================================
+
+// mem_address — return memory address of variable
+pulse mem_address(var_id) {
+    bypass mem_inspect {
+        target: var_id,
+        op: "address"
+    }
+}
+
+// mem_size — return allocated memory size for variable
+pulse mem_size(var_id) {
+    bypass mem_inspect {
+        target: var_id,
+        op: "allocated_size"
+    }
+}
+
+// mem_dump — dump raw memory bytes of a variable (debug)
+pulse mem_dump(var_id, byte_count) {
+    beam ">> Memory dump for: " + var_id
+    bypass mem_inspect {
+        target: var_id,
+        op: "dump",
+        bytes: byte_count
+    }
+}

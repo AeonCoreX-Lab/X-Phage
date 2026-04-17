@@ -1,7 +1,0 @@
-// X-Phage Auto-Generated Test: ETHER
-~link "aeon_ultimate.xh"
-
-pulse core {
-    shadow data_94 = "Packet_94"
-    ether "Cloud_Node_94" data_94
-}

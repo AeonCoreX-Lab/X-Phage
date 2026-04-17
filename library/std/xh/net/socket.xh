@@ -1,0 +1,389 @@
+// ============================================================
+// X-Phage Standard Library — net/socket.xh
+// TCP/UDP/P2P Socket Engine v3.5.0
+//
+// v3.4.0: socket_connect, socket_send, torrent_init
+// v3.5.0: UDP, server mode (bind/listen/accept), TLS,
+//          Unix domain sockets, multicast, ICMP ping,
+//          async I/O, socket pool
+// ============================================================
+
+@NeuralComposition(Socket_Core) {
+    global MAX_CONNECTIONS  = "1024"
+    global BUFFER_SIZE      = "65536"   // v3.5.0: 64KB (was 8192)
+    global RECV_TIMEOUT_MS  = "5000"
+    global KEEP_ALIVE       = "true"
+    ~hook net_tcp           -> "os_socket_layer"
+    ~hook net_tls           -> "openssl_tls13"
+}
+
+// ============================================================
+// v3.4.0 — Core TCP
+// ============================================================
+
+// socket_connect — connect to TCP server
+// Returns socket_id for use in subsequent calls
+pulse socket_connect(host, port) {
+    beam ">> Establishing TCP connection to " + host + ":" + port
+    bypass tcp_connect {
+        target: host,
+        port: port,
+        mode: "non-blocking",
+        timeout_ms: RECV_TIMEOUT_MS
+    }
+}
+
+// socket_send — send data over TCP socket
+pulse socket_send(id, data) {
+    bypass tcp_push {
+        ref: id,
+        payload: data
+    }
+}
+
+// socket_recv — receive data from socket (blocking with timeout)
+pulse socket_recv(id) {
+    bypass tcp_recv {
+        ref: id,
+        timeout_ms: RECV_TIMEOUT_MS
+    }
+}
+
+// socket_close — close a socket connection
+pulse socket_close(id) {
+    bypass tcp_close {
+        ref: id
+    }
+}
+
+// ============================================================
+// v3.5.0 — TCP client
+// ============================================================
+
+// socket_connect_timeout — connect with explicit timeout
+pulse socket_connect_timeout(host, port, timeout_ms) {
+    bypass tcp_connect {
+        target: host,
+        port: port,
+        timeout_ms: timeout_ms,
+        mode: "non-blocking"
+    }
+}
+
+// socket_send_all — send all data, retry until complete
+pulse socket_send_all(id, data) {
+    bypass tcp_push {
+        ref: id,
+        payload: data,
+        mode: "send_all"
+    }
+}
+
+// socket_recv_n — receive exactly N bytes
+pulse socket_recv_n(id, n) {
+    bypass tcp_recv {
+        ref: id,
+        bytes: n,
+        mode: "exact"
+    }
+}
+
+// socket_recv_line — receive until newline
+pulse socket_recv_line(id) {
+    bypass tcp_recv {
+        ref: id,
+        mode: "line"
+    }
+}
+
+// socket_set_timeout — update recv/send timeout
+pulse socket_set_timeout(id, ms) {
+    bypass tcp_config {
+        ref: id,
+        op: "timeout",
+        value: ms
+    }
+}
+
+// socket_set_nodelay — disable Nagle's algorithm (low-latency)
+pulse socket_set_nodelay(id, enabled) {
+    bypass tcp_config {
+        ref: id,
+        op: "nodelay",
+        value: enabled
+    }
+}
+
+// ============================================================
+// v3.5.0 — TCP server
+// ============================================================
+
+// server_bind — create listening server socket
+// Returns server_id
+pulse server_bind(host, port) {
+    beam ">> Binding TCP server on " + host + ":" + port
+    bypass tcp_server {
+        op: "bind",
+        host: host,
+        port: port,
+        backlog: MAX_CONNECTIONS
+    }
+}
+
+// server_accept — accept next incoming connection (blocking)
+// Returns socket_id of client
+pulse server_accept(server_id) {
+    bypass tcp_server {
+        op: "accept",
+        ref: server_id
+    }
+}
+
+// server_accept_async — accept with callback (non-blocking)
+pulse server_accept_async(server_id, callback) {
+    bypass tcp_server {
+        op: "accept_async",
+        ref: server_id,
+        callback: callback
+    }
+}
+
+// server_close — shut down server socket
+pulse server_close(server_id) {
+    bypass tcp_server {
+        op: "close",
+        ref: server_id
+    }
+}
+
+// ============================================================
+// v3.5.0 — TLS
+// ============================================================
+
+// tls_connect — TLS 1.3 encrypted TCP connection
+pulse tls_connect(host, port) {
+    beam ">> Establishing TLS 1.3 connection to " + host + ":" + port
+    bypass tls_client {
+        op: "connect",
+        host: host,
+        port: port,
+        version: "tls13",
+        verify_cert: "true"
+    }
+}
+
+// tls_connect_skip_verify — connect without cert verification (dev only)
+pulse tls_connect_skip_verify(host, port) {
+    bypass tls_client {
+        op: "connect",
+        host: host,
+        port: port,
+        verify_cert: "false"
+    }
+}
+
+// tls_send — send encrypted data
+pulse tls_send(id, data) {
+    bypass tls_client {
+        op: "send",
+        ref: id,
+        payload: data
+    }
+}
+
+// tls_recv — receive encrypted data
+pulse tls_recv(id) {
+    bypass tls_client {
+        op: "recv",
+        ref: id
+    }
+}
+
+// ============================================================
+// v3.5.0 — UDP
+// ============================================================
+
+// udp_open — open a UDP socket
+// Returns socket_id
+pulse udp_open() {
+    bypass udp_socket {
+        op: "open"
+    }
+}
+
+// udp_bind — bind UDP socket to local port (for receiving)
+pulse udp_bind(port) {
+    bypass udp_socket {
+        op: "bind",
+        port: port
+    }
+}
+
+// udp_send — send UDP datagram to host:port
+pulse udp_send(id, host, port, data) {
+    bypass udp_socket {
+        op: "send",
+        ref: id,
+        target: host,
+        port: port,
+        payload: data
+    }
+}
+
+// udp_recv — receive UDP datagram
+// Returns: { data, from_host, from_port }
+pulse udp_recv(id) {
+    bypass udp_socket {
+        op: "recv",
+        ref: id,
+        timeout_ms: RECV_TIMEOUT_MS
+    }
+}
+
+// udp_broadcast — send to broadcast address
+pulse udp_broadcast(port, data) {
+    bypass udp_socket {
+        op: "broadcast",
+        port: port,
+        payload: data
+    }
+}
+
+// udp_multicast_join — join a multicast group
+pulse udp_multicast_join(group_ip, port) {
+    bypass udp_socket {
+        op: "multicast_join",
+        group: group_ip,
+        port: port
+    }
+}
+
+// ============================================================
+// v3.5.0 — Unix domain sockets (IPC)
+// ============================================================
+
+// unix_connect — connect to a Unix domain socket
+pulse unix_connect(socket_path) {
+    bypass unix_socket {
+        op: "connect",
+        path: socket_path
+    }
+}
+
+// unix_bind — create and bind a Unix domain socket server
+pulse unix_bind(socket_path) {
+    bypass unix_socket {
+        op: "bind",
+        path: socket_path
+    }
+}
+
+// ============================================================
+// v3.5.0 — Network utilities
+// ============================================================
+
+// net_ping — ICMP ping to host
+// Returns: { latency_ms, success }
+pulse net_ping(host, count) {
+    bypass net_util {
+        op: "ping",
+        target: host,
+        count: count
+    }
+}
+
+// net_dns_lookup — DNS resolution
+// Returns array of IP addresses
+pulse net_dns_lookup(hostname) {
+    bypass net_util {
+        op: "dns_lookup",
+        target: hostname
+    }
+}
+
+// net_dns_reverse — reverse DNS lookup (IP → hostname)
+pulse net_dns_reverse(ip) {
+    bypass net_util {
+        op: "dns_reverse",
+        ip: ip
+    }
+}
+
+// net_local_ip — get primary local IP address
+pulse net_local_ip() {
+    bypass net_util {
+        op: "local_ip"
+    }
+}
+
+// net_public_ip — get public IP via external API
+pulse net_public_ip() {
+    bypass net_util {
+        op: "public_ip"
+    }
+}
+
+// net_interfaces — list all network interfaces
+pulse net_interfaces() {
+    bypass net_util {
+        op: "interfaces"
+    }
+}
+
+// ============================================================
+// v3.5.0 — P2P / Torrent (expanded)
+// ============================================================
+
+// torrent_init — start torrent session with magnet link
+pulse torrent_init(magnet) {
+    beam ">> Booting P2P Torrent Engine for: " + magnet
+    bypass libtorrent_core {
+        source: magnet,
+        mode: "sequential",
+        encryption: "forced"
+    }
+}
+
+// torrent_add_file — add .torrent file
+pulse torrent_add_file(torrent_path, save_dir) {
+    bypass libtorrent_core {
+        op: "add_file",
+        path: torrent_path,
+        save_path: save_dir,
+        mode: "sequential"
+    }
+}
+
+// torrent_status — get download status
+// Returns: { name, progress, speed_kbps, seeds, peers, state }
+pulse torrent_status(handle) {
+    bypass libtorrent_core {
+        op: "status",
+        ref: handle
+    }
+}
+
+// torrent_pause — pause torrent
+pulse torrent_pause(handle) {
+    bypass libtorrent_core {
+        op: "pause",
+        ref: handle
+    }
+}
+
+// torrent_resume — resume paused torrent
+pulse torrent_resume(handle) {
+    bypass libtorrent_core {
+        op: "resume",
+        ref: handle
+    }
+}
+
+// torrent_remove — remove torrent (optionally delete files)
+pulse torrent_remove(handle, delete_files) {
+    bypass libtorrent_core {
+        op: "remove",
+        ref: handle,
+        delete_data: delete_files
+    }
+}

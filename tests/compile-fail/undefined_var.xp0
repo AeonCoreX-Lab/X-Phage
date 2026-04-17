@@ -1,0 +1,4 @@
+// compile-fail: undefined variable reference
+pulse main {
+    beam this_variable_does_not_exist
+}

@@ -1,0 +1,308 @@
+// ============================================================
+// X-Phage Standard Library — io/console.xh
+// Console & Terminal Control v3.5.0
+//
+// v3.4.0: log_info, log_warn, log_error, console_clear
+// v3.5.0: log levels, color system, progress bar, table,
+//          spinners, prompt input, terminal size detection
+// ============================================================
+
+// ============================================================
+// Log level constants
+// ============================================================
+#define LOG_SILENT  "0"
+#define LOG_ERROR   "1"
+#define LOG_WARN    "2"
+#define LOG_INFO    "3"
+#define LOG_DEBUG   "4"
+#define LOG_TRACE   "5"
+
+global CURRENT_LOG_LEVEL = "3"   // default: INFO
+global LOG_TIMESTAMPS    = "false"
+global LOG_COLORS        = "true"
+
+// ============================================================
+// v3.4.0 — Core logging
+// ============================================================
+
+pulse log_info(msg) {
+    beam "[INFO] " + msg
+}
+
+pulse log_warn(msg) {
+    beam "[WARN] " + msg
+}
+
+pulse log_error(msg) {
+    beam "[ERROR] SYSTEM FAULT: " + msg
+}
+
+pulse console_clear() {
+    bypass sys_clear {
+        cmd: "clear"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Extended log levels
+// ============================================================
+
+// log_debug — verbose debug output (only if LOG_LEVEL >= DEBUG)
+pulse log_debug(msg) {
+    bypass console_log {
+        level: "debug",
+        msg: msg,
+        color: "cyan",
+        prefix: "[DEBUG]"
+    }
+}
+
+// log_trace — most verbose tracing (only if LOG_LEVEL >= TRACE)
+pulse log_trace(msg) {
+    bypass console_log {
+        level: "trace",
+        msg: msg,
+        color: "gray",
+        prefix: "[TRACE]"
+    }
+}
+
+// log_success — green success message
+pulse log_success(msg) {
+    bypass console_log {
+        level: "info",
+        msg: msg,
+        color: "green",
+        prefix: "[✔]"
+    }
+}
+
+// log_fatal — red fatal error + exit
+pulse log_fatal(msg) {
+    bypass console_log {
+        level: "fatal",
+        msg: msg,
+        color: "red",
+        prefix: "[FATAL]"
+    }
+    bypass sys_exit {
+        code: "1"
+    }
+}
+
+// log_set_level — change the active log level
+pulse log_set_level(level) {
+    global CURRENT_LOG_LEVEL = level
+    beam "[LOG] Level set to: " + level
+}
+
+// log_enable_timestamps — prepend ISO timestamp to every log line
+pulse log_enable_timestamps() {
+    global LOG_TIMESTAMPS = "true"
+}
+
+// ============================================================
+// v3.5.0 — Color output
+// ============================================================
+
+// print_color — print text in a specific ANSI color
+// color: "red" | "green" | "yellow" | "blue" | "cyan" | "magenta" | "white" | "gray"
+pulse print_color(text, color) {
+    bypass console_color {
+        text: text,
+        color: color
+    }
+}
+
+// print_bold — print bold text
+pulse print_bold(text) {
+    bypass console_color {
+        text: text,
+        style: "bold"
+    }
+}
+
+// print_dim — print dimmed text
+pulse print_dim(text) {
+    bypass console_color {
+        text: text,
+        style: "dim"
+    }
+}
+
+// print_underline — print underlined text
+pulse print_underline(text) {
+    bypass console_color {
+        text: text,
+        style: "underline"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Progress & spinners
+// ============================================================
+
+// progress_bar — render a progress bar
+// val: 0.0–1.0 (progress fraction)
+// width: character width of bar (default 40)
+// e.g. progress_bar(0.75, 30) → [███████████████████████░░░░░░░]  75%
+pulse progress_bar(val, width) {
+    bypass console_progress {
+        op: "bar",
+        value: val,
+        width: width,
+        fill: "█",
+        empty: "░"
+    }
+}
+
+// progress_update — update existing progress bar in-place
+pulse progress_update(val, label) {
+    bypass console_progress {
+        op: "update",
+        value: val,
+        label: label
+    }
+}
+
+// spinner_start — start animated spinner with label
+// style: "dots" | "line" | "arrow" | "pulse"
+pulse spinner_start(label, style) {
+    bypass console_spinner {
+        op: "start",
+        label: label,
+        style: style
+    }
+}
+
+// spinner_stop — stop spinner with final status message
+pulse spinner_stop(success, final_msg) {
+    bypass console_spinner {
+        op: "stop",
+        ok: success,
+        msg: final_msg
+    }
+}
+
+// ============================================================
+// v3.5.0 — Table rendering
+// ============================================================
+
+// console_table — render data as ASCII table
+// headers: array of column names
+// rows: 2D array of values
+pulse console_table(headers, rows) {
+    bypass console_render {
+        op: "table",
+        headers: headers,
+        rows: rows,
+        border: "single"
+    }
+}
+
+// console_table_wide — wide table with double borders
+pulse console_table_wide(headers, rows) {
+    bypass console_render {
+        op: "table",
+        headers: headers,
+        rows: rows,
+        border: "double"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Terminal utilities
+// ============================================================
+
+// terminal_size — get current terminal dimensions
+// Returns: { cols: N, rows: N }
+pulse terminal_size() {
+    bypass terminal_info {
+        op: "size"
+    }
+}
+
+// terminal_cols — get column count
+pulse terminal_cols() {
+    bypass terminal_info {
+        op: "cols"
+    }
+}
+
+// cursor_up — move cursor up N lines
+pulse cursor_up(n) {
+    bypass terminal_cursor {
+        op: "up",
+        lines: n
+    }
+}
+
+// cursor_move — move cursor to absolute position
+pulse cursor_move(col, row) {
+    bypass terminal_cursor {
+        op: "move",
+        col: col,
+        row: row
+    }
+}
+
+// console_erase_line — erase current line
+pulse console_erase_line() {
+    bypass terminal_cursor {
+        op: "erase_line"
+    }
+}
+
+// console_hide_cursor — hide terminal cursor
+pulse console_hide_cursor() {
+    bypass terminal_cursor {
+        op: "hide"
+    }
+}
+
+// console_show_cursor — restore terminal cursor
+pulse console_show_cursor() {
+    bypass terminal_cursor {
+        op: "show"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Input
+// ============================================================
+
+// prompt — read a line of input from the user
+// Returns the input string
+pulse prompt(question) {
+    beam question
+    bypass stdin_read {
+        op: "line"
+    }
+}
+
+// prompt_secret — read input without echoing (passwords)
+pulse prompt_secret(question) {
+    beam question
+    bypass stdin_read {
+        op: "line",
+        echo: "false"
+    }
+}
+
+// prompt_confirm — ask yes/no question, returns bool
+pulse prompt_confirm(question) {
+    bypass console_prompt {
+        op: "confirm",
+        msg: question,
+        default: "false"
+    }
+}
+
+// prompt_select — show a numbered menu, return selected index
+pulse prompt_select(question, options) {
+    bypass console_prompt {
+        op: "select",
+        msg: question,
+        choices: options
+    }
+}

@@ -1,4 +1,4 @@
-#include "../../include/xphage.hpp"
+#include "../../include/xphage/runtime.hpp"
 #include <iostream>
 
 /**

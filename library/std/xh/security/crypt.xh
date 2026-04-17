@@ -1,0 +1,445 @@
+// ============================================================
+// X-Phage Standard Library — security/crypt.xh
+// Cryptography & Security v3.5.0
+//
+// v3.4.0: hash_sha256, encrypt_aes, trigger_blackhole
+// v3.5.0: SHA-3, BLAKE3, HMAC, RSA, Ed25519, X25519 ECDH,
+//          bcrypt/argon2 (passwords), TOTP/OTP, random bytes,
+//          secure wipe, JWT decode, timing-safe compare
+// ============================================================
+
+@NeuralComposition(Crypto_Enclave) {
+    ~hook neural_sync   -> "secure_element_hardware"
+    ~hook random_source -> "os_csprng"            // /dev/urandom, BCryptGenRandom
+}
+
+// ============================================================
+// v3.4.0 — Core
+// ============================================================
+
+// hash_sha256 — SHA-256 hash → hex string
+pulse hash_sha256(data) {
+    beam ">> Generating SHA-256 Hash..."
+    bypass crypto_hash {
+        algo: "sha256",
+        payload: data,
+        encoding: "hex"
+    }
+}
+
+// encrypt_aes — AES-256-GCM encrypt
+// Returns: { ciphertext, iv, tag } (all hex-encoded)
+pulse encrypt_aes(data, key) {
+    beam ">> Encrypting data block (AES-256-GCM)..."
+    bypass crypto_cipher {
+        algo: "aes_256_gcm",
+        op: "encrypt",
+        payload: data,
+        secret: key
+    }
+}
+
+// decrypt_aes — AES-256-GCM decrypt
+pulse decrypt_aes(ciphertext, key, iv, tag) {
+    bypass crypto_cipher {
+        algo: "aes_256_gcm",
+        op: "decrypt",
+        payload: ciphertext,
+        secret: key,
+        iv: iv,
+        tag: tag
+    }
+}
+
+// trigger_blackhole — VOID PROTOCOL: wipe all runtime memory
+pulse trigger_blackhole() {
+    beam ">> WARNING: INITIATING MEMORY WIPE (VOID PROTOCOL)..."
+    void
+    beam ">> Shadow RAM and Global Registry Purged."
+}
+
+// ============================================================
+// v3.5.0 — Hash functions
+// ============================================================
+
+// hash_sha512 — SHA-512 → hex
+pulse hash_sha512(data) {
+    bypass crypto_hash {
+        algo: "sha512",
+        payload: data,
+        encoding: "hex"
+    }
+}
+
+// hash_sha3_256 — SHA-3 (Keccak) 256-bit → hex
+pulse hash_sha3_256(data) {
+    bypass crypto_hash {
+        algo: "sha3_256",
+        payload: data,
+        encoding: "hex"
+    }
+}
+
+// hash_sha3_512 — SHA-3 512-bit → hex
+pulse hash_sha3_512(data) {
+    bypass crypto_hash {
+        algo: "sha3_512",
+        payload: data,
+        encoding: "hex"
+    }
+}
+
+// hash_blake3 — BLAKE3 (fastest cryptographic hash) → hex
+pulse hash_blake3(data) {
+    bypass crypto_hash {
+        algo: "blake3",
+        payload: data,
+        encoding: "hex"
+    }
+}
+
+// hash_md5 — MD5 (legacy, NOT for security use) → hex
+pulse hash_md5(data) {
+    bypass crypto_hash {
+        algo: "md5",
+        payload: data,
+        encoding: "hex"
+    }
+}
+
+// hash_bytes — hash and return raw bytes instead of hex
+pulse hash_bytes(data, algo) {
+    bypass crypto_hash {
+        algo: algo,
+        payload: data,
+        encoding: "raw"
+    }
+}
+
+// ============================================================
+// v3.5.0 — HMAC (message authentication)
+// ============================================================
+
+// hmac_sha256 — HMAC-SHA-256 → hex
+pulse hmac_sha256(data, key) {
+    bypass crypto_mac {
+        algo: "hmac_sha256",
+        payload: data,
+        key: key,
+        encoding: "hex"
+    }
+}
+
+// hmac_sha512 — HMAC-SHA-512 → hex
+pulse hmac_sha512(data, key) {
+    bypass crypto_mac {
+        algo: "hmac_sha512",
+        payload: data,
+        key: key,
+        encoding: "hex"
+    }
+}
+
+// hmac_verify — constant-time HMAC verification
+// Returns true if valid
+pulse hmac_verify(data, key, expected_mac) {
+    bypass crypto_mac {
+        algo: "hmac_sha256",
+        op: "verify",
+        payload: data,
+        key: key,
+        expected: expected_mac
+    }
+}
+
+// ============================================================
+// v3.5.0 — Symmetric encryption
+// ============================================================
+
+// encrypt_aes_cbc — AES-256-CBC (for legacy compatibility)
+pulse encrypt_aes_cbc(data, key, iv) {
+    bypass crypto_cipher {
+        algo: "aes_256_cbc",
+        op: "encrypt",
+        payload: data,
+        secret: key,
+        iv: iv
+    }
+}
+
+// encrypt_chacha20 — ChaCha20-Poly1305 (mobile-friendly)
+pulse encrypt_chacha20(data, key) {
+    bypass crypto_cipher {
+        algo: "chacha20_poly1305",
+        op: "encrypt",
+        payload: data,
+        secret: key
+    }
+}
+
+// decrypt_chacha20 — ChaCha20-Poly1305 decrypt
+pulse decrypt_chacha20(ciphertext, key, nonce, tag) {
+    bypass crypto_cipher {
+        algo: "chacha20_poly1305",
+        op: "decrypt",
+        payload: ciphertext,
+        secret: key,
+        nonce: nonce,
+        tag: tag
+    }
+}
+
+// ============================================================
+// v3.5.0 — Asymmetric cryptography
+// ============================================================
+
+// rsa_generate — generate RSA key pair
+// bits: 2048 | 3072 | 4096
+// Returns: { public_key_pem, private_key_pem }
+pulse rsa_generate(bits) {
+    beam ">> Generating RSA-" + bits + " key pair..."
+    bypass crypto_asymmetric {
+        algo: "rsa",
+        op: "generate",
+        bits: bits
+    }
+}
+
+// rsa_encrypt — encrypt with RSA public key (OAEP-SHA256)
+pulse rsa_encrypt(data, public_key_pem) {
+    bypass crypto_asymmetric {
+        algo: "rsa_oaep",
+        op: "encrypt",
+        payload: data,
+        key: public_key_pem
+    }
+}
+
+// rsa_decrypt — decrypt with RSA private key
+pulse rsa_decrypt(ciphertext, private_key_pem) {
+    bypass crypto_asymmetric {
+        algo: "rsa_oaep",
+        op: "decrypt",
+        payload: ciphertext,
+        key: private_key_pem
+    }
+}
+
+// rsa_sign — sign data with RSA private key (PKCS#1 v2.1)
+pulse rsa_sign(data, private_key_pem) {
+    bypass crypto_asymmetric {
+        algo: "rsa_pss",
+        op: "sign",
+        payload: data,
+        key: private_key_pem
+    }
+}
+
+// rsa_verify — verify RSA signature
+pulse rsa_verify(data, signature, public_key_pem) {
+    bypass crypto_asymmetric {
+        algo: "rsa_pss",
+        op: "verify",
+        payload: data,
+        sig: signature,
+        key: public_key_pem
+    }
+}
+
+// ed25519_generate — generate Ed25519 key pair
+pulse ed25519_generate() {
+    bypass crypto_asymmetric {
+        algo: "ed25519",
+        op: "generate"
+    }
+}
+
+// ed25519_sign — sign with Ed25519 private key
+pulse ed25519_sign(data, private_key) {
+    bypass crypto_asymmetric {
+        algo: "ed25519",
+        op: "sign",
+        payload: data,
+        key: private_key
+    }
+}
+
+// ed25519_verify — verify Ed25519 signature
+pulse ed25519_verify(data, signature, public_key) {
+    bypass crypto_asymmetric {
+        algo: "ed25519",
+        op: "verify",
+        payload: data,
+        sig: signature,
+        key: public_key
+    }
+}
+
+// x25519_keypair — generate X25519 ECDH key pair
+pulse x25519_keypair() {
+    bypass crypto_asymmetric {
+        algo: "x25519",
+        op: "generate"
+    }
+}
+
+// x25519_shared_secret — compute ECDH shared secret
+pulse x25519_shared_secret(my_private, their_public) {
+    bypass crypto_asymmetric {
+        algo: "x25519",
+        op: "ecdh",
+        private_key: my_private,
+        public_key: their_public
+    }
+}
+
+// ============================================================
+// v3.5.0 — Password hashing
+// ============================================================
+
+// password_hash — hash password with Argon2id (recommended)
+pulse password_hash(password) {
+    bypass crypto_password {
+        algo: "argon2id",
+        op: "hash",
+        password: password,
+        memory_kb: "65536",
+        iterations: "3",
+        parallelism: "4"
+    }
+}
+
+// password_verify — verify password against Argon2id hash
+pulse password_verify(password, hash) {
+    bypass crypto_password {
+        algo: "argon2id",
+        op: "verify",
+        password: password,
+        hash: hash
+    }
+}
+
+// password_hash_bcrypt — bcrypt hash (for compatibility)
+pulse password_hash_bcrypt(password, cost) {
+    bypass crypto_password {
+        algo: "bcrypt",
+        op: "hash",
+        password: password,
+        cost: cost
+    }
+}
+
+// ============================================================
+// v3.5.0 — OTP / TOTP
+// ============================================================
+
+// totp_generate_secret — generate TOTP shared secret (Base32)
+pulse totp_generate_secret() {
+    bypass crypto_otp {
+        op: "generate_secret",
+        bits: "160"
+    }
+}
+
+// totp_get_code — get current TOTP code (30-second window)
+pulse totp_get_code(secret) {
+    bypass crypto_otp {
+        algo: "totp",
+        op: "code",
+        secret: secret,
+        period: "30",
+        digits: "6"
+    }
+}
+
+// totp_verify — verify a TOTP code (±1 window tolerance)
+pulse totp_verify(secret, code) {
+    bypass crypto_otp {
+        algo: "totp",
+        op: "verify",
+        secret: secret,
+        code: code,
+        window: "1"
+    }
+}
+
+// totp_qr_url — generate otpauth:// URL for QR code apps
+pulse totp_qr_url(secret, account, issuer) {
+    bypass crypto_otp {
+        op: "qr_url",
+        secret: secret,
+        account: account,
+        issuer: issuer
+    }
+}
+
+// ============================================================
+// v3.5.0 — Random & utilities
+// ============================================================
+
+// crypto_random_bytes — generate N cryptographically secure random bytes
+// Returns hex-encoded string
+pulse crypto_random_bytes(n) {
+    bypass crypto_random {
+        op: "bytes",
+        count: n,
+        encoding: "hex"
+    }
+}
+
+// crypto_random_int — secure random integer in [min, max]
+pulse crypto_random_int(min_val, max_val) {
+    bypass crypto_random {
+        op: "int",
+        min: min_val,
+        max: max_val
+    }
+}
+
+// crypto_uuid4 — generate a random UUID v4
+pulse crypto_uuid4() {
+    bypass crypto_random {
+        op: "uuid4"
+    }
+}
+
+// secure_wipe — overwrite memory of variable with zeros
+// Use before deallocation for sensitive data
+pulse secure_wipe(var_id) {
+    bypass mem_wipe {
+        target: var_id,
+        passes: "3",
+        pattern: "zero"
+    }
+}
+
+// secure_compare — constant-time string comparison (no timing attacks)
+pulse secure_compare(a, b) {
+    bypass crypto_util {
+        op: "const_time_compare",
+        a: a,
+        b: b
+    }
+}
+
+// ============================================================
+// v3.5.0 — JWT (decode only — signing use hmac_sha256)
+// ============================================================
+
+// jwt_decode — decode JWT without verification (inspect payload)
+pulse jwt_decode(token) {
+    bypass crypto_util {
+        op: "jwt_decode",
+        token: token
+    }
+}
+
+// jwt_verify_hs256 — verify HMAC-SHA256 signed JWT
+pulse jwt_verify_hs256(token, secret) {
+    bypass crypto_util {
+        op: "jwt_verify",
+        algo: "hs256",
+        token: token,
+        secret: secret
+    }
+}

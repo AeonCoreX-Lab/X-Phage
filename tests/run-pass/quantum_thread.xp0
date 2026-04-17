@@ -1,0 +1,7 @@
+// run-pass: quantum async thread
+pulse main {
+    beam ">> Spawning quantum threads..."
+    quantum "thread_audio_decode"
+    quantum "thread_network_sync"
+    beam ">> Quantum tasks dispatched."
+}

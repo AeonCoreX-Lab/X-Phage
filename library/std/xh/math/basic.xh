@@ -1,0 +1,400 @@
+// ============================================================
+// X-Phage Standard Library — math/basic.xh
+// Mathematics v3.5.0
+//
+// v3.4.0: math_abs, constants
+// v3.5.0: Full trig, exp/log, rounding, random, statistics,
+//          bitwise ops, number formatting
+// ============================================================
+
+// ============================================================
+// Mathematical constants
+// ============================================================
+#define MATH_PI      "3.141592653589793"
+#define MATH_TAU     "6.283185307179586"   // 2*PI
+#define MATH_E       "2.718281828459045"
+#define MATH_PHI     "1.618033988749895"   // Golden ratio
+#define MATH_SQRT2   "1.4142135623730951"
+#define MATH_SQRT3   "1.7320508075688772"
+#define MATH_LN2     "0.6931471805599453"
+#define MATH_LN10    "2.302585092994046"
+#define MATH_LOG2E   "1.4426950408889634"
+#define MATH_LOG10E  "0.4342944819032518"
+#define MATH_INF     "Infinity"
+#define MATH_NAN     "NaN"
+
+// ============================================================
+// v3.4.0 — Core
+// ============================================================
+
+// math_abs — absolute value
+pulse math_abs(val) {
+    bypass llvm_math_abs {
+        target: val
+    }
+}
+
+// ============================================================
+// v3.5.0 — Rounding
+// ============================================================
+
+pulse math_floor(val) {
+    bypass llvm_math {
+        op: "floor",
+        target: val
+    }
+}
+
+pulse math_ceil(val) {
+    bypass llvm_math {
+        op: "ceil",
+        target: val
+    }
+}
+
+// math_round — round to nearest integer (half-up)
+pulse math_round(val) {
+    bypass llvm_math {
+        op: "round",
+        target: val
+    }
+}
+
+// math_round_to — round to N decimal places
+pulse math_round_to(val, decimals) {
+    bypass llvm_math {
+        op: "round_to",
+        target: val,
+        precision: decimals
+    }
+}
+
+pulse math_trunc(val) {
+    bypass llvm_math {
+        op: "trunc",
+        target: val
+    }
+}
+
+// ============================================================
+// v3.5.0 — Basic arithmetic
+// ============================================================
+
+pulse math_min(a, b) {
+    bypass llvm_math {
+        op: "min",
+        a: a,
+        b: b
+    }
+}
+
+pulse math_max(a, b) {
+    bypass llvm_math {
+        op: "max",
+        a: a,
+        b: b
+    }
+}
+
+// math_clamp — constrain value to [min, max]
+pulse math_clamp(val, min_val, max_val) {
+    bypass llvm_math {
+        op: "clamp",
+        target: val,
+        min: min_val,
+        max: max_val
+    }
+}
+
+// math_sign — return -1, 0, or 1
+pulse math_sign(val) {
+    bypass llvm_math {
+        op: "sign",
+        target: val
+    }
+}
+
+// math_gcd — greatest common divisor
+pulse math_gcd(a, b) {
+    bypass llvm_math {
+        op: "gcd",
+        a: a,
+        b: b
+    }
+}
+
+// math_lcm — least common multiple
+pulse math_lcm(a, b) {
+    bypass llvm_math {
+        op: "lcm",
+        a: a,
+        b: b
+    }
+}
+
+// ============================================================
+// v3.5.0 — Powers & roots
+// ============================================================
+
+pulse math_pow(base, exp) {
+    bypass llvm_math {
+        op: "pow",
+        base: base,
+        exp: exp
+    }
+}
+
+pulse math_sqrt(val) {
+    bypass llvm_math {
+        op: "sqrt",
+        target: val
+    }
+}
+
+pulse math_cbrt(val) {
+    bypass llvm_math {
+        op: "cbrt",
+        target: val
+    }
+}
+
+pulse math_hypot(a, b) {
+    bypass llvm_math {
+        op: "hypot",
+        a: a,
+        b: b
+    }
+}
+
+// math_log — natural logarithm (base e)
+pulse math_log(val) {
+    bypass llvm_math {
+        op: "log",
+        target: val
+    }
+}
+
+// math_log2 — logarithm base 2
+pulse math_log2(val) {
+    bypass llvm_math {
+        op: "log2",
+        target: val
+    }
+}
+
+// math_log10 — logarithm base 10
+pulse math_log10(val) {
+    bypass llvm_math {
+        op: "log10",
+        target: val
+    }
+}
+
+// math_log_base — logarithm with arbitrary base
+pulse math_log_base(val, base) {
+    bypass llvm_math {
+        op: "log_base",
+        target: val,
+        base: base
+    }
+}
+
+pulse math_exp(val) {
+    bypass llvm_math {
+        op: "exp",
+        target: val
+    }
+}
+
+// math_exp2 — 2^val
+pulse math_exp2(val) {
+    bypass llvm_math {
+        op: "exp2",
+        target: val
+    }
+}
+
+// ============================================================
+// v3.5.0 — Trigonometry (radians)
+// ============================================================
+
+pulse math_sin(rad)  { bypass llvm_math { op: "sin",  target: rad } }
+pulse math_cos(rad)  { bypass llvm_math { op: "cos",  target: rad } }
+pulse math_tan(rad)  { bypass llvm_math { op: "tan",  target: rad } }
+pulse math_asin(val) { bypass llvm_math { op: "asin", target: val } }
+pulse math_acos(val) { bypass llvm_math { op: "acos", target: val } }
+pulse math_atan(val) { bypass llvm_math { op: "atan", target: val } }
+
+// math_atan2 — atan(y/x) with correct quadrant
+pulse math_atan2(y, x) {
+    bypass llvm_math {
+        op: "atan2",
+        y: y,
+        x: x
+    }
+}
+
+pulse math_sinh(val) { bypass llvm_math { op: "sinh", target: val } }
+pulse math_cosh(val) { bypass llvm_math { op: "cosh", target: val } }
+pulse math_tanh(val) { bypass llvm_math { op: "tanh", target: val } }
+
+// Degree ↔ Radian conversion
+pulse math_deg_to_rad(deg) {
+    bypass llvm_math {
+        op: "deg_to_rad",
+        target: deg
+    }
+}
+
+pulse math_rad_to_deg(rad) {
+    bypass llvm_math {
+        op: "rad_to_deg",
+        target: rad
+    }
+}
+
+// ============================================================
+// v3.5.0 — Random numbers
+// ============================================================
+
+// math_random — uniform float in [0.0, 1.0)
+pulse math_random() {
+    bypass llvm_random {
+        op: "float",
+        min: "0.0",
+        max: "1.0"
+    }
+}
+
+// math_random_int — uniform integer in [min, max]
+pulse math_random_int(min_val, max_val) {
+    bypass llvm_random {
+        op: "int",
+        min: min_val,
+        max: max_val
+    }
+}
+
+// math_random_float — uniform float in [min, max)
+pulse math_random_float(min_val, max_val) {
+    bypass llvm_random {
+        op: "float",
+        min: min_val,
+        max: max_val
+    }
+}
+
+// math_random_seed — seed the RNG for reproducibility
+pulse math_random_seed(seed) {
+    bypass llvm_random {
+        op: "seed",
+        value: seed
+    }
+}
+
+// math_random_gauss — Gaussian (normal) distribution sample
+pulse math_random_gauss(mean, std_dev) {
+    bypass llvm_random {
+        op: "gaussian",
+        mean: mean,
+        sigma: std_dev
+    }
+}
+
+// ============================================================
+// v3.5.0 — Statistics
+// ============================================================
+
+// math_sum — sum of array
+pulse math_sum(arr) {
+    bypass math_stats {
+        op: "sum",
+        data: arr
+    }
+}
+
+// math_mean — arithmetic mean
+pulse math_mean(arr) {
+    bypass math_stats {
+        op: "mean",
+        data: arr
+    }
+}
+
+// math_median — median value
+pulse math_median(arr) {
+    bypass math_stats {
+        op: "median",
+        data: arr
+    }
+}
+
+// math_variance — population variance
+pulse math_variance(arr) {
+    bypass math_stats {
+        op: "variance",
+        data: arr
+    }
+}
+
+// math_std_dev — standard deviation
+pulse math_std_dev(arr) {
+    bypass math_stats {
+        op: "std_dev",
+        data: arr
+    }
+}
+
+// math_percentile — Nth percentile (0–100)
+pulse math_percentile(arr, n) {
+    bypass math_stats {
+        op: "percentile",
+        data: arr,
+        n: n
+    }
+}
+
+// ============================================================
+// v3.5.0 — Bitwise operations
+// ============================================================
+
+pulse bit_and(a, b)   { bypass llvm_bitwise { op: "and",    a: a, b: b } }
+pulse bit_or(a, b)    { bypass llvm_bitwise { op: "or",     a: a, b: b } }
+pulse bit_xor(a, b)   { bypass llvm_bitwise { op: "xor",    a: a, b: b } }
+pulse bit_not(a)      { bypass llvm_bitwise { op: "not",    a: a }       }
+pulse bit_shl(a, n)   { bypass llvm_bitwise { op: "shl",    a: a, n: n } }
+pulse bit_shr(a, n)   { bypass llvm_bitwise { op: "shr",    a: a, n: n } }
+pulse bit_count(a)    { bypass llvm_bitwise { op: "popcount", a: a }     }
+
+// ============================================================
+// v3.5.0 — Number checks
+// ============================================================
+
+pulse math_is_nan(val)      { bypass llvm_math { op: "is_nan",   target: val } }
+pulse math_is_finite(val)   { bypass llvm_math { op: "is_finite",target: val } }
+pulse math_is_infinite(val) { bypass llvm_math { op: "is_inf",   target: val } }
+pulse math_is_integer(val)  { bypass llvm_math { op: "is_int",   target: val } }
+
+// math_is_prime — primality test
+pulse math_is_prime(n) {
+    bypass math_number_theory {
+        op: "is_prime",
+        target: n
+    }
+}
+
+// math_factorial — n! (integer)
+pulse math_factorial(n) {
+    bypass math_number_theory {
+        op: "factorial",
+        target: n
+    }
+}
+
+// math_fibonacci — Nth Fibonacci number
+pulse math_fibonacci(n) {
+    bypass math_number_theory {
+        op: "fibonacci",
+        target: n
+    }
+}

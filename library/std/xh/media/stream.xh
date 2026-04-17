@@ -1,0 +1,268 @@
+// ============================================================
+// X-Phage Standard Library — media/stream.xh
+// Adaptive Bitrate Streaming v3.5.0
+//
+// v3.4.0: stream_init, stream_set_quality, stream_capture_frame
+// v3.5.0: HLS/DASH/RTMP ingest, recording, transcoding,
+//          live stats, CDN integration, stream relay
+// ============================================================
+
+@NeuralComposition(Stream_Optimizer) {
+    global DEFAULT_QUALITY  = "1080p"
+    global BUFFER_AHEAD     = "30s"
+    global ABR_ALGORITHM    = "bola"   // Buffer-based ABR
+    global MAX_BANDWIDTH    = "0"      // 0 = unlimited
+    ~hook media_stream      -> "mpv_native_renderer"
+    ~hook stream_ingest     -> "ffmpeg_encoder"
+}
+
+// ============================================================
+// v3.4.0 — Core streaming
+// ============================================================
+
+// stream_init — start adaptive stream from URL
+// Supports: HLS (.m3u8), DASH (.mpd), direct HTTP(S)
+pulse stream_init(url) {
+    beam ">> Synchronizing Neural Stream: " + url
+    bypass stream_engine {
+        target: url,
+        quality: DEFAULT_QUALITY,
+        buffer_time: BUFFER_AHEAD,
+        hw_accel: "enabled",
+        abr: ABR_ALGORITHM
+    }
+}
+
+// stream_set_quality — switch to specific resolution
+// resolution: "4K" | "1080p" | "720p" | "480p" | "360p" | "auto"
+pulse stream_set_quality(resolution) {
+    beam ">> Switching Stream Resolution to " + resolution
+    bypass stream_control {
+        op: "set_res",
+        val: resolution
+    }
+}
+
+// stream_capture_frame — capture frame to PNG
+pulse stream_capture_frame(target_id) {
+    bypass media_capture {
+        id: target_id,
+        format: "png"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Stream info & monitoring
+// ============================================================
+
+// stream_stats — return real-time stream statistics
+// Returns: { bitrate_kbps, fps, buffer_sec, dropped_frames, resolution }
+pulse stream_stats() {
+    bypass stream_monitor {
+        op: "stats"
+    }
+}
+
+// stream_bitrate — current playback bitrate (kbps)
+pulse stream_bitrate() {
+    bypass stream_monitor {
+        op: "bitrate"
+    }
+}
+
+// stream_buffer_health — buffered duration in seconds
+pulse stream_buffer_health() {
+    bypass stream_monitor {
+        op: "buffer_level"
+    }
+}
+
+// stream_set_buffer — set target buffer size
+pulse stream_set_buffer(seconds) {
+    bypass stream_control {
+        op: "buffer",
+        target: seconds
+    }
+}
+
+// stream_set_max_bandwidth — cap bandwidth usage (kbps, 0 = unlimited)
+pulse stream_set_max_bandwidth(kbps) {
+    global MAX_BANDWIDTH = kbps
+    bypass stream_control {
+        op: "max_bandwidth",
+        val: kbps
+    }
+}
+
+// stream_latency_mode — set latency target
+// mode: "normal" | "low" | "ultralow"
+pulse stream_latency_mode(mode) {
+    bypass stream_control {
+        op: "latency",
+        mode: mode
+    }
+}
+
+// ============================================================
+// v3.5.0 — Recording
+// ============================================================
+
+// stream_record_start — start recording stream to file
+// format: "mp4" | "mkv" | "ts"
+pulse stream_record_start(out_path, format) {
+    beam ">> Recording to: " + out_path
+    bypass stream_record {
+        op: "start",
+        path: out_path,
+        format: format,
+        copy_streams: "true"
+    }
+}
+
+// stream_record_stop — stop active recording
+pulse stream_record_stop() {
+    bypass stream_record {
+        op: "stop"
+    }
+}
+
+// stream_record_segment — record fixed-length segments (loop)
+// duration_sec: segment length, out_dir: output directory
+pulse stream_record_segment(url, out_dir, duration_sec, format) {
+    beam ">> Segmented recording: " + url
+    bypass stream_record {
+        op: "segment",
+        source: url,
+        dir: out_dir,
+        duration: duration_sec,
+        format: format
+    }
+}
+
+// ============================================================
+// v3.5.0 — Transcoding
+// ============================================================
+
+// transcode — convert media file to another format/codec
+// Returns output path
+pulse transcode(src, dest, video_codec, audio_codec, quality) {
+    beam ">> Transcoding: " + src + " → " + dest
+    bypass ffmpeg_encode {
+        op: "transcode",
+        input: src,
+        output: dest,
+        vcodec: video_codec,
+        acodec: audio_codec,
+        crf: quality
+    }
+}
+
+// transcode_preset — transcode using named preset
+// preset: "web" | "mobile" | "archive" | "gif" | "audio-only"
+pulse transcode_preset(src, dest, preset) {
+    bypass ffmpeg_encode {
+        op: "transcode",
+        input: src,
+        output: dest,
+        preset: preset
+    }
+}
+
+// video_clip — extract clip from [start_sec, end_sec]
+pulse video_clip(src, dest, start_sec, end_sec) {
+    beam ">> Clipping: " + start_sec + "s – " + end_sec + "s"
+    bypass ffmpeg_encode {
+        op: "clip",
+        input: src,
+        output: dest,
+        start: start_sec,
+        end: end_sec,
+        copy: "true"
+    }
+}
+
+// video_concat — concatenate multiple files
+pulse video_concat(files, dest) {
+    beam ">> Concatenating streams..."
+    bypass ffmpeg_encode {
+        op: "concat",
+        inputs: files,
+        output: dest
+    }
+}
+
+// extract_audio — extract audio track from video
+pulse extract_audio(src, dest, format) {
+    bypass ffmpeg_encode {
+        op: "extract_audio",
+        input: src,
+        output: dest,
+        format: format
+    }
+}
+
+// generate_thumbnail — extract thumbnail at timestamp
+pulse generate_thumbnail(src, out_path, time_sec) {
+    bypass ffmpeg_encode {
+        op: "thumbnail",
+        input: src,
+        output: out_path,
+        time: time_sec
+    }
+}
+
+// ============================================================
+// v3.5.0 — Live ingest (streaming to server)
+// ============================================================
+
+// stream_publish — push live stream to RTMP/SRT server
+// url: "rtmp://live.example.com/live/stream_key"
+pulse stream_publish(src, dest_url) {
+    beam ">> Publishing stream to: " + dest_url
+    bypass ffmpeg_encode {
+        op: "publish",
+        input: src,
+        url: dest_url,
+        vcodec: "libx264",
+        acodec: "aac",
+        preset: "ultrafast"
+    }
+}
+
+// stream_relay — relay stream from one URL to another (no re-encode)
+pulse stream_relay(src_url, dest_url) {
+    beam ">> Relaying: " + src_url + " → " + dest_url
+    bypass ffmpeg_encode {
+        op: "relay",
+        input: src_url,
+        url: dest_url,
+        copy: "true"
+    }
+}
+
+// ============================================================
+// v3.5.0 — HLS / DASH packaging
+// ============================================================
+
+// hls_package — package media for HLS delivery
+// Creates .m3u8 playlist + .ts segments in out_dir
+pulse hls_package(src, out_dir, segment_sec) {
+    beam ">> Packaging HLS: " + src
+    bypass ffmpeg_encode {
+        op: "hls_package",
+        input: src,
+        dir: out_dir,
+        segment_time: segment_sec
+    }
+}
+
+// dash_package — package media for MPEG-DASH delivery
+pulse dash_package(src, out_dir, segment_sec) {
+    beam ">> Packaging DASH: " + src
+    bypass ffmpeg_encode {
+        op: "dash_package",
+        input: src,
+        dir: out_dir,
+        segment_time: segment_sec
+    }
+}

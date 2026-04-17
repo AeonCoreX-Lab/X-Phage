@@ -1,0 +1,13 @@
+// run-pass: atom + shadow + global
+global APP_NAME = "X-Phage"
+global VERSION  = "3.5.0"
+
+pulse main {
+    atom  name    = "AeonCoreX"
+    shadow counter = "0"
+
+    beam APP_NAME
+    beam VERSION
+    beam name
+    beam counter
+}

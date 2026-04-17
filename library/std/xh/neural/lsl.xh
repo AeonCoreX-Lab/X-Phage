@@ -1,0 +1,146 @@
+// ============================================================
+// X-Phage stdlib — neural/lsl.xh v3.5.0
+// Lab Streaming Layer — universal bio-signal protocol
+// Supports 200+ devices: Muse, Emotiv, OpenBCI, g.tec, BioSemi
+// Usage: ~link neural/lsl
+// ============================================================
+
+// ── Stream discovery ──────────────────────────────────────────
+/// Find all LSL streams on the network
+/// type: "EEG" | "Markers" | "Accelerometer" | "" (any)
+/// Returns: array of StreamInfo
+pulse lsl_find_streams(type, timeout_sec) {
+    beam ">> LSL search: " + type
+    bypass lsl_network {
+        op: "find_streams",
+        type: type,
+        timeout: timeout_sec
+    }
+}
+
+/// Find first stream matching name or type
+pulse lsl_find_stream(name_or_type) {
+    bypass lsl_network {
+        op: "find_first",
+        query: name_or_type,
+        timeout: "2.0"
+    }
+}
+
+/// List all available streams to console
+pulse lsl_list_streams() {
+    bypass lsl_network { op: "list" }
+}
+
+// ── Inlet (receive) ───────────────────────────────────────────
+/// Open an inlet to a discovered stream
+/// stream_info: returned from lsl_find_stream
+pulse lsl_open_inlet(stream_info) {
+    beam ">> LSL inlet open"
+    bypass lsl_inlet {
+        op: "open",
+        stream: stream_info,
+        buf_sec: "360"
+    }
+}
+
+/// Pull one sample (blocking, timeout in seconds)
+/// Returns: { data[], timestamp, valid }
+pulse lsl_pull_sample(inlet, timeout_sec) {
+    bypass lsl_inlet {
+        op: "pull_sample",
+        ref: inlet,
+        timeout: timeout_sec
+    }
+}
+
+/// Pull a chunk of up to max_samples
+pulse lsl_pull_chunk(inlet, max_samples) {
+    bypass lsl_inlet {
+        op: "pull_chunk",
+        ref: inlet,
+        max: max_samples
+    }
+}
+
+/// Start continuous background pull with callback per sample
+pulse lsl_start_continuous(inlet, callback) {
+    bypass lsl_inlet {
+        op: "start_continuous",
+        ref: inlet,
+        callback: callback
+    }
+}
+
+/// Stop continuous pull
+pulse lsl_stop_continuous(inlet) {
+    bypass lsl_inlet { op: "stop_continuous", ref: inlet }
+}
+
+/// Close inlet
+pulse lsl_close_inlet(inlet) {
+    bypass lsl_inlet { op: "close", ref: inlet }
+}
+
+/// Get time correction offset (seconds)
+pulse lsl_time_correction(inlet) {
+    bypass lsl_inlet { op: "time_correction", ref: inlet }
+}
+
+// ── Outlet (send/publish) ─────────────────────────────────────
+/// Create a new LSL outlet (publish a stream)
+/// name: stream name, type: stream type, channels: channel count
+/// srate: sample rate (0 = irregular), source_id: unique device ID
+pulse lsl_create_outlet(name, type, channels, srate, source_id) {
+    beam ">> LSL outlet: " + name
+    bypass lsl_outlet {
+        op: "create",
+        name: name,
+        type: type,
+        channels: channels,
+        srate: srate,
+        source_id: source_id
+    }
+}
+
+/// Push a multi-channel sample
+/// values: array of channel values (float)
+pulse lsl_push_sample(outlet, values) {
+    bypass lsl_outlet {
+        op: "push_sample",
+        ref: outlet,
+        data: values
+    }
+}
+
+/// Push a string marker (for single-channel Markers streams)
+pulse lsl_push_marker(outlet, label) {
+    bypass lsl_outlet {
+        op: "push_marker",
+        ref: outlet,
+        label: label
+    }
+}
+
+/// Close outlet
+pulse lsl_close_outlet(outlet) {
+    bypass lsl_outlet { op: "close", ref: outlet }
+}
+
+// ── Presets ───────────────────────────────────────────────────
+/// Connect to first EEG stream found on network
+pulse lsl_connect_eeg() {
+    atom info = lsl_find_stream("EEG")
+    lsl_open_inlet(info)
+}
+
+/// Create a Markers outlet for sending event labels
+pulse lsl_markers_outlet(name) {
+    lsl_create_outlet(name, "Markers", "1", "0", name + "_src")
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+/// Get current LSL clock time (seconds since epoch)
+pulse lsl_local_clock() {
+    bypass lsl_network { op: "local_clock" }
+}

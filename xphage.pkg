@@ -1,0 +1,18 @@
+[package]
+name    = "xphage"
+version = "3.5.0"
+authors = ["AeonCoreX Lab"]
+desc    = "X-Phage Language Compiler & Runtime"
+license = "MIT"
+repo    = "https://github.com/AeonCoreX-Lab/X-Phage"
+edition = "2025"
+
+[build]
+system    = "bash scripts/build.sh"
+cmake     = "CMakeLists.txt"
+min_cmake = "3.20"
+std       = "c++17"
+
+[dependencies]
+
+[dev-dependencies]

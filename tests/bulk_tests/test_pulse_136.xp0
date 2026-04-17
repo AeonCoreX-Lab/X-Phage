@@ -1,6 +1,0 @@
-// X-Phage Auto-Generated Test: PULSE
-~link "aeon_ultimate.xh"
-
-pulse core {
-    beam "Pulse Core Sequence 136"
-}

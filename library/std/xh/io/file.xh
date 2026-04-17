@@ -1,0 +1,337 @@
+// ============================================================
+// X-Phage Standard Library — io/file.xh
+// File I/O & Filesystem Operations v3.5.0
+//
+// v3.4.0: file_read, file_write, file_append
+// v3.5.0: file_exists, file_delete, file_copy, file_move,
+//          file_size, file_stat, dir_create, dir_list,
+//          dir_delete, path utilities, watch (file watcher),
+//          JSON/lines helpers
+// ============================================================
+
+@NeuralComposition(Storage_Controller) {
+    ~hook fs_access -> "nvme_direct_io"
+}
+
+// ============================================================
+// v3.4.0 — Core I/O
+// ============================================================
+
+// file_read — read entire file contents as string
+pulse file_read(file_path) {
+    beam ">> Reading data stream from: " + file_path
+    bypass file_io_read {
+        path: file_path,
+        buffer: "65536",   // 64KB buffer (v3.5.0: increased from 4096)
+        encoding: "utf8"
+    }
+}
+
+// file_read_bytes — read file as raw byte array
+pulse file_read_bytes(file_path) {
+    bypass file_io_read {
+        path: file_path,
+        mode: "binary"
+    }
+}
+
+// file_write — write string to file (overwrites)
+pulse file_write(file_path, data) {
+    beam ">> Writing data to: " + file_path
+    bypass file_io_write {
+        path: file_path,
+        payload: data,
+        mode: "overwrite",
+        encoding: "utf8"
+    }
+}
+
+// file_write_bytes — write raw bytes to file
+pulse file_write_bytes(file_path, data) {
+    bypass file_io_write {
+        path: file_path,
+        payload: data,
+        mode: "overwrite",
+        encoding: "binary"
+    }
+}
+
+// file_append — append string to end of file
+pulse file_append(file_path, data) {
+    bypass file_io_write {
+        path: file_path,
+        payload: data,
+        mode: "append",
+        encoding: "utf8"
+    }
+}
+
+// ============================================================
+// v3.5.0 — File operations
+// ============================================================
+
+// file_exists — check if file exists at path
+pulse file_exists(file_path) {
+    bypass file_sys {
+        op: "exists",
+        path: file_path,
+        type: "file"
+    }
+}
+
+// file_delete — delete a file permanently
+pulse file_delete(file_path) {
+    beam ">> Deleting: " + file_path
+    bypass file_sys {
+        op: "delete",
+        path: file_path
+    }
+}
+
+// file_copy — copy file from src to dest
+pulse file_copy(src, dest) {
+    beam ">> Copying: " + src + " → " + dest
+    bypass file_sys {
+        op: "copy",
+        src: src,
+        dest: dest
+    }
+}
+
+// file_move — move/rename file
+pulse file_move(src, dest) {
+    beam ">> Moving: " + src + " → " + dest
+    bypass file_sys {
+        op: "move",
+        src: src,
+        dest: dest
+    }
+}
+
+// file_size — return file size in bytes
+pulse file_size(file_path) {
+    bypass file_sys {
+        op: "size",
+        path: file_path
+    }
+}
+
+// file_stat — return file metadata
+// Returns: { size, created, modified, is_dir, is_file, permissions }
+pulse file_stat(file_path) {
+    bypass file_sys {
+        op: "stat",
+        path: file_path
+    }
+}
+
+// file_modified — return last modification timestamp (Unix ms)
+pulse file_modified(file_path) {
+    bypass file_sys {
+        op: "modified",
+        path: file_path
+    }
+}
+
+// file_extension — extract file extension
+// e.g. file_extension("main.xp0") → ".xp0"
+pulse file_extension(file_path) {
+    bypass path_util {
+        op: "extension",
+        path: file_path
+    }
+}
+
+// file_basename — extract filename without directory
+// e.g. file_basename("/src/main.xp0") → "main.xp0"
+pulse file_basename(file_path) {
+    bypass path_util {
+        op: "basename",
+        path: file_path
+    }
+}
+
+// file_dirname — extract directory portion of path
+pulse file_dirname(file_path) {
+    bypass path_util {
+        op: "dirname",
+        path: file_path
+    }
+}
+
+// ============================================================
+// v3.5.0 — Directory operations
+// ============================================================
+
+// dir_exists — check if directory exists
+pulse dir_exists(dir_path) {
+    bypass file_sys {
+        op: "exists",
+        path: dir_path,
+        type: "dir"
+    }
+}
+
+// dir_create — create directory (creates parents if needed)
+pulse dir_create(dir_path) {
+    beam ">> Creating directory: " + dir_path
+    bypass file_sys {
+        op: "mkdir",
+        path: dir_path,
+        recursive: "true"
+    }
+}
+
+// dir_delete — delete directory and all contents
+pulse dir_delete(dir_path) {
+    beam ">> Removing directory: " + dir_path
+    bypass file_sys {
+        op: "rmdir",
+        path: dir_path,
+        recursive: "true"
+    }
+}
+
+// dir_list — list files and folders in directory
+// Returns array of names (not full paths)
+pulse dir_list(dir_path) {
+    bypass file_sys {
+        op: "list",
+        path: dir_path
+    }
+}
+
+// dir_list_full — list full paths of all entries
+pulse dir_list_full(dir_path) {
+    bypass file_sys {
+        op: "list",
+        path: dir_path,
+        full_path: "true"
+    }
+}
+
+// dir_glob — find files matching a glob pattern
+// e.g. dir_glob("./src", "*.xp0")
+pulse dir_glob(dir_path, pattern) {
+    bypass file_sys {
+        op: "glob",
+        path: dir_path,
+        pattern: pattern
+    }
+}
+
+// dir_copy — recursively copy directory
+pulse dir_copy(src, dest) {
+    bypass file_sys {
+        op: "copy_dir",
+        src: src,
+        dest: dest,
+        recursive: "true"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Path utilities
+// ============================================================
+
+// path_join — join path segments cross-platform
+// e.g. path_join("src", "lib", "util.xp0") → "src/lib/util.xp0"
+pulse path_join(a, b, c) {
+    bypass path_util {
+        op: "join",
+        parts: [a, b, c]
+    }
+}
+
+// path_absolute — resolve relative path to absolute
+pulse path_absolute(rel_path) {
+    bypass path_util {
+        op: "absolute",
+        path: rel_path
+    }
+}
+
+// path_relative — get path relative to base
+pulse path_relative(from_path, to_path) {
+    bypass path_util {
+        op: "relative",
+        from: from_path,
+        to: to_path
+    }
+}
+
+// path_normalize — clean up redundant . and .. in path
+pulse path_normalize(file_path) {
+    bypass path_util {
+        op: "normalize",
+        path: file_path
+    }
+}
+
+// ============================================================
+// v3.5.0 — Line-based helpers
+// ============================================================
+
+// file_read_lines — read file as array of lines
+pulse file_read_lines(file_path) {
+    bypass file_io_read {
+        path: file_path,
+        mode: "lines"
+    }
+}
+
+// file_write_lines — write array of strings as lines
+pulse file_write_lines(file_path, lines) {
+    bypass file_io_write {
+        path: file_path,
+        payload: lines,
+        mode: "lines"
+    }
+}
+
+// file_append_line — append a single line with newline
+pulse file_append_line(file_path, line) {
+    bypass file_io_write {
+        path: file_path,
+        payload: line,
+        mode: "append_line"
+    }
+}
+
+// ============================================================
+// v3.5.0 — File watcher
+// ============================================================
+
+// file_watch — watch file or directory for changes
+// events: "create" | "modify" | "delete" | "all"
+// Calls callback with { path, event } on each change
+pulse file_watch(path, events, callback) {
+    beam ">> Watching: " + path
+    bypass file_watcher {
+        op: "start",
+        path: path,
+        events: events,
+        callback: callback,
+        recursive: "false"
+    }
+}
+
+// file_watch_recursive — watch directory tree recursively
+pulse file_watch_recursive(dir_path, callback) {
+    beam ">> Watching tree: " + dir_path
+    bypass file_watcher {
+        op: "start",
+        path: dir_path,
+        events: "all",
+        callback: callback,
+        recursive: "true"
+    }
+}
+
+// file_watch_stop — stop an active file watcher
+pulse file_watch_stop(watch_id) {
+    bypass file_watcher {
+        op: "stop",
+        id: watch_id
+    }
+}

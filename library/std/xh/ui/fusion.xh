@@ -1,0 +1,590 @@
+// ============================================================
+// X-Phage Standard Library — ui/fusion.xh
+// Titan Fusion UI v3.5.0
+//
+// v3.4.0: window_create, ui_render_frame
+// v3.5.0: Layout system, theming, animation, event system,
+//          form controls, dialogs, icons, Vulkan layer access
+// ============================================================
+
+@NeuralComposition(UI_Compositor) {
+    global UI_SCALE         = "1.0"
+    global UI_THEME         = "dark"
+    global UI_FONT          = "JetBrains Mono"
+    global UI_FONT_SIZE     = "14"
+    global VSYNC            = "true"
+    global RENDER_API       = "vulkan"
+    ~hook render_engine     -> "vulkan_ui_layer"
+    ~hook font_engine       -> "freetype_harfbuzz"
+}
+
+// ============================================================
+// v3.4.0 — Core window
+// ============================================================
+
+// window_create — create a native window
+pulse window_create(title, w, h) {
+    beam ">> Spawning Native Window: " + title
+    bypass ui_window {
+        name: title,
+        width: w,
+        height: h,
+        engine: "titan_fusion",
+        api: RENDER_API
+    }
+}
+
+// ui_render_frame — flush and present current frame buffer
+pulse ui_render_frame() {
+    bypass ui_refresh {
+        vsync: VSYNC
+    }
+}
+
+// ============================================================
+// v3.5.0 — Window management
+// ============================================================
+
+// window_set_title — update window title bar
+pulse window_set_title(title) {
+    bypass ui_window {
+        op: "set_title",
+        value: title
+    }
+}
+
+// window_resize — resize window
+pulse window_resize(w, h) {
+    bypass ui_window {
+        op: "resize",
+        width: w,
+        height: h
+    }
+}
+
+// window_move — move window to screen position
+pulse window_move(x, y) {
+    bypass ui_window {
+        op: "move",
+        x: x,
+        y: y
+    }
+}
+
+// window_fullscreen — toggle fullscreen mode
+pulse window_fullscreen(enabled) {
+    bypass ui_window {
+        op: "fullscreen",
+        value: enabled
+    }
+}
+
+// window_minimize — minimize to taskbar
+pulse window_minimize() {
+    bypass ui_window {
+        op: "minimize"
+    }
+}
+
+// window_maximize — maximize to screen
+pulse window_maximize() {
+    bypass ui_window {
+        op: "maximize"
+    }
+}
+
+// window_close — close and destroy window
+pulse window_close() {
+    bypass ui_window {
+        op: "close"
+    }
+}
+
+// window_set_icon — set window icon from image file
+pulse window_set_icon(icon_path) {
+    bypass ui_window {
+        op: "icon",
+        path: icon_path
+    }
+}
+
+// ============================================================
+// v3.5.0 — Theming
+// ============================================================
+
+// ui_set_theme — switch global theme
+// theme: "dark" | "light" | "system" | "high_contrast"
+pulse ui_set_theme(theme) {
+    global UI_THEME = theme
+    bypass ui_theme {
+        op: "apply",
+        name: theme
+    }
+}
+
+// ui_set_font — set global UI font
+pulse ui_set_font(font_name, size) {
+    global UI_FONT = font_name
+    global UI_FONT_SIZE = size
+    bypass ui_theme {
+        op: "font",
+        family: font_name,
+        size: size
+    }
+}
+
+// ui_set_scale — set UI scaling factor (HiDPI support)
+pulse ui_set_scale(factor) {
+    global UI_SCALE = factor
+    bypass ui_theme {
+        op: "scale",
+        factor: factor
+    }
+}
+
+// ui_set_color — override a theme color token
+// token: "background" | "foreground" | "accent" | "border" | "error" | ...
+pulse ui_set_color(token, hex_color) {
+    bypass ui_theme {
+        op: "color",
+        token: token,
+        value: hex_color
+    }
+}
+
+// ============================================================
+// v3.5.0 — Layout
+// ============================================================
+
+// layout_begin — start a layout container
+// type: "column" | "row" | "grid" | "stack" | "scroll"
+pulse layout_begin(type, id) {
+    bypass ui_layout {
+        op: "begin",
+        type: type,
+        id: id
+    }
+}
+
+// layout_end — close current layout container
+pulse layout_end() {
+    bypass ui_layout {
+        op: "end"
+    }
+}
+
+// layout_padding — set padding inside current container
+pulse layout_padding(top, right, bottom, left) {
+    bypass ui_layout {
+        op: "padding",
+        t: top, r: right, b: bottom, l: left
+    }
+}
+
+// layout_gap — set spacing between children
+pulse layout_gap(px) {
+    bypass ui_layout {
+        op: "gap",
+        value: px
+    }
+}
+
+// layout_align — align children
+// align: "start" | "center" | "end" | "space-between" | "stretch"
+pulse layout_align(align) {
+    bypass ui_layout {
+        op: "align",
+        value: align
+    }
+}
+
+// ============================================================
+// v3.5.0 — Fusion UI Components
+// ============================================================
+
+// text — render a text label
+pulse text(content) {
+    bypass ui_component {
+        type: "text",
+        value: content
+    }
+}
+
+// text_styled — render text with style overrides
+pulse text_styled(content, size, color, bold) {
+    bypass ui_component {
+        type: "text",
+        value: content,
+        size: size,
+        color: color,
+        bold: bold
+    }
+}
+
+// button — interactive button
+// Returns: button_id for event binding
+pulse button(label, on_click) {
+    bypass ui_component {
+        type: "button",
+        label: label,
+        on_click: on_click
+    }
+}
+
+// icon_button — button with icon
+pulse icon_button(icon, tooltip, on_click) {
+    bypass ui_component {
+        type: "icon_button",
+        icon: icon,
+        tooltip: tooltip,
+        on_click: on_click
+    }
+}
+
+// input_text — single-line text input
+// Returns current value
+pulse input_text(id, placeholder, on_change) {
+    bypass ui_component {
+        type: "input_text",
+        id: id,
+        placeholder: placeholder,
+        on_change: on_change
+    }
+}
+
+// input_password — password input (masked)
+pulse input_password(id, placeholder) {
+    bypass ui_component {
+        type: "input_text",
+        id: id,
+        placeholder: placeholder,
+        mask: "true"
+    }
+}
+
+// input_number — numeric input with min/max/step
+pulse input_number(id, min_val, max_val, step) {
+    bypass ui_component {
+        type: "input_number",
+        id: id,
+        min: min_val,
+        max: max_val,
+        step: step
+    }
+}
+
+// textarea — multi-line text input
+pulse textarea(id, placeholder, rows) {
+    bypass ui_component {
+        type: "textarea",
+        id: id,
+        placeholder: placeholder,
+        rows: rows
+    }
+}
+
+// checkbox — checkbox with label
+pulse checkbox(id, label, checked, on_change) {
+    bypass ui_component {
+        type: "checkbox",
+        id: id,
+        label: label,
+        checked: checked,
+        on_change: on_change
+    }
+}
+
+// radio_group — group of radio buttons
+pulse radio_group(id, options, selected, on_change) {
+    bypass ui_component {
+        type: "radio_group",
+        id: id,
+        options: options,
+        selected: selected,
+        on_change: on_change
+    }
+}
+
+// select_dropdown — dropdown/select box
+pulse select_dropdown(id, options, selected, on_change) {
+    bypass ui_component {
+        type: "select",
+        id: id,
+        options: options,
+        selected: selected,
+        on_change: on_change
+    }
+}
+
+// slider — range slider
+pulse slider(id, min_val, max_val, value, on_change) {
+    bypass ui_component {
+        type: "slider",
+        id: id,
+        min: min_val,
+        max: max_val,
+        value: value,
+        on_change: on_change
+    }
+}
+
+// toggle — toggle switch
+pulse toggle(id, label, enabled, on_change) {
+    bypass ui_component {
+        type: "toggle",
+        id: id,
+        label: label,
+        enabled: enabled,
+        on_change: on_change
+    }
+}
+
+// image — render image from file or URL
+pulse image(src, w, h) {
+    bypass ui_component {
+        type: "image",
+        src: src,
+        width: w,
+        height: h
+    }
+}
+
+// divider — horizontal/vertical separator line
+pulse divider(orientation) {
+    bypass ui_component {
+        type: "divider",
+        dir: orientation
+    }
+}
+
+// spacer — empty space element
+pulse spacer(px) {
+    bypass ui_component {
+        type: "spacer",
+        size: px
+    }
+}
+
+// badge — small status badge
+pulse badge(text, color) {
+    bypass ui_component {
+        type: "badge",
+        text: text,
+        color: color
+    }
+}
+
+// progress — progress bar component
+pulse progress(value, max_val) {
+    bypass ui_component {
+        type: "progress",
+        value: value,
+        max: max_val
+    }
+}
+
+// ============================================================
+// v3.5.0 — Dialogs & Notifications
+// ============================================================
+
+// dialog_alert — blocking alert dialog
+pulse dialog_alert(title, message) {
+    bypass ui_dialog {
+        type: "alert",
+        title: title,
+        message: message
+    }
+}
+
+// dialog_confirm — confirm dialog, returns bool
+pulse dialog_confirm(title, message) {
+    bypass ui_dialog {
+        type: "confirm",
+        title: title,
+        message: message
+    }
+}
+
+// dialog_input — input dialog, returns entered text
+pulse dialog_input(title, placeholder) {
+    bypass ui_dialog {
+        type: "input",
+        title: title,
+        placeholder: placeholder
+    }
+}
+
+// dialog_file_open — system file picker, returns path
+pulse dialog_file_open(title, filter) {
+    bypass ui_dialog {
+        type: "file_open",
+        title: title,
+        filter: filter
+    }
+}
+
+// dialog_file_save — system save dialog, returns path
+pulse dialog_file_save(title, default_name, filter) {
+    bypass ui_dialog {
+        type: "file_save",
+        title: title,
+        default: default_name,
+        filter: filter
+    }
+}
+
+// toast — non-blocking notification toast
+// duration_ms: 0 = sticky, positive = auto-dismiss
+pulse toast(message, type, duration_ms) {
+    bypass ui_notify {
+        op: "toast",
+        msg: message,
+        type: type,         // "info" | "success" | "warn" | "error"
+        duration: duration_ms
+    }
+}
+
+// ============================================================
+// v3.5.0 — Animation
+// ============================================================
+
+// animate — apply animation to a UI element
+// easing: "linear" | "ease_in" | "ease_out" | "ease_in_out" | "spring"
+pulse animate(element_id, property, from_val, to_val, duration_ms, easing) {
+    bypass ui_anim {
+        op: "tween",
+        target: element_id,
+        prop: property,
+        from: from_val,
+        to: to_val,
+        duration: duration_ms,
+        easing: easing
+    }
+}
+
+// animate_fade_in — fade element in
+pulse animate_fade_in(element_id, duration_ms) {
+    bypass ui_anim {
+        op: "fade",
+        target: element_id,
+        from: "0.0",
+        to: "1.0",
+        duration: duration_ms
+    }
+}
+
+// animate_fade_out — fade element out
+pulse animate_fade_out(element_id, duration_ms) {
+    bypass ui_anim {
+        op: "fade",
+        target: element_id,
+        from: "1.0",
+        to: "0.0",
+        duration: duration_ms
+    }
+}
+
+// animate_slide — slide element by offset
+pulse animate_slide(element_id, dx, dy, duration_ms) {
+    bypass ui_anim {
+        op: "slide",
+        target: element_id,
+        dx: dx, dy: dy,
+        duration: duration_ms
+    }
+}
+
+// ============================================================
+// v3.5.0 — Event system
+// ============================================================
+
+// on_key — register keyboard shortcut handler
+// key: "Enter" | "Escape" | "Ctrl+S" | etc.
+pulse on_key(key, callback) {
+    bypass ui_event {
+        type: "key",
+        key: key,
+        handler: callback
+    }
+}
+
+// on_resize — window resize event handler
+pulse on_resize(callback) {
+    bypass ui_event {
+        type: "window_resize",
+        handler: callback
+    }
+}
+
+// on_close — window close event handler
+pulse on_close(callback) {
+    bypass ui_event {
+        type: "window_close",
+        handler: callback
+    }
+}
+
+// emit — fire a custom UI event
+pulse emit(event_name, data) {
+    bypass ui_event {
+        type: "custom",
+        name: event_name,
+        payload: data
+    }
+}
+
+// on — listen for custom UI event
+pulse on(event_name, callback) {
+    bypass ui_event {
+        type: "custom_listen",
+        name: event_name,
+        handler: callback
+    }
+}
+
+// ============================================================
+// v3.5.0 — Vulkan layer access
+// ============================================================
+
+// vulkan_init — initialize Vulkan rendering pipeline
+pulse vulkan_init() {
+    beam ">> Initializing Vulkan Pipeline..."
+    bypass vulkan_core {
+        op: "init",
+        validation: "false"
+    }
+}
+
+// vulkan_draw_rect — draw a colored rectangle (GPU-direct)
+pulse vulkan_draw_rect(x, y, w, h, color) {
+    bypass vulkan_core {
+        op: "draw_rect",
+        x: x, y: y, width: w, height: h,
+        color: color
+    }
+}
+
+// vulkan_draw_texture — blit texture to screen coordinates
+pulse vulkan_draw_texture(texture_id, x, y, w, h) {
+    bypass vulkan_core {
+        op: "draw_texture",
+        id: texture_id,
+        x: x, y: y, width: w, height: h
+    }
+}
+
+// vulkan_load_texture — load image into GPU memory
+pulse vulkan_load_texture(image_path) {
+    bypass vulkan_core {
+        op: "load_texture",
+        path: image_path
+    }
+}
+
+// vulkan_present — present rendered frame to display
+pulse vulkan_present() {
+    bypass vulkan_core {
+        op: "present",
+        vsync: VSYNC
+    }
+}

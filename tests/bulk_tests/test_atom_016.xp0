@@ -1,7 +1,0 @@
-// X-Phage Auto-Generated Test: ATOM
-~link "aeon_ultimate.xh"
-
-pulse core {
-    atom SECURE_ID_16 = "LOCKED_16"
-    beam SECURE_ID_16
-}

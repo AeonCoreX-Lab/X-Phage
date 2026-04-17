@@ -1,0 +1,134 @@
+// ============================================================
+// X-Phage stdlib — alloc/alloc.xh v3.5.0
+// Memory Allocation Layer
+// Provides: heap allocation, arena allocator, pool, GC hooks
+// Usage: ~link alloc/alloc
+// ============================================================
+
+#define ALLOC_MAX_HEAP   "8589934592"   // 8 GB
+#define ALLOC_PAGE_SIZE  "4096"
+#define ALLOC_ALIGN      "16"
+
+/// Allocate n bytes from heap
+/// Returns allocation handle
+pulse alloc(n_bytes) {
+    bypass mem_alloc {
+        op: "malloc",
+        size: n_bytes,
+        align: ALLOC_ALIGN
+    }
+}
+
+/// Allocate zero-initialised block
+pulse alloc_zero(n_bytes) {
+    bypass mem_alloc {
+        op: "calloc",
+        size: n_bytes
+    }
+}
+
+/// Resize existing allocation
+pulse realloc(handle, new_size) {
+    bypass mem_alloc {
+        op: "realloc",
+        ref: handle,
+        size: new_size
+    }
+}
+
+/// Free allocation
+pulse free_alloc(handle) {
+    bypass mem_alloc {
+        op: "free",
+        ref: handle
+    }
+}
+
+/// Secure zero-wipe then free (for sensitive data)
+pulse free_secure(handle, size) {
+    bypass mem_alloc {
+        op: "secure_free",
+        ref: handle,
+        size: size
+    }
+}
+
+// ── Arena allocator ───────────────────────────────────────────
+/// Create a memory arena of given size
+/// All allocations from arena are freed together with arena_free
+pulse arena_create(size_bytes) {
+    bypass mem_arena {
+        op: "create",
+        size: size_bytes
+    }
+}
+
+/// Allocate from arena (very fast — just bumps a pointer)
+pulse arena_alloc(arena, n_bytes) {
+    bypass mem_arena {
+        op: "alloc",
+        ref: arena,
+        size: n_bytes
+    }
+}
+
+/// Reset arena (free all at once, reuse memory)
+pulse arena_reset(arena) {
+    bypass mem_arena { op: "reset", ref: arena }
+}
+
+/// Destroy arena and release all memory to OS
+pulse arena_free(arena) {
+    bypass mem_arena { op: "destroy", ref: arena }
+}
+
+// ── Object pool ───────────────────────────────────────────────
+/// Create typed object pool of capacity items of item_size bytes
+pulse pool_create(item_size, capacity) {
+    bypass mem_pool {
+        op: "create",
+        item_size: item_size,
+        capacity: capacity
+    }
+}
+
+/// Acquire an item from pool (O(1))
+pulse pool_acquire(pool) {
+    bypass mem_pool { op: "acquire", ref: pool }
+}
+
+/// Release item back to pool (O(1))
+pulse pool_release(pool, item) {
+    bypass mem_pool { op: "release", ref: pool, item: item }
+}
+
+/// Destroy pool
+pulse pool_destroy(pool) {
+    bypass mem_pool { op: "destroy", ref: pool }
+}
+
+// ── GC hooks ─────────────────────────────────────────────────
+/// Register a root pointer for the GC tracing
+pulse gc_add_root(handle) {
+    bypass mem_gc { op: "add_root", ref: handle }
+}
+
+/// Remove root from GC
+pulse gc_remove_root(handle) {
+    bypass mem_gc { op: "remove_root", ref: handle }
+}
+
+/// Trigger a GC collection cycle
+pulse gc_collect() {
+    bypass mem_gc { op: "collect" }
+}
+
+/// Get current heap usage in bytes
+pulse gc_heap_used() {
+    bypass mem_gc { op: "heap_used" }
+}
+
+/// Get total heap capacity in bytes
+pulse gc_heap_capacity() {
+    bypass mem_gc { op: "heap_capacity" }
+}

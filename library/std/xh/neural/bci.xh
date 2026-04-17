@@ -1,0 +1,121 @@
+// ============================================================
+// X-Phage stdlib — neural/bci.xh v3.5.0
+// Brain-Computer Interface — OpenBCI + Neurosity Crown
+// Usage: ~link neural/bci
+// ============================================================
+
+global BCI_DEVICE   = "openbci"
+global BCI_CHANNELS = "8"
+global BCI_SRATE    = "250"
+
+/// Connect to BCI device
+/// device: "openbci" | "openbci-daisy" | "openbci-ganglion" | "neurosity"
+/// port:   "/dev/ttyUSB0" (serial) | device_id (Neurosity)
+pulse bci_connect(device, port) {
+    beam ">> BCI connect: " + device + " on " + port
+    global BCI_DEVICE = device
+    bypass bci_driver {
+        op: "connect",
+        device: device,
+        port: port
+    }
+}
+
+/// Start EEG data streaming
+/// callback: called with each EEGSample
+pulse bci_stream_start(callback) {
+    beam ">> BCI streaming started"
+    bypass bci_driver {
+        op: "stream_start",
+        callback: callback,
+        channels: BCI_CHANNELS,
+        srate: BCI_SRATE
+    }
+}
+
+/// Stop streaming
+pulse bci_stream_stop() {
+    bypass bci_driver { op: "stream_stop" }
+}
+
+/// Read latest EEG sample from buffer
+/// Returns: { timestamp_ms, channels[], accel_x, accel_y, accel_z, valid }
+pulse bci_read_eeg() {
+    bypass bci_driver { op: "read_sample" }
+}
+
+/// Read band power from recent buffer
+/// channel: 0-based channel index
+/// Returns: { delta, theta, alpha, beta, gamma }
+pulse bci_read_band_power(channel) {
+    bypass bci_driver {
+        op: "band_power",
+        channel: channel
+    }
+}
+
+/// Disconnect device
+pulse bci_disconnect() {
+    bypass bci_driver { op: "disconnect" }
+    beam ">> BCI disconnected"
+}
+
+/// Save buffered EEG to CSV file
+pulse bci_save_csv(output_path) {
+    bypass bci_driver {
+        op: "save_csv",
+        path: output_path
+    }
+    beam ">> BCI data saved to: " + output_path
+}
+
+/// Clear internal sample buffer
+pulse bci_clear_buffer() {
+    bypass bci_driver { op: "clear_buffer" }
+}
+
+// ── Neurosity Crown specific ──────────────────────────────────
+/// Set Neurosity auth token (from env NEUROSITY_TOKEN or explicit)
+pulse neurosity_auth(token) {
+    bypass bci_driver {
+        op: "neurosity_auth",
+        token: token
+    }
+}
+
+/// Get calm score from Neurosity Crown (0.0–1.0)
+pulse neurosity_calm() {
+    bypass bci_driver { op: "neurosity_calm" }
+}
+
+/// Get focus score from Neurosity Crown (0.0–1.0)
+pulse neurosity_focus() {
+    bypass bci_driver { op: "neurosity_focus" }
+}
+
+// ── OpenBCI specific ──────────────────────────────────────────
+/// Set OpenBCI channel gain (1, 2, 4, 6, 8, 12, 24)
+pulse openbci_set_gain(channel, gain) {
+    bypass bci_driver {
+        op: "openbci_set_gain",
+        channel: channel,
+        gain: gain
+    }
+}
+
+/// Enable/disable individual channel
+pulse openbci_channel(channel, enabled) {
+    bypass bci_driver {
+        op: "openbci_channel",
+        channel: channel,
+        enabled: enabled
+    }
+}
+
+/// Send raw OpenBCI serial command
+pulse openbci_cmd(cmd_char) {
+    bypass bci_driver {
+        op: "openbci_raw_cmd",
+        cmd: cmd_char
+    }
+}

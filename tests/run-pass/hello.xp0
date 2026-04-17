@@ -1,0 +1,4 @@
+// run-pass: basic output
+pulse main {
+    beam "Hello from X-Phage v3.5.0!"
+}

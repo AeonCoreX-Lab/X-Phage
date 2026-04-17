@@ -1,0 +1,27 @@
+// X-Phage Example: BCI + LSL Neural Interface
+// Usage: xphage run examples/hello_neural.xp0
+
+~link neural/bci
+~link neural/lsl
+~link io/console
+
+pulse main {
+    log_info("X-Phage Neural Interface Demo")
+
+    // Connect to OpenBCI Cyton (8ch, 250Hz)
+    bci_connect("openbci", "/dev/ttyUSB0")
+    bci_stream_start()
+
+    // Stream EEG for 5 seconds
+    chronos "5000"
+    bci_stream_stop()
+
+    // Save recorded data
+    bci_save_csv("eeg_session.csv")
+
+    // Also list any LSL streams on the network
+    lsl_list_streams()
+
+    log_success("Neural session complete.")
+    bci_disconnect()
+}

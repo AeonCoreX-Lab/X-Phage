@@ -1,6 +1,0 @@
-// X-Phage Auto-Generated Test: BEAM
-~link "aeon_ultimate.xh"
-
-pulse core {
-    beam "Direct Output Test - Sequence 40"
-}

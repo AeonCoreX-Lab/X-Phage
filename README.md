@@ -1,234 +1,234 @@
-🧬 X-Phage (.xp0)
+<div align="center">
 
-<p align="center">
-  <img src="assets/logo.png" width="200" alt="X-Phage Logo"/>
-</p><p align="center">
-  <b>The Next-Generation Secure Systems Programming Language</b><br>
-  Built for Performance. Designed for Control. Engineered for Stealth.
-</p><p align="center">
+```
+  _  _  ____  __  __
+ ( \/ )(  _ \(  \/  )
+  )  (  )___/ )    (
+ (_/\_)(__)  (_/\/_) v3.5.0
+```
 
-<p align="center">
+# X-Phage Language
 
-  <img src="https://img.shields.io/badge/X--Phage-.xp0-00FF7F?style=flat-square" />
-  <img src="https://img.shields.io/badge/Compiler-C++17-00599C?style=flat-square" />
-  <img src="https://img.shields.io/badge/License-AGPL--3.0-8A2BE2?style=flat-square" />
-  <br/>
-  <img src="https://img.shields.io/badge/Architecture-Hardware--Aware-black?style=flat-square" />
-  <img src="https://img.shields.io/badge/Security-Ghost%20Memory-red?style=flat-square" />
-  <img src="https://img.shields.io/badge/Execution-Pulse%20Core-00BFFF?style=flat-square" />
-  <br/>
-  <img src="https://img.shields.io/badge/Platform-Termux%20%7C%20Linux-orange?style=flat-square" />
-  <img src="https://img.shields.io/badge/Status-Active%20Development-brightgreen?style=flat-square" />
+**Production-grade, LLVM-powered programming language**
+*Neural interfaces · Cross-platform · Built-in package manager*
 
-</p>
+[![Build](https://github.com/AeonCoreX-Lab/X-Phage/actions/workflows/release-generator.yml/badge.svg)](https://github.com/AeonCoreX-Lab/X-Phage/actions)
+[![Release](https://img.shields.io/github/v/release/AeonCoreX-Lab/X-Phage)](https://github.com/AeonCoreX-Lab/X-Phage/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-</p>
-
-
-## 🛰 Overview
-
-X-Phage is a lightweight, hardware-aware programming language designed for secure systems, next-generation OS development, and controlled execution environments.
-
-It combines:
-
-Low-level precision
-
-Minimal syntax overhead
-
-Secure memory abstraction
-
-High-performance compilation
-
-
-X-Phage introduces original execution concepts such as Ghost Memory Allocation and Pulse Core Logic, enabling developers to build secure and efficient system components with clarity and control.
-
+</div>
 
 ---
 
-## ⚡ Core Philosophy
+## Install
 
-X-Phage is built on three principles:
+```bash
+curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/scripts/install.sh | bash
+```
 
-1. Controlled Memory Exposure
-
-
-2. Minimal Execution Surface
-
-
-3. Predictable Runtime Behavior
-
-
-
-No unnecessary abstraction layers.
-No bloated runtime overhead.
-Pure deterministic execution.
-
+**Supported platforms:** Linux x64/ARM64 · macOS Universal · Windows x64/ARM64 · Android (Termux)
 
 ---
 
-## 🔥 Key Features
+## Quick Start
 
-🧠 Ghost Memory (shadow)
+```xp0
+~link io/console
+~link net/http
 
-Temporary, secure memory scope for sensitive data handling.
+pulse main {
+    log_info("Hello from X-Phage v3.5.0!")
 
-shadow auth_token = "X-9982-PHAGE"
-
-
----
-
-💓 Pulse Execution Model
-
-Centralized execution entry using pulse core for structured and efficient runtime flow.
-
-pulse core {
-    beam "System Initialized"
+    atom res = http_get("https://api.github.com")
+    beam res.status
 }
+```
 
-
----
-
-🔗 Aeon Linking
-
-Modular library linking using the ~link directive.
-
-~link "aeon.core"
-
+```bash
+xphage run main.xp0          # Run directly
+xphage build main.xp0        # Compile to native binary
+xphage --version             # Show version
+```
 
 ---
 
-## 🚀 Lightweight Compiler
+## Repository Structure
 
-Written in C++17
-
-Fast compilation
-
-Minimal binary footprint
-
-Optimized for Termux & Linux
-
-
-
----
-
-## 🗂 Project Structure
-
+```
 X-Phage/
-├── bin/        # Compiled binaries
-├── docs/       # Documentation & Manual
-├── lib/        # Standard Libraries (.xh)
-├── src/        # Compiler Core Source (.cpp)
-├── tests/      # Language Test Suites (.xp0)
-└── build.sh    # Automated Build Script
-
+│
+├── compiler/                    # Compiler pipeline (rustc-style)
+│   ├── xphage_driver/           # CLI entry point & arg parsing
+│   ├── xphage_lexer/            # Tokenisation
+│   ├── xphage_parse/            # Parser → AST
+│   ├── xphage_ast/              # AST node definitions
+│   ├── xphage_middle/           # IR lowering & type system
+│   ├── xphage_codegen_llvm/     # LLVM native backend
+│   ├── xphage_codegen_transpiler/ # C++ transpiler backend
+│   ├── xphage_linker/           # Symbol linking & module resolution
+│   └── xphage_interface/        # Public compiler API (full pipeline)
+│
+├── library/                     # Standard library
+│   ├── core/xh/                 # No-alloc core (types, system)
+│   ├── alloc/xh/                # Memory allocation layer
+│   └── std/xh/                  # Full standard library
+│       ├── io/      console, file
+│       ├── net/     http, socket
+│       ├── data/    json, string
+│       ├── math/    basic, linalg
+│       ├── media/   engine, stream
+│       ├── security/ crypt
+│       ├── ui/      fusion
+│       └── neural/  bci, lsl     ← NEW in v3.5.0
+│
+├── src/
+│   ├── runtime/                 # Runtime engine (core_ops, memory)
+│   └── tools/
+│       └── xphage-fmt/          # Code formatter
+│
+├── tools/                       # Dev tooling
+│   ├── xphage-lsp/              # Language Server (VS Code / Neovim)
+│   ├── xphage-doc/              # Documentation generator
+│   └── xphage-test/             # Test runner
+│
+├── tests/
+│   ├── run-pass/                # Programs that must compile & run
+│   └── compile-fail/            # Programs that must fail correctly
+│
+├── examples/                    # Example .xp0 programs
+├── docs/                        # Language reference & guide
+├── scripts/                     # build.sh, install.sh, release.sh
+├── .github/workflows/           # CI/CD
+└── CMakeLists.txt               # CMake build system
+```
 
 ---
 
-## 🛠 Installation & Build
+## Building from Source
 
-📌 Prerequisites
+**Requirements:** CMake ≥ 3.20 · Clang/GCC C++17 · LLVM ≥ 16 (optional)
 
-Clang++
-
-Make
-
-
-Termux:
-
-pkg install clang
-pkg install make
-
-
----
-
-⚙ Quick Build
-
-git clone https://github.com/AeonCoreX-Lab/X-Phage.git
+```bash
+git clone https://github.com/AeonCoreX-Lab/X-Phage
 cd X-Phage
-bash build.sh
 
+# Quick build (Release + LLVM auto-detect)
+bash scripts/build.sh
+
+# Debug build with tests
+BUILD_TYPE=Debug RUN_TESTS=1 bash scripts/build.sh
+
+# Without LLVM (transpiler only)
+ENABLE_LLVM=OFF bash scripts/build.sh
+
+# CMake directly
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+```
 
 ---
 
-## ⌨️ Syntax Showcase
+## Package Manager (XPM)
 
-Secure handshake example:
+XPM is a **separate standalone tool** — install it independently:
 
-~link "aeon.core"
+```bash
+curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/XPM/main/scripts/install.sh | bash
+```
 
-pulse core {
-    shadow auth_token = "X-9982-PHAGE"
-    atom status = "1"
+```bash
+xpm init                    # Create project + xphage.pkg
+xpm install net-http        # Install latest
+xpm install data-json@^2.0  # Semver range
+xpm update                  # Update all packages
+xpm publish                 # Publish (fully automatic — no gh CLI needed)
+xpm lock                    # Regenerate lockfile
+xpm check                   # Verify SHA256 integrity
+xpm search neural           # Search registry
+xpm cache list              # Show local cache (~/.xpm/cache)
+```
 
-    beam "--- Initializing System ---"
-    
-    scan status {
-        beam "Access Granted."
-        beam auth_token
-    }
+| Repo | Purpose |
+|------|---------|
+| [AeonCoreX-Lab/XPM](https://github.com/AeonCoreX-Lab/XPM) | Package manager tool |
+| [AeonCoreX-Lab/xpm-registry](https://github.com/AeonCoreX-Lab/xpm-registry) | Package registry (serverless, TOML index) |
+
+---
+
+## Standard Library
+
+| Module | Import | Description |
+|--------|--------|-------------|
+| `core/types` | `~link core/types` | Type system, constants, casting |
+| `core/system` | `~link core/system` | OS, process, env vars, exec |
+| `io/file` | `~link io/file` | File I/O, dir ops, watcher |
+| `io/console` | `~link io/console` | Logging, prompts, progress, table |
+| `net/http` | `~link net/http` | HTTP client + WebSocket |
+| `net/socket` | `~link net/socket` | TCP/UDP/TLS/P2P/torrent |
+| `data/json` | `~link data/json` | Parse, stringify, path query |
+| `data/string` | `~link data/string` | Manipulation, encode, similarity |
+| `math/basic` | `~link math/basic` | Trig, random, stats, bitwise |
+| `math/linalg` | `~link math/linalg` | Matrix, vector, tensor, GPU |
+| `media/engine` | `~link media/engine` | MPV player, playlist, audio EQ |
+| `media/stream` | `~link media/stream` | HLS/DASH, recording, transcode |
+| `security/crypt` | `~link security/crypt` | AES, SHA-3, RSA, Argon2, TOTP |
+| `ui/fusion` | `~link ui/fusion` | Vulkan UI components |
+| **`neural/bci`** | `~link neural/bci` | **OpenBCI + Neurosity Crown** |
+| **`neural/lsl`** | `~link neural/lsl` | **LSL protocol (200+ devices)** |
+
+---
+
+## Dev Tools
+
+| Tool | Command | Description |
+|------|---------|-------------|
+| `xphage-lsp` | auto (via editor) | LSP: completion, hover, diagnostics |
+| `xphage-doc` | `xphage-doc library/ --out docs/` | Generate API docs (MD + HTML) |
+| `xphage-test` | `xphage-test --jobs 8` | Run test suite in parallel |
+| `xphage-fmt` | `xphage-fmt src/main.xp0` | Auto-format source files |
+
+**VS Code:** Add to `.vscode/settings.json`:
+```json
+{
+  "xphage.lsp.path": "./build/xphage-lsp"
 }
-
-
----
-
-## 🧪 Use Cases
-
-Secure OS Components
-
-Embedded Runtime Systems
-
-Controlled Automation Environments
-
-Lightweight Compiler Research
-
-Cyber-Security Focused Development
-
-
+```
 
 ---
 
-## 🤝 Contributing
+## Docker
 
-We welcome structured contributions to:
-
-Compiler Core
-
-Standard Libraries
-
-Documentation
-
-Syntax Highlighting Plugins
-
-
-Contribution Flow
-
-git checkout -b feature/your-feature
-git commit -m "Add new feature"
-git push origin feature/your-feature
-
-Then open a Pull Request.
-
+```bash
+docker pull aeoncorex/xphage:latest
+docker run --rm -it aeoncorex/xphage
+docker run --rm -v $(pwd):/workspace aeoncorex/xphage run /workspace/main.xp0
+```
 
 ---
 
-## ⚖️ License & Intellectual Property
-This project is licensed under the **GNU AGPLv3**.  
-Under this license, any derivative works or services using X-Phage must remain open-source and contribute back to the original repository.
+## Language Reference
+
+| Keyword | Description |
+|---------|-------------|
+| `pulse` | Declare a function/block |
+| `atom` | Immutable variable |
+| `shadow` | Mutable variable |
+| `global` | Global registry variable |
+| `beam` | Print to stdout |
+| `bypass` | Hardware/kernel injection |
+| `quantum` | Spawn async thread |
+| `vortex` | Clear local memory |
+| `void` | Full memory wipe (VOID Protocol) |
+| `chronos` | Sleep / time dilation (ms) |
+| `ether` | Cloud/network uplink |
+| `synapse` | Neural API handshake |
+| `matrix` | GPU matrix allocation |
+| `scan` | Inspect / type-check value |
+| `~link` | Import stdlib or module |
+| `fusion` | Titan UI composition |
 
 ---
 
-## 📞 Maintainer
+## License
 
-AeonCoreX Lab
-Project Status: Active Development (v1.3)
-
-
----
-
-## 🧬 X-Phage
-
-Engineered for the future of secure execution.
-
-
-***Copyright © 2026 **AeonCoreX**. All rights reserved.***
----
+MIT — © AeonCoreX Lab

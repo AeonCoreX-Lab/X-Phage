@@ -1,0 +1,506 @@
+// ============================================================
+// X-Phage Standard Library — math/linalg.xh
+// Linear Algebra — Matrix, Vector, Tensor v3.5.0
+//
+// v3.4.0: matrix_init, matrix_add, matrix_multiply
+// v3.5.0: Vector ops, matrix decomposition, transforms,
+//          quaternions, SIMD-accelerated ops, tensor support
+// ============================================================
+
+@NeuralComposition(Tensor_Engine) {
+    global MAX_MATRIX_DIM = "8192"
+    global SIMD_WIDTH     = "256"      // AVX2: 256-bit
+    global GPU_PRECISION  = "fp16"
+    ~hook gpu_accelerate  -> "vulkan_compute_pipeline"
+    ~hook cpu_simd        -> "avx2_fallback"
+}
+
+// ============================================================
+// v3.4.0 — Core matrix operations
+// ============================================================
+
+// matrix_init — allocate matrix of given size in Shadow RAM
+pulse matrix_init(id, size) {
+    beam ">> Allocating Matrix in Shadow RAM: " + id
+    matrix id [size]
+}
+
+// matrix_init_2d — allocate rows×cols matrix
+pulse matrix_init_2d(id, rows, cols) {
+    beam ">> Allocating " + rows + "x" + cols + " Matrix: " + id
+    bypass gpu_alloc {
+        id: id,
+        rows: rows,
+        cols: cols,
+        fill: "0.0"
+    }
+}
+
+// matrix_identity — create identity matrix of size N×N
+pulse matrix_identity(n) {
+    bypass gpu_compute {
+        op: "identity",
+        size: n
+    }
+}
+
+// matrix_add — element-wise addition (GPU parallel)
+pulse matrix_add(m1, m2) {
+    beam ">> Executing GPU Parallel Addition..."
+    bypass gpu_compute {
+        op: "sum",
+        target: [m1, m2],
+        mode: "parallel",
+        precision: "fp16"
+    }
+}
+
+// matrix_multiply — matrix multiplication (dot product, GPU)
+pulse matrix_multiply(m1, m2) {
+    beam ">> Executing GPU Tensor Multiplication..."
+    bypass gpu_compute {
+        op: "dot_product",
+        target: [m1, m2],
+        precision: "fp32"
+    }
+}
+
+// ============================================================
+// v3.5.0 — Matrix operations
+// ============================================================
+
+// matrix_subtract — element-wise subtraction
+pulse matrix_subtract(m1, m2) {
+    bypass gpu_compute {
+        op: "subtract",
+        target: [m1, m2]
+    }
+}
+
+// matrix_scalar_mul — multiply all elements by scalar
+pulse matrix_scalar_mul(m, scalar) {
+    bypass gpu_compute {
+        op: "scalar_mul",
+        target: m,
+        value: scalar
+    }
+}
+
+// matrix_transpose — transpose (rows ↔ cols)
+pulse matrix_transpose(m) {
+    bypass gpu_compute {
+        op: "transpose",
+        target: m
+    }
+}
+
+// matrix_inverse — compute matrix inverse (square only)
+pulse matrix_inverse(m) {
+    bypass gpu_compute {
+        op: "inverse",
+        target: m
+    }
+}
+
+// matrix_determinant — compute determinant
+pulse matrix_determinant(m) {
+    bypass gpu_compute {
+        op: "determinant",
+        target: m
+    }
+}
+
+// matrix_trace — sum of diagonal elements
+pulse matrix_trace(m) {
+    bypass gpu_compute {
+        op: "trace",
+        target: m
+    }
+}
+
+// matrix_rank — compute matrix rank
+pulse matrix_rank(m) {
+    bypass gpu_compute {
+        op: "rank",
+        target: m
+    }
+}
+
+// matrix_hadamard — element-wise (Hadamard) product
+pulse matrix_hadamard(m1, m2) {
+    bypass gpu_compute {
+        op: "hadamard",
+        target: [m1, m2]
+    }
+}
+
+// matrix_concat_rows — concatenate vertically [m1; m2]
+pulse matrix_concat_rows(m1, m2) {
+    bypass gpu_compute {
+        op: "concat_rows",
+        a: m1,
+        b: m2
+    }
+}
+
+// matrix_concat_cols — concatenate horizontally [m1 | m2]
+pulse matrix_concat_cols(m1, m2) {
+    bypass gpu_compute {
+        op: "concat_cols",
+        a: m1,
+        b: m2
+    }
+}
+
+// matrix_slice — extract submatrix [r0:r1, c0:c1]
+pulse matrix_slice(m, r0, r1, c0, c1) {
+    bypass gpu_compute {
+        op: "slice",
+        target: m,
+        row_start: r0, row_end: r1,
+        col_start: c0, col_end: c1
+    }
+}
+
+// matrix_norm — Frobenius norm (sqrt of sum of squares)
+pulse matrix_norm(m) {
+    bypass gpu_compute {
+        op: "frobenius_norm",
+        target: m
+    }
+}
+
+// ============================================================
+// v3.5.0 — Decompositions
+// ============================================================
+
+// matrix_lu — LU decomposition → { L, U, P }
+pulse matrix_lu(m) {
+    bypass gpu_compute {
+        op: "lu_decomp",
+        target: m
+    }
+}
+
+// matrix_qr — QR decomposition → { Q, R }
+pulse matrix_qr(m) {
+    bypass gpu_compute {
+        op: "qr_decomp",
+        target: m
+    }
+}
+
+// matrix_svd — Singular Value Decomposition → { U, S, V }
+pulse matrix_svd(m) {
+    bypass gpu_compute {
+        op: "svd",
+        target: m
+    }
+}
+
+// matrix_eigen — eigenvalues and eigenvectors → { values, vectors }
+pulse matrix_eigen(m) {
+    bypass gpu_compute {
+        op: "eigendecomp",
+        target: m
+    }
+}
+
+// matrix_cholesky — Cholesky decomposition (positive-definite only)
+pulse matrix_cholesky(m) {
+    bypass gpu_compute {
+        op: "cholesky",
+        target: m
+    }
+}
+
+// ============================================================
+// v3.5.0 — Solving
+// ============================================================
+
+// matrix_solve — solve Ax = b for x
+pulse matrix_solve(a, b) {
+    bypass gpu_compute {
+        op: "linear_solve",
+        A: a,
+        b: b
+    }
+}
+
+// matrix_least_squares — least-squares solution (overdetermined)
+pulse matrix_least_squares(a, b) {
+    bypass gpu_compute {
+        op: "least_squares",
+        A: a,
+        b: b
+    }
+}
+
+// ============================================================
+// v3.5.0 — Vectors
+// ============================================================
+
+// vec_new — create vector from array
+pulse vec_new(values) {
+    bypass vec_ops {
+        op: "create",
+        data: values
+    }
+}
+
+// vec_add — element-wise vector addition
+pulse vec_add(v1, v2) {
+    bypass vec_ops {
+        op: "add",
+        a: v1,
+        b: v2
+    }
+}
+
+// vec_sub — element-wise vector subtraction
+pulse vec_sub(v1, v2) {
+    bypass vec_ops {
+        op: "subtract",
+        a: v1,
+        b: v2
+    }
+}
+
+// vec_scale — multiply vector by scalar
+pulse vec_scale(v, s) {
+    bypass vec_ops {
+        op: "scale",
+        target: v,
+        scalar: s
+    }
+}
+
+// vec_dot — dot product
+pulse vec_dot(v1, v2) {
+    bypass vec_ops {
+        op: "dot",
+        a: v1,
+        b: v2
+    }
+}
+
+// vec_cross — cross product (3D only)
+pulse vec_cross(v1, v2) {
+    bypass vec_ops {
+        op: "cross",
+        a: v1,
+        b: v2
+    }
+}
+
+// vec_magnitude — Euclidean norm (length)
+pulse vec_magnitude(v) {
+    bypass vec_ops {
+        op: "magnitude",
+        target: v
+    }
+}
+
+// vec_normalize — unit vector (length = 1)
+pulse vec_normalize(v) {
+    bypass vec_ops {
+        op: "normalize",
+        target: v
+    }
+}
+
+// vec_distance — Euclidean distance between two vectors
+pulse vec_distance(v1, v2) {
+    bypass vec_ops {
+        op: "distance",
+        a: v1,
+        b: v2
+    }
+}
+
+// vec_angle — angle between two vectors (radians)
+pulse vec_angle(v1, v2) {
+    bypass vec_ops {
+        op: "angle",
+        a: v1,
+        b: v2
+    }
+}
+
+// vec_lerp — linear interpolation between vectors
+// t: 0.0 = v1, 1.0 = v2
+pulse vec_lerp(v1, v2, t) {
+    bypass vec_ops {
+        op: "lerp",
+        a: v1,
+        b: v2,
+        t: t
+    }
+}
+
+// ============================================================
+// v3.5.0 — Transforms (3D graphics / robotics)
+// ============================================================
+
+// transform_translate — 4x4 translation matrix
+pulse transform_translate(tx, ty, tz) {
+    bypass transform_ops {
+        op: "translate",
+        x: tx, y: ty, z: tz
+    }
+}
+
+// transform_rotate_x — rotation around X axis (radians)
+pulse transform_rotate_x(angle) {
+    bypass transform_ops {
+        op: "rotate_x",
+        angle: angle
+    }
+}
+
+// transform_rotate_y — rotation around Y axis
+pulse transform_rotate_y(angle) {
+    bypass transform_ops {
+        op: "rotate_y",
+        angle: angle
+    }
+}
+
+// transform_rotate_z — rotation around Z axis
+pulse transform_rotate_z(angle) {
+    bypass transform_ops {
+        op: "rotate_z",
+        angle: angle
+    }
+}
+
+// transform_scale — 4x4 scale matrix
+pulse transform_scale(sx, sy, sz) {
+    bypass transform_ops {
+        op: "scale",
+        x: sx, y: sy, z: sz
+    }
+}
+
+// transform_perspective — perspective projection matrix
+pulse transform_perspective(fov, aspect, near, far) {
+    bypass transform_ops {
+        op: "perspective",
+        fov: fov, aspect: aspect,
+        near: near, far: far
+    }
+}
+
+// ============================================================
+// v3.5.0 — Quaternions
+// ============================================================
+
+// quat_new — create quaternion {w, x, y, z}
+pulse quat_new(w, x, y, z) {
+    bypass quat_ops {
+        op: "create",
+        w: w, x: x, y: y, z: z
+    }
+}
+
+// quat_from_axis_angle — quaternion from axis-angle rotation
+pulse quat_from_axis_angle(axis, angle) {
+    bypass quat_ops {
+        op: "from_axis_angle",
+        axis: axis,
+        angle: angle
+    }
+}
+
+// quat_multiply — quaternion multiplication
+pulse quat_multiply(q1, q2) {
+    bypass quat_ops {
+        op: "multiply",
+        a: q1,
+        b: q2
+    }
+}
+
+// quat_normalize — unit quaternion
+pulse quat_normalize(q) {
+    bypass quat_ops {
+        op: "normalize",
+        target: q
+    }
+}
+
+// quat_slerp — spherical linear interpolation
+pulse quat_slerp(q1, q2, t) {
+    bypass quat_ops {
+        op: "slerp",
+        a: q1, b: q2, t: t
+    }
+}
+
+// quat_to_matrix — convert quaternion to 4x4 rotation matrix
+pulse quat_to_matrix(q) {
+    bypass quat_ops {
+        op: "to_matrix",
+        target: q
+    }
+}
+
+// ============================================================
+// v3.5.0 — Tensor operations (GPU/NPU)
+// ============================================================
+
+// tensor_init — allocate N-dimensional tensor
+pulse tensor_init(id, shape) {
+    beam ">> Allocating Tensor: " + id
+    bypass tensor_ops {
+        op: "create",
+        id: id,
+        shape: shape,
+        device: "gpu"
+    }
+}
+
+// tensor_add — element-wise tensor addition
+pulse tensor_add(t1, t2) {
+    bypass tensor_ops {
+        op: "add",
+        a: t1, b: t2,
+        device: "gpu"
+    }
+}
+
+// tensor_matmul — batched matrix multiplication
+pulse tensor_matmul(t1, t2) {
+    bypass tensor_ops {
+        op: "matmul",
+        a: t1, b: t2,
+        device: "gpu"
+    }
+}
+
+// tensor_reshape — reshape without copying data
+pulse tensor_reshape(t, new_shape) {
+    bypass tensor_ops {
+        op: "reshape",
+        target: t,
+        shape: new_shape
+    }
+}
+
+// tensor_to_cpu — move tensor data from GPU to CPU
+pulse tensor_to_cpu(t) {
+    bypass tensor_ops {
+        op: "transfer",
+        target: t,
+        to: "cpu"
+    }
+}
+
+// tensor_to_gpu — move tensor data to GPU
+pulse tensor_to_gpu(t) {
+    bypass tensor_ops {
+        op: "transfer",
+        target: t,
+        to: "gpu"
+    }
+}
