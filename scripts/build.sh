@@ -33,8 +33,14 @@ SOURCES="\
   src/runtime/memory.cpp"
 
 # ✦ Include paths updated for split headers
+# ── INCLUDES ─────────────────────────────────────────────────
+# -I./include       → for #include "xphage/runtime.hpp" (bare)
+# -I./compiler      → fixes #include "../../include/..." from compiler/X/src/
+#                     (../../ from ./compiler resolves to ./include/ ✓)
+# Per-crate headers for split include layout
 INCLUDES="\
   -I./include \
+  -I./compiler \
   -I./compiler/xphage_driver/include \
   -I./compiler/xphage_lexer/include \
   -I./compiler/xphage_ast/include \
