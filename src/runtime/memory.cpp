@@ -22,14 +22,17 @@ void XPhageRuntime::write_global(std::string id, std::string val) {
 
 MemoryCell XPhageRuntime::read(std::string id) const {
     // Priority 1: Check Local Memory
+    // Use .at() not operator[] — operator[] is non-const (can insert),
+    // not available on a const unordered_map. .at() is safe here because
+    // .count() already confirmed the key exists.
     if (cell_map.count(id)) {
-        return cell_map[id];
+        return cell_map.at(id);
     }
     // Priority 2: Check Global Registry
     if (global_registry.count(id)) {
-        return global_registry[id];
+        return global_registry.at(id);
     }
-    
-    // Priority 3: Check if it's a raw string literal passing through
+
+    // Priority 3: Raw string literal / unknown ref passthrough
     return {id, "raw_ref", false, false};
 }
