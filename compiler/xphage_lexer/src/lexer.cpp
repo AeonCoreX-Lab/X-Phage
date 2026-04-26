@@ -6,7 +6,8 @@
  * Supports Recursive UI Structures & Property Maps
  */
 
-std::vector<Token> XPhageLexer::tokenize(const std::string& source) {
+std::vector<Token> XPhageLexer::tokenize(const std::string& source,
+                                          const std::string& /*filename*/) {
     std::vector<Token> tokens;
     size_t i = 0;
     while (i < source.length()) {

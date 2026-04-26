@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <functional>
 #include <chrono>
 #include <cstdlib>
 
@@ -300,7 +301,16 @@ void start_repl() {
                       << "  Any X-Phage statement\n";
             continue;
         }
-        if (line == "clear") { std::system("clear"); continue; }
+        if (line == "clear") {
+#if defined(__APPLE__) && defined(TARGET_OS_IOS) && TARGET_OS_IOS
+            std::cout << "\033[2J\033[1;1H"; // ANSI clear — system() not available on iOS
+#elif defined(_WIN32)
+            std::system("cls");
+#else
+            std::system("clear");
+#endif
+            continue;
+        }
         if (line == "vars") {
             for (auto& [k, v] : runtime.cell_map)
                 std::cout << "  " << k << " = " << v.data << " [" << v.type << "]\n";

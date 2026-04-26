@@ -42,13 +42,15 @@ jobs:
             artifact_name: xphage_arm64.exe
             asset_name: xphage_windows_arm64
 
-          # Darwin: two separate runners, lipo'd into Universal Binary in Job 2
+          # Darwin: both built on macos-latest (ARM64) with -arch flags.
+          # macos-13 (Intel) is retired on GitHub Actions — use cross-compilation.
+          # Apple Clang on ARM64 can cross-compile x86_64 natively with -arch x86_64.
           - os: macos-latest
             target: macos-arm64
             artifact_name: xphage_mac_arm64
             asset_name: xphage_macos_arm64
 
-          - os: macos-13
+          - os: macos-latest
             target: macos-x64
             artifact_name: xphage_mac_x64
             asset_name: xphage_macos_x64

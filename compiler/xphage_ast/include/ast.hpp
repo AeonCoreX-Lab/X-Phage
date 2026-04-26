@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <functional>
 #include <ostream>
+#include <iostream>
 
 namespace xphage::ast_module {
 

@@ -1,167 +1,327 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ================================================================
-#  🧬 X-Phage Installer
-#  curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/scripts/install.sh | bash
+# X-Phage Installer v3.5.0
+# Compile-from-source installer — no pre-built binaries.
+# Like Cargo: detects platform, installs deps, builds, installs.
+# Connects to XPM (AeonCoreX-Lab/XPM) after install.
 # ================================================================
-set -e
+set -euo pipefail
 
-R='\033[1;31m' G='\033[1;32m' Y='\033[1;33m'
-B='\033[1;34m' P='\033[1;35m' C='\033[1;36m'
-DIM='\033[2m' NC='\033[0m'
+# ── Colours ──────────────────────────────────────────────────
+RED='\033[1;31m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'
+CYAN='\033[1;36m'; PURPLE='\033[1;35m'; NC='\033[0m'
+BOLD='\033[1m'
 
-REPO="AeonCoreX-Lab/X-Phage"
-BIN_DIR="${XPHAGE_HOME:-$HOME/.xphage}/bin"
-TMP_DIR="${TMPDIR:-/tmp}/xphage-install-$$"
-trap 'rm -rf "$TMP_DIR"' EXIT
-mkdir -p "$TMP_DIR"
+info()    { echo -e "${CYAN}[xphage-install]${NC} $*"; }
+success() { echo -e "${GREEN}[xphage-install]${NC} ✔ $*"; }
+warn()    { echo -e "${YELLOW}[xphage-install]${NC} ⚠ $*"; }
+die()     { echo -e "${RED}[xphage-install]${NC} ✘ $*" >&2; exit 1; }
 
-# ── Banner ──────────────────────────────────────────────────────
-echo ""
-echo -e "${P}  ██╗  ██╗      ██████╗ ██╗  ██╗ █████╗  ██████╗ ███████╗${NC}"
-echo -e "${P}  ╚██╗██╔╝     ██╔══██╗██║  ██║██╔══██╗██╔════╝ ██╔════╝${NC}"
-echo -e "${P}   ╚███╔╝ █████╗██████╔╝███████║███████║██║  ███╗█████╗  ${NC}"
-echo -e "${P}   ██╔██╗ ╚════╝██╔═══╝ ██╔══██║██╔══██║██║   ██║██╔══╝  ${NC}"
-echo -e "${P}  ██╔╝ ██╗      ██║     ██║  ██║██║  ██║╚██████╔╝███████╗${NC}"
-echo -e "${P}  ╚═╝  ╚═╝      ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝${NC}"
-echo ""
-echo -e "  ${C}The X-Phage Programming Language Installer${NC}"
-echo -e "  ${DIM}https://github.com/${REPO}${NC}"
-echo ""
+# ── Config ────────────────────────────────────────────────────
+XPHAGE_REPO="https://github.com/AeonCoreX-Lab/X-Phage.git"
+XPM_REPO="https://github.com/AeonCoreX-Lab/XPM.git"
+INSTALL_DIR="${XPHAGE_HOME:-$HOME/.xphage}"
+BIN_DIR="$INSTALL_DIR/bin"
+SRC_DIR="$INSTALL_DIR/src"
+XPM_SRC_DIR="$INSTALL_DIR/xpm-src"
+XPHAGE_VERSION="${XPHAGE_VERSION:-main}"
 
-# ── Detect platform ─────────────────────────────────────────────
-_os="" _arch="" _target="" _ext=""
-_uname_s="$(uname -s 2>/dev/null || echo unknown)"
-_uname_m="$(uname -m 2>/dev/null || echo unknown)"
+# ── Banner ────────────────────────────────────────────────────
+echo -e "${PURPLE}"
+echo "  ██╗  ██╗      ██████╗ ██╗  ██╗ █████╗  ██████╗ ███████╗"
+echo "  ╚██╗██╔╝     ██╔══██╗██║  ██║██╔══██╗██╔════╝ ██╔════╝"
+echo "   ╚███╔╝      ██████╔╝███████║███████║██║  ███╗█████╗  "
+echo "   ██╔██╗      ██╔═══╝ ██╔══██║██╔══██║██║   ██║██╔══╝  "
+echo "  ██╔╝ ██╗     ██║     ██║  ██║██║  ██║╚██████╔╝███████╗"
+echo "  ╚═╝  ╚═╝     ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝"
+echo -e "${NC}"
+echo -e "${BOLD}  X-Phage Language + XPM Installer v3.5.0${NC}"
+echo -e "  Compiles from source — no pre-built binaries.\n"
 
-if [ -d "/data/data/com.termux/files/usr" ]; then
-    _os="android"; _arch="arm64"
-    _target="xphage_android_arm64"
-    BIN_DIR="/data/data/com.termux/files/usr/bin"
+# ── Detect OS + Architecture ──────────────────────────────────
+OS="$(uname -s 2>/dev/null || echo Windows)"
+ARCH="$(uname -m 2>/dev/null || echo x86_64)"
 
-elif [[ "$_uname_s" == MINGW* || "$_uname_s" == MSYS* || "$_uname_s" == CYGWIN* ]]; then
-    _os="windows"; _ext=".exe"
-    if [[ "$_uname_m" == aarch64 || "$_uname_m" == arm64 ]]; then
-        _arch="arm64"; _target="xphage_windows_arm64"
+case "$OS" in
+    Linux*)   PLATFORM="linux"  ;;
+    Darwin*)  PLATFORM="macos"  ;;
+    MINGW*|MSYS*|CYGWIN*|Windows*) PLATFORM="windows" ;;
+    *)        die "Unsupported OS: $OS" ;;
+esac
+
+case "$ARCH" in
+    x86_64|amd64) ARCH_TAG="x64"   ;;
+    aarch64|arm64) ARCH_TAG="arm64" ;;
+    armv7*)        ARCH_TAG="armv7" ;;
+    *)             warn "Unknown arch: $ARCH, defaulting to x64"; ARCH_TAG="x64" ;;
+esac
+
+info "Detected: ${PLATFORM}/${ARCH_TAG}"
+
+# ── Check requirements ────────────────────────────────────────
+check_cmd() { command -v "$1" &>/dev/null || die "$1 is required but not found. Please install it first."; }
+check_cmd git
+check_cmd make || true  # not always needed
+
+# ── Install build dependencies ────────────────────────────────
+install_deps_linux() {
+    info "Installing build dependencies (Linux)..."
+    if command -v apt-get &>/dev/null; then
+        sudo apt-get update -qq
+        # Detect latest available LLVM
+        LLVM_VER=$(apt-cache search '^llvm-[0-9]+$' \
+            | grep -oP 'llvm-\K[0-9]+' | sort -n | tail -1)
+        [ -z "$LLVM_VER" ] && LLVM_VER=18
+        info "Using LLVM version: $LLVM_VER"
+        sudo apt-get install -y --no-install-recommends \
+            llvm-${LLVM_VER} llvm-${LLVM_VER}-dev \
+            clang-${LLVM_VER} lld-${LLVM_VER} \
+            libstdc++-12-dev git curl ca-certificates
+        sudo ln -sf /usr/bin/clang++-${LLVM_VER} /usr/bin/clang++ 2>/dev/null || true
+        sudo ln -sf /usr/bin/llvm-config-${LLVM_VER} /usr/bin/llvm-config 2>/dev/null || true
+    elif command -v dnf &>/dev/null; then
+        sudo dnf install -y clang llvm llvm-devel git curl
+    elif command -v pacman &>/dev/null; then
+        sudo pacman -Sy --noconfirm clang llvm git curl
+    elif command -v apk &>/dev/null; then
+        # Alpine / Termux-like
+        sudo apk add --no-cache clang llvm-dev git curl bash
     else
-        _arch="x64"; _target="xphage_windows_x64"
+        warn "Unknown package manager. Please install clang++ and llvm-dev manually."
     fi
-    BIN_DIR="${USERPROFILE:-$HOME}/AppData/Local/xphage/bin"
+}
 
-elif [[ "$_uname_s" == "Darwin" ]]; then
-    _os="macos"
-    _target="xphage_mac_universal"
-    [[ "$_uname_m" == "arm64" ]] && _arch="arm64" || _arch="x64"
-
-elif [[ "$_uname_s" == "Linux" ]]; then
-    _os="linux"
-    if [[ "$_uname_m" == aarch64 || "$_uname_m" == arm64 ]]; then
-        _arch="arm64"; _target="xphage_linux_arm64"
-    elif [[ "$_uname_m" == x86_64 ]]; then
-        _arch="x64"; _target="xphage_linux_x64"
-    else
-        echo -e "${R}error:${NC} unsupported architecture: $_uname_m" >&2; exit 1
+install_deps_macos() {
+    info "Installing build dependencies (macOS)..."
+    if ! command -v brew &>/dev/null; then
+        info "Installing Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-else
-    echo -e "${R}error:${NC} unsupported OS: $_uname_s" >&2; exit 1
-fi
+    brew update
+    brew install llvm git
+    # Add Homebrew LLVM to PATH for this session
+    BREW_LLVM_PREFIX="$(brew --prefix llvm 2>/dev/null || echo /opt/homebrew/opt/llvm)"
+    export PATH="$BREW_LLVM_PREFIX/bin:$PATH"
+}
 
-echo -e "${DIM}  Detected: ${_os} ${_arch}${NC}"
-echo ""
-
-command -v curl &>/dev/null || { echo -e "${R}error:${NC} curl is required" >&2; exit 1; }
-
-# ── Resolve latest release ──────────────────────────────────────
-echo -e "${B}info:${NC}  syncing channel updates for 'stable'"
-
-_release="$TMP_DIR/release.json"
-curl -sL --max-time 30 \
-    -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/${REPO}/releases/latest" \
-    -o "$_release"
-
-_version=$(grep '"tag_name"' "$_release" | head -1 \
-    | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-
-[ -z "$_version" ] && {
-    echo -e "${R}error:${NC} could not resolve latest version" >&2; exit 1; }
-
-echo -e "${B}info:${NC}  latest stable version is ${G}${_version}${NC}"
-
-# ── Download ────────────────────────────────────────────────────
-_base="https://github.com/${REPO}/releases/download/${_version}"
-_tmp_bin="$TMP_DIR/xphage${_ext}"
-_tmp_sha="$TMP_DIR/xphage.sha256"
-
-echo -e "${B}info:${NC}  downloading xphage ${_version}"
-curl -L --progress-bar --max-time 120 "${_base}/${_target}" -o "$_tmp_bin"
-
-# Detect HTML error page
-if file "$_tmp_bin" 2>/dev/null | grep -qi "HTML\|text"; then
-    echo -e "${R}error:${NC} binary not found for this platform in ${_version}" >&2
-    echo "  Visit: https://github.com/${REPO}/releases" >&2
-    exit 1
-fi
-
-# ── SHA256 verify ───────────────────────────────────────────────
-echo -e "${B}info:${NC}  verifying checksum for xphage"
-_sha_ok=false
-if curl -sL --max-time 10 "${_base}/${_target}.sha256" -o "$_tmp_sha" 2>/dev/null; then
-    _expected=$(awk '{print $1}' "$_tmp_sha" 2>/dev/null)
-    if [ -n "$_expected" ] && ! echo "$_expected" | grep -qi "not found\|404\|<!"; then
-        if command -v sha256sum &>/dev/null; then
-            _actual=$(sha256sum "$_tmp_bin" | awk '{print $1}')
-        elif command -v shasum &>/dev/null; then
-            _actual=$(shasum -a 256 "$_tmp_bin" | awk '{print $1}')
-        fi
-        if [ "$_actual" = "$_expected" ]; then _sha_ok=true
+install_deps_windows() {
+    info "Installing build dependencies (Windows)..."
+    if ! command -v clang++ &>/dev/null; then
+        if command -v pacman &>/dev/null; then
+            pacman -Sy --noconfirm mingw-w64-x86_64-llvm mingw-w64-x86_64-clang
+        elif command -v winget &>/dev/null; then
+            winget install -e --id LLVM.LLVM
+            winget install -e --id Git.Git
         else
-            echo -e "${R}error:${NC} checksum mismatch — corrupted download" >&2
-            echo "  expected: $_expected" >&2; echo "  got: $_actual" >&2; exit 1
+            die "Please install LLVM and Git manually from https://releases.llvm.org and https://git-scm.com"
         fi
     fi
-fi
-$_sha_ok && echo -e "${B}info:${NC}  checksum verified" \
-          || echo -e "${DIM}  (checksum unavailable, skipped)${NC}"
+}
 
-# ── Install ─────────────────────────────────────────────────────
-echo -e "${B}info:${NC}  installing to ${BIN_DIR}"
-chmod +x "$_tmp_bin"
-mkdir -p "$BIN_DIR"
-cp "$_tmp_bin" "$BIN_DIR/xphage${_ext}"
+case "$PLATFORM" in
+    linux)   install_deps_linux   ;;
+    macos)   install_deps_macos   ;;
+    windows) install_deps_windows ;;
+esac
 
-# ── PATH auto-setup ─────────────────────────────────────────────
-_export_line="export PATH=\"\$PATH:$BIN_DIR\""
-_path_configured=false
-for _rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-    if [ -f "$_rc" ] && ! grep -qF "$BIN_DIR" "$_rc" 2>/dev/null; then
-        { echo ""; echo "# X-Phage"; echo "$_export_line"; } >> "$_rc"
-        _path_configured=true; break
-    elif [ -f "$_rc" ] && grep -qF "$BIN_DIR" "$_rc" 2>/dev/null; then
-        _path_configured=true; break
+# ── Verify compiler ───────────────────────────────────────────
+CXX="${CXX:-}"
+for try_cxx in clang++ g++ c++; do
+    if command -v "$try_cxx" &>/dev/null; then
+        CXX="$try_cxx"; break
     fi
 done
+[ -z "$CXX" ] && die "No C++ compiler found after dependency install."
+CXX_VER=$("$CXX" --version 2>&1 | head -1)
+success "Compiler: $CXX — $CXX_VER"
 
-# ── Done ────────────────────────────────────────────────────────
+# ── Clone / update X-Phage source ────────────────────────────
+mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+
+if [ -d "$SRC_DIR/.git" ]; then
+    info "Updating X-Phage source..."
+    git -C "$SRC_DIR" fetch --quiet origin
+    git -C "$SRC_DIR" checkout --quiet "$XPHAGE_VERSION" 2>/dev/null || \
+        git -C "$SRC_DIR" reset --hard "origin/$XPHAGE_VERSION"
+else
+    info "Cloning X-Phage source..."
+    rm -rf "$SRC_DIR"
+    git clone --depth=1 --branch "$XPHAGE_VERSION" "$XPHAGE_REPO" "$SRC_DIR" \
+        2>/dev/null || git clone --depth=1 "$XPHAGE_REPO" "$SRC_DIR"
+fi
+success "Source ready at $SRC_DIR"
+
+# ── Determine build target ────────────────────────────────────
+case "${PLATFORM}-${ARCH_TAG}" in
+    linux-x64)    BUILD_TARGET="linux"         ;;
+    linux-arm64)  BUILD_TARGET="linux-arm64"   ;;
+    macos-arm64)  BUILD_TARGET="macos-arm64"   ;;
+    macos-x64)    BUILD_TARGET="macos-x64"     ;;
+    windows-x64)  BUILD_TARGET="windows"       ;;
+    windows-arm64) BUILD_TARGET="windows-arm64" ;;
+    *)            BUILD_TARGET="linux"          ;;
+esac
+
+# ── Compile X-Phage ──────────────────────────────────────────
+info "Compiling X-Phage for ${BUILD_TARGET}..."
+
+cd "$SRC_DIR"
+TARGET="$BUILD_TARGET" ARTIFACT_NAME="xphage" bash scripts/build.sh
+
+# Find produced binary
+BUILT_BIN=$(find "$SRC_DIR/bin/$BUILD_TARGET" -type f -name "xphage*" \
+             ! -name "*.sha256" 2>/dev/null | head -1)
+[ -z "$BUILT_BIN" ] && die "Build failed — binary not produced. Check errors above."
+success "Build complete: $BUILT_BIN"
+
+# ── Install X-Phage binary ────────────────────────────────────
+XPHAGE_BIN="$BIN_DIR/xphage"
+[[ "$PLATFORM" == "windows" ]] && XPHAGE_BIN="$BIN_DIR/xphage.exe"
+
+cp "$BUILT_BIN" "$XPHAGE_BIN"
+chmod +x "$XPHAGE_BIN"
+success "Installed xphage → $XPHAGE_BIN"
+
+# ── Clone / update XPM source ─────────────────────────────────
+info "Setting up XPM (X-Phage Package Manager)..."
+XPM_VERSION="${XPM_VERSION:-main}"
+
+if [ -d "$XPM_SRC_DIR/.git" ]; then
+    info "Updating XPM source..."
+    git -C "$XPM_SRC_DIR" fetch --quiet origin
+    git -C "$XPM_SRC_DIR" reset --hard "origin/$XPM_VERSION" --quiet 2>/dev/null || true
+else
+    info "Cloning XPM source..."
+    rm -rf "$XPM_SRC_DIR"
+    git clone --depth=1 --branch "$XPM_VERSION" "$XPM_REPO" "$XPM_SRC_DIR" \
+        2>/dev/null || git clone --depth=1 "$XPM_REPO" "$XPM_SRC_DIR"
+fi
+
+# ── Compile XPM ──────────────────────────────────────────────
+info "Compiling XPM..."
+cd "$XPM_SRC_DIR"
+
+# XPM uses the same build pattern
+if [ -f "scripts/build.sh" ]; then
+    TARGET="$BUILD_TARGET" ARTIFACT_NAME="xpm" bash scripts/build.sh
+    XPM_BUILT=$(find "$XPM_SRC_DIR/bin/$BUILD_TARGET" -type f -name "xpm*" \
+                 ! -name "*.sha256" 2>/dev/null | head -1)
+else
+    # Fallback: compile XPM directly
+    XPM_SOURCES=$(find "$XPM_SRC_DIR/src" -name "*.cpp" 2>/dev/null | tr '\n' ' ')
+    XPM_BIN_OUT="$XPM_SRC_DIR/xpm_built"
+    [[ "$PLATFORM" == "windows" ]] && XPM_BIN_OUT="${XPM_BIN_OUT}.exe"
+    if [ -n "$XPM_SOURCES" ]; then
+        "$CXX" $XPM_SOURCES \
+            -I"$XPM_SRC_DIR/include" \
+            -std=c++17 -O2 -pthread \
+            -o "$XPM_BIN_OUT" 2>/dev/null || true
+        XPM_BUILT="$XPM_BIN_OUT"
+    fi
+fi
+
+XPM_BIN="$BIN_DIR/xpm"
+[[ "$PLATFORM" == "windows" ]] && XPM_BIN="$BIN_DIR/xpm.exe"
+
+if [ -n "${XPM_BUILT:-}" ] && [ -f "${XPM_BUILT}" ]; then
+    cp "$XPM_BUILT" "$XPM_BIN"
+    chmod +x "$XPM_BIN"
+    success "Installed xpm → $XPM_BIN"
+else
+    warn "XPM build failed or binary not found. XPM will not be available yet."
+fi
+
+# ── Write XPM config pointing to registry ─────────────────────
+XPM_CONFIG_DIR="$HOME/.xpm"
+mkdir -p "$XPM_CONFIG_DIR"
+cat > "$XPM_CONFIG_DIR/config.toml" << XPMCFG
+# XPM Configuration — auto-generated by X-Phage installer
+[registry]
+index_url = "https://raw.githubusercontent.com/AeonCoreX-Lab/xpm-registry/main/index"
+api_url   = "https://api.github.com/repos/AeonCoreX-Lab/xpm-registry"
+
+[paths]
+xphage_bin = "$XPHAGE_BIN"
+xpm_home   = "$INSTALL_DIR"
+cache_dir  = "$XPM_CONFIG_DIR/cache"
+XPMCFG
+success "XPM config written → $XPM_CONFIG_DIR/config.toml"
+
+# ── PATH setup ────────────────────────────────────────────────
+setup_path() {
+    local SHELL_RC=""
+    case "${SHELL:-}" in
+        */zsh)  SHELL_RC="$HOME/.zshrc"   ;;
+        */fish) SHELL_RC="$HOME/.config/fish/config.fish" ;;
+        *)      SHELL_RC="$HOME/.bashrc"  ;;
+    esac
+
+    local PATH_LINE=""
+    if [[ "${SHELL:-}" == */fish ]]; then
+        PATH_LINE="fish_add_path $BIN_DIR"
+    else
+        PATH_LINE="export PATH=\"$BIN_DIR:\$PATH\""
+    fi
+
+    local MARKER="# X-Phage tools"
+    if [ -f "$SHELL_RC" ] && grep -q "$MARKER" "$SHELL_RC" 2>/dev/null; then
+        info "PATH already configured in $SHELL_RC"
+    else
+        echo "" >> "$SHELL_RC"
+        echo "$MARKER" >> "$SHELL_RC"
+        echo "$PATH_LINE" >> "$SHELL_RC"
+        success "Added $BIN_DIR to PATH in $SHELL_RC"
+    fi
+}
+
+export PATH="$BIN_DIR:$PATH"
+
+if [[ "$PLATFORM" != "windows" ]]; then
+    setup_path
+else
+    warn "Add $BIN_DIR to your Windows PATH manually."
+fi
+
+# ── Verify installation ───────────────────────────────────────
 echo ""
-echo -e "${G}  xphage is installed now. Great!${NC}"
+info "Verifying installation..."
+
+if "$XPHAGE_BIN" --version &>/dev/null 2>&1; then
+    XPHAGE_VER=$("$XPHAGE_BIN" --version 2>&1 | head -1)
+    success "xphage: $XPHAGE_VER"
+else
+    warn "xphage --version check failed. The binary may still work."
+fi
+
+if [ -f "$XPM_BIN" ]; then
+    if "$XPM_BIN" --version &>/dev/null 2>&1; then
+        XPM_VER=$("$XPM_BIN" --version 2>&1 | head -1)
+        success "xpm: $XPM_VER"
+    else
+        warn "xpm --version check failed. The binary may still work."
+    fi
+fi
+
+# ── Done ─────────────────────────────────────────────────────
 echo ""
-echo -e "  To get started you may need to restart your current shell."
-echo -e "  This would reload your ${C}PATH${NC} environment variable to"
-echo -e "  include X-Phage's bin directory (${C}${BIN_DIR}${NC})."
+echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}${BOLD}  ✔ X-Phage v3.5.0 installed successfully!${NC}"
+echo -e "${GREEN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-if ! [[ ":$PATH:" == *":$BIN_DIR:"* ]]; then
-    echo -e "  To configure your current shell, run:"
-    echo -e "  ${C}source \$HOME/.bashrc${NC}  ${DIM}or${NC}  ${C}source \$HOME/.zshrc${NC}"
+echo -e "  ${BOLD}Installed to:${NC} $BIN_DIR"
+echo -e "  ${BOLD}Source at:${NC}    $SRC_DIR"
+echo ""
+echo -e "  ${BOLD}Quick start:${NC}"
+echo -e "    ${CYAN}xphage --version${NC}"
+echo -e "    ${CYAN}xpm init my-project${NC}"
+echo -e "    ${CYAN}xpm add net-http${NC}"
+echo -e "    ${CYAN}xphage build${NC}"
+echo ""
+echo -e "  ${BOLD}Docs:${NC} https://github.com/AeonCoreX-Lab/X-Phage"
+echo ""
+
+if [[ "$PLATFORM" != "windows" ]]; then
+    echo -e "  ${YELLOW}Reload your shell or run:${NC}"
+    echo -e "    ${CYAN}source ~/.bashrc${NC}   (or ~/.zshrc)"
     echo ""
 fi
-echo -e "  ${DIM}USAGE:${NC}"
-echo -e "  ${C}xphage --version${NC}          Print version info and exit"
-echo -e "  ${C}xphage init${NC}               Create a new project"
-echo -e "  ${C}xphage build${NC}              Build current project"
-echo -e "  ${C}xphage run src/main.xp0${NC}   Run directly"
-echo ""
-echo -e "  ${DIM}PACKAGE MANAGER (XPM):${NC}"
-echo -e "  Install XPM: ${C}curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/XPM/main/scripts/install.sh | bash${NC}"
-echo ""
-echo -e "  ${DIM}https://github.com/${REPO}${NC}"
-echo ""

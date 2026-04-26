@@ -1,4 +1,5 @@
 #include "../../../include/xphage/runtime.hpp"
+#include <iostream>
 #include <fstream>
 #include <sstream>
 

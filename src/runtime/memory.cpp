@@ -20,7 +20,7 @@ void XPhageRuntime::write_global(std::string id, std::string val) {
     std::cout << "\033[1;35m[GLOBAL] 🌍 Universal Registry Updated: " << id << " -> " << val << "\033[0m\n";
 }
 
-MemoryCell XPhageRuntime::read(std::string id) {
+MemoryCell XPhageRuntime::read(std::string id) const {
     // Priority 1: Check Local Memory
     if (cell_map.count(id)) {
         return cell_map[id];

@@ -291,7 +291,12 @@ function compile_smart() {
         echo -e "${CYAN}      Using LLVM Config: $LLVM_CONF (version $LLVM_VERSION)${NC}"
 
         local L_CFLAGS L_LDFLAGS L_LIBS L_SYSLIBS
-        L_CFLAGS=$("$LLVM_CONF" --cxxflags 2>/dev/null || echo "")
+        # Strip -fno-exceptions / -fno-rtti: X-Phage requires exceptions + RTTI.
+        # llvm-config --cxxflags injects these when LLVM itself was built without
+        # them, causing parser.cpp try/catch to fail ("exceptions disabled").
+        L_CFLAGS=$("$LLVM_CONF" --cxxflags 2>/dev/null \
+                   | sed 's/-fno-exceptions//g; s/-fno-rtti//g' \
+                   || echo "")
         L_LDFLAGS=$("$LLVM_CONF" --ldflags 2>/dev/null || echo "")
         L_LIBS=$("$LLVM_CONF" --libs all 2>/dev/null || echo "")
         if [[ "$PLATFORM" == *"Windows"* ]]; then L_SYSLIBS=""
