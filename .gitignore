@@ -1,8 +1,7 @@
 # --- AeonCoreX: X-Phage Project GitIgnore ---
 
 # 1. Compiled Binaries (Executable files)
-bin/
-xphage
+
 *.exe
 *.out
 *.app
