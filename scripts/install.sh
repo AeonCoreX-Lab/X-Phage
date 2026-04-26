@@ -1,195 +1,167 @@
 #!/bin/bash
-# ============================================================
-# 🧬 X-Phage Universal Installer v3.6.0
-# Compiles from source for current platform & architecture.
-# No pre-built binaries downloaded.
-# Requires: git, cmake (≥3.20), a C++17 compiler
-# ============================================================
+# ================================================================
+#  🧬 X-Phage Installer
+#  curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/scripts/install.sh | bash
+# ================================================================
 set -e
 
-GREEN='\033[1;32m'
-CYAN='\033[1;36m'
-YELLOW='\033[1;33m'
-RED='\033[1;31m'
-PURPLE='\033[1;35m'
-NC='\033[0m'
+R='\033[1;31m' G='\033[1;32m' Y='\033[1;33m'
+B='\033[1;34m' P='\033[1;35m' C='\033[1;36m'
+DIM='\033[2m' NC='\033[0m'
 
 REPO="AeonCoreX-Lab/X-Phage"
-REPO_URL="https://github.com/${REPO}.git"
+BIN_DIR="${XPHAGE_HOME:-$HOME/.xphage}/bin"
+TMP_DIR="${TMPDIR:-/tmp}/xphage-install-$$"
+trap 'rm -rf "$TMP_DIR"' EXIT
+mkdir -p "$TMP_DIR"
 
-echo -e "${PURPLE}"
-echo "  _  _  ____  __  __ "
-echo " ( \/ )(  _ \(  \/  )"
-echo "  )  (  )___/ )    ( "
-echo " (_\/\_)(__)  (_/\/_) ${GREEN}v3.6.0${PURPLE}"
+# ── Banner ──────────────────────────────────────────────────────
 echo ""
-echo -e "${CYAN}🧬 X-Phage — Build from Source Installer${NC}"
-echo -e "${YELLOW}   Repository: https://github.com/${REPO}${NC}"
+echo -e "${P}  ██╗  ██╗      ██████╗ ██╗  ██╗ █████╗  ██████╗ ███████╗${NC}"
+echo -e "${P}  ╚██╗██╔╝     ██╔══██╗██║  ██║██╔══██╗██╔════╝ ██╔════╝${NC}"
+echo -e "${P}   ╚███╔╝ █████╗██████╔╝███████║███████║██║  ███╗█████╗  ${NC}"
+echo -e "${P}   ██╔██╗ ╚════╝██╔═══╝ ██╔══██║██╔══██║██║   ██║██╔══╝  ${NC}"
+echo -e "${P}  ██╔╝ ██╗      ██║     ██║  ██║██║  ██║╚██████╔╝███████╗${NC}"
+echo -e "${P}  ╚═╝  ╚═╝      ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝${NC}"
+echo ""
+echo -e "  ${C}The X-Phage Programming Language Installer${NC}"
+echo -e "  ${DIM}https://github.com/${REPO}${NC}"
 echo ""
 
-# ============================================================
-# Platform & architecture detection
-# ============================================================
-OS="$(uname -s 2>/dev/null || echo 'Unknown')"
-ARCH="$(uname -m 2>/dev/null || echo 'x86_64')"
-INSTALL_DIR="/usr/local/bin"
-SUDO="sudo"
-IS_TERMUX=false
+# ── Detect platform ─────────────────────────────────────────────
+_os="" _arch="" _target="" _ext=""
+_uname_s="$(uname -s 2>/dev/null || echo unknown)"
+_uname_m="$(uname -m 2>/dev/null || echo unknown)"
 
 if [ -d "/data/data/com.termux/files/usr" ]; then
-    IS_TERMUX=true
-    INSTALL_DIR="/data/data/com.termux/files/usr/bin"
-    SUDO=""
-    echo -e "📱 Platform: ${GREEN}Termux (Android ${ARCH})${NC}"
-elif [[ "$OS" == "Darwin" ]]; then
-    echo -e "🍎 Platform: ${GREEN}macOS ${ARCH}${NC}"
-elif [[ "$OS" == "Linux" ]]; then
-    DISTRO=""
-    [ -f /etc/os-release ] && DISTRO=$(grep '^PRETTY_NAME=' /etc/os-release \
-        | cut -d= -f2 | tr -d '"')
-    echo -e "🐧 Platform: ${GREEN}Linux ${ARCH}${NC}${DISTRO:+ (${DISTRO})}"
-elif [[ "$OS" == MINGW* || "$OS" == MSYS* || "$OS" == CYGWIN* ]]; then
-    INSTALL_DIR="${USERPROFILE}/AppData/Local/xphage/bin"
-    SUDO=""
-    echo -e "🪟 Platform: ${GREEN}Windows (Git Bash) ${ARCH}${NC}"
+    _os="android"; _arch="arm64"
+    _target="xphage_android_arm64"
+    BIN_DIR="/data/data/com.termux/files/usr/bin"
+
+elif [[ "$_uname_s" == MINGW* || "$_uname_s" == MSYS* || "$_uname_s" == CYGWIN* ]]; then
+    _os="windows"; _ext=".exe"
+    if [[ "$_uname_m" == aarch64 || "$_uname_m" == arm64 ]]; then
+        _arch="arm64"; _target="xphage_windows_arm64"
+    else
+        _arch="x64"; _target="xphage_windows_x64"
+    fi
+    BIN_DIR="${USERPROFILE:-$HOME}/AppData/Local/xphage/bin"
+
+elif [[ "$_uname_s" == "Darwin" ]]; then
+    _os="macos"
+    _target="xphage_mac_universal"
+    [[ "$_uname_m" == "arm64" ]] && _arch="arm64" || _arch="x64"
+
+elif [[ "$_uname_s" == "Linux" ]]; then
+    _os="linux"
+    if [[ "$_uname_m" == aarch64 || "$_uname_m" == arm64 ]]; then
+        _arch="arm64"; _target="xphage_linux_arm64"
+    elif [[ "$_uname_m" == x86_64 ]]; then
+        _arch="x64"; _target="xphage_linux_x64"
+    else
+        echo -e "${R}error:${NC} unsupported architecture: $_uname_m" >&2; exit 1
+    fi
 else
-    echo -e "${RED}✖ Unsupported OS: ${OS}${NC}"; exit 1
+    echo -e "${R}error:${NC} unsupported OS: $_uname_s" >&2; exit 1
 fi
 
-# ============================================================
-# Dependency check
-# ============================================================
+echo -e "${DIM}  Detected: ${_os} ${_arch}${NC}"
 echo ""
-echo -e "${CYAN}[1/5] Checking dependencies...${NC}"
 
-MISSING=()
-for dep in git cmake; do
-    if ! command -v "$dep" &>/dev/null; then MISSING+=("$dep"); fi
-done
+command -v curl &>/dev/null || { echo -e "${R}error:${NC} curl is required" >&2; exit 1; }
 
-# Need a C++17 compiler
-CXX_FOUND=""
-for cxx in clang++ g++ c++; do
-    command -v "$cxx" &>/dev/null && CXX_FOUND="$cxx" && break
-done
-[ -z "$CXX_FOUND" ] && MISSING+=("clang++ or g++")
+# ── Resolve latest release ──────────────────────────────────────
+echo -e "${B}info:${NC}  syncing channel updates for 'stable'"
 
-if [ ${#MISSING[@]} -gt 0 ]; then
-    echo -e "${RED}✖ Missing dependencies: ${MISSING[*]}${NC}"
-    if [[ "$OS" == "Linux" ]] && command -v apt-get &>/dev/null; then
-        echo -e "${YELLOW}  Try: sudo apt-get install -y git cmake clang${NC}"
-    elif [[ "$OS" == "Darwin" ]]; then
-        echo -e "${YELLOW}  Try: brew install git cmake llvm${NC}"
-    elif $IS_TERMUX; then
-        echo -e "${YELLOW}  Try: pkg install git cmake clang${NC}"
-    fi
+_release="$TMP_DIR/release.json"
+curl -sL --max-time 30 \
+    -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/${REPO}/releases/latest" \
+    -o "$_release"
+
+_version=$(grep '"tag_name"' "$_release" | head -1 \
+    | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+
+[ -z "$_version" ] && {
+    echo -e "${R}error:${NC} could not resolve latest version" >&2; exit 1; }
+
+echo -e "${B}info:${NC}  latest stable version is ${G}${_version}${NC}"
+
+# ── Download ────────────────────────────────────────────────────
+_base="https://github.com/${REPO}/releases/download/${_version}"
+_tmp_bin="$TMP_DIR/xphage${_ext}"
+_tmp_sha="$TMP_DIR/xphage.sha256"
+
+echo -e "${B}info:${NC}  downloading xphage ${_version}"
+curl -L --progress-bar --max-time 120 "${_base}/${_target}" -o "$_tmp_bin"
+
+# Detect HTML error page
+if file "$_tmp_bin" 2>/dev/null | grep -qi "HTML\|text"; then
+    echo -e "${R}error:${NC} binary not found for this platform in ${_version}" >&2
+    echo "  Visit: https://github.com/${REPO}/releases" >&2
     exit 1
 fi
 
-CMAKE_VER=$(cmake --version | head -1 | grep -oP '\d+\.\d+' | head -1)
-echo -e "  ✔ cmake ${CMAKE_VER}, ${CXX_FOUND}, git found"
-
-# ============================================================
-# Clone repository
-# ============================================================
-echo ""
-echo -e "${CYAN}[2/5] Cloning X-Phage source...${NC}"
-
-SAFE_TMP="${TMPDIR:-/tmp}"
-CLONE_DIR="${SAFE_TMP}/xphage-src-$$"
-trap "rm -rf '$CLONE_DIR'" EXIT
-
-git clone --depth=1 "$REPO_URL" "$CLONE_DIR"
-echo -e "  ✔ Cloned to ${CLONE_DIR}"
-
-# ============================================================
-# Configure
-# ============================================================
-echo ""
-echo -e "${CYAN}[3/5] Configuring (CMake)...${NC}"
-
-BUILD_DIR="${CLONE_DIR}/build"
-JOBS=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
-
-# Auto-detect LLVM
-LLVM_FLAG="-DXPHAGE_ENABLE_LLVM=ON"
-if ! (cmake --find-package -DNAME=LLVM -DCOMPILER_ID=Clang \
-    -DLANGUAGE=CXX -DMODE=EXIST 2>/dev/null | grep -q "found") && \
-    ! command -v llvm-config &>/dev/null; then
-    echo -e "  ${YELLOW}⚠ LLVM not found — building with Transpiler engine${NC}"
-    LLVM_FLAG="-DXPHAGE_ENABLE_LLVM=OFF"
-fi
-
-cmake -S "$CLONE_DIR" -B "$BUILD_DIR" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-    $LLVM_FLAG \
-    -DXPHAGE_ENABLE_TESTS=OFF \
-    -DXPHAGE_ENABLE_TOOLS=ON
-
-# ============================================================
-# Build
-# ============================================================
-echo ""
-echo -e "${CYAN}[4/5] Building (${JOBS} parallel jobs)...${NC}"
-cmake --build "$BUILD_DIR" --parallel "$JOBS" --config Release
-
-# ============================================================
-# Install
-# ============================================================
-echo ""
-echo -e "${CYAN}[5/5] Installing to ${INSTALL_DIR}...${NC}"
-
-mkdir -p "$INSTALL_DIR" 2>/dev/null || \
-    { [ -n "$SUDO" ] && $SUDO mkdir -p "$INSTALL_DIR"; }
-
-for bin in xphage xphage-fmt xphage-doc xphage-lsp xphage-test; do
-    BIN_PATH="${BUILD_DIR}/${bin}"
-    if [ -f "$BIN_PATH" ]; then
-        if [ -n "$SUDO" ]; then
-            $SUDO install -m 755 "$BIN_PATH" "${INSTALL_DIR}/${bin}"
-        else
-            install -m 755 "$BIN_PATH" "${INSTALL_DIR}/${bin}"
+# ── SHA256 verify ───────────────────────────────────────────────
+echo -e "${B}info:${NC}  verifying checksum for xphage"
+_sha_ok=false
+if curl -sL --max-time 10 "${_base}/${_target}.sha256" -o "$_tmp_sha" 2>/dev/null; then
+    _expected=$(awk '{print $1}' "$_tmp_sha" 2>/dev/null)
+    if [ -n "$_expected" ] && ! echo "$_expected" | grep -qi "not found\|404\|<!"; then
+        if command -v sha256sum &>/dev/null; then
+            _actual=$(sha256sum "$_tmp_bin" | awk '{print $1}')
+        elif command -v shasum &>/dev/null; then
+            _actual=$(shasum -a 256 "$_tmp_bin" | awk '{print $1}')
         fi
-        echo -e "  ✔ Installed: ${INSTALL_DIR}/${bin}"
+        if [ "$_actual" = "$_expected" ]; then _sha_ok=true
+        else
+            echo -e "${R}error:${NC} checksum mismatch — corrupted download" >&2
+            echo "  expected: $_expected" >&2; echo "  got: $_actual" >&2; exit 1
+        fi
+    fi
+fi
+$_sha_ok && echo -e "${B}info:${NC}  checksum verified" \
+          || echo -e "${DIM}  (checksum unavailable, skipped)${NC}"
+
+# ── Install ─────────────────────────────────────────────────────
+echo -e "${B}info:${NC}  installing to ${BIN_DIR}"
+chmod +x "$_tmp_bin"
+mkdir -p "$BIN_DIR"
+cp "$_tmp_bin" "$BIN_DIR/xphage${_ext}"
+
+# ── PATH auto-setup ─────────────────────────────────────────────
+_export_line="export PATH=\"\$PATH:$BIN_DIR\""
+_path_configured=false
+for _rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+    if [ -f "$_rc" ] && ! grep -qF "$BIN_DIR" "$_rc" 2>/dev/null; then
+        { echo ""; echo "# X-Phage"; echo "$_export_line"; } >> "$_rc"
+        _path_configured=true; break
+    elif [ -f "$_rc" ] && grep -qF "$BIN_DIR" "$_rc" 2>/dev/null; then
+        _path_configured=true; break
     fi
 done
 
-# Install stdlib
-STDLIB_DEST="/usr/local/share/xphage"
-$IS_TERMUX && STDLIB_DEST="/data/data/com.termux/files/usr/share/xphage"
-[ -n "$SUDO" ] && $SUDO mkdir -p "$STDLIB_DEST" || mkdir -p "$STDLIB_DEST"
-if [ -n "$SUDO" ]; then
-    $SUDO cp -r "$CLONE_DIR/library" "$STDLIB_DEST/"
-else
-    cp -r "$CLONE_DIR/library" "$STDLIB_DEST/"
-fi
-echo -e "  ✔ Stdlib installed: ${STDLIB_DEST}/library"
-
-# ============================================================
-# PATH hint for Termux / Windows Git Bash
-# ============================================================
-if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
+# ── Done ────────────────────────────────────────────────────────
+echo ""
+echo -e "${G}  xphage is installed now. Great!${NC}"
+echo ""
+echo -e "  To get started you may need to restart your current shell."
+echo -e "  This would reload your ${C}PATH${NC} environment variable to"
+echo -e "  include X-Phage's bin directory (${C}${BIN_DIR}${NC})."
+echo ""
+if ! [[ ":$PATH:" == *":$BIN_DIR:"* ]]; then
+    echo -e "  To configure your current shell, run:"
+    echo -e "  ${C}source \$HOME/.bashrc${NC}  ${DIM}or${NC}  ${C}source \$HOME/.zshrc${NC}"
     echo ""
-    echo -e "${YELLOW}⚠ Add to PATH:${NC}"
-    echo -e "   export PATH=\"\$PATH:${INSTALL_DIR}\""
-    echo -e "   (Add to ~/.bashrc or ~/.zshrc)"
 fi
-
-# ============================================================
-# Done
-# ============================================================
+echo -e "  ${DIM}USAGE:${NC}"
+echo -e "  ${C}xphage --version${NC}          Print version info and exit"
+echo -e "  ${C}xphage init${NC}               Create a new project"
+echo -e "  ${C}xphage build${NC}              Build current project"
+echo -e "  ${C}xphage run src/main.xp0${NC}   Run directly"
 echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  ✅ X-Phage installed from source!       ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+echo -e "  ${DIM}PACKAGE MANAGER (XPM):${NC}"
+echo -e "  Install XPM: ${C}curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/XPM/main/scripts/install.sh | bash${NC}"
 echo ""
-echo -e "  Platform : ${CYAN}${OS} ${ARCH}${NC}"
-echo -e "  Compiler : ${CYAN}${CXX_FOUND}${NC}"
+echo -e "  ${DIM}https://github.com/${REPO}${NC}"
 echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo -e "  ${CYAN}xphage --version${NC}    Check installation"
-echo -e "  ${CYAN}xphage init${NC}         Create a new project"
-echo -e "  ${CYAN}xphage${NC}              Start interactive REPL"
-echo ""
-echo -e "${PURPLE}Docs: https://github.com/${REPO}#readme${NC}"
