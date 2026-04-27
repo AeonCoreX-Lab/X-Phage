@@ -131,7 +131,23 @@ function generate_sha256() {
 function compile_transpiler() {
     local PLATFORM=$1; local OUTPUT=$2; local FLAGS=$3; local COMPILER=$4
     echo -e "${CYAN}   -> Building with Titan Transpiler Engine...${NC}"
-    "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS
+
+    # Windows ARM64: clang must target MSVC ABI and link against MSVC CRT.
+    # Without --target and /MD the CRT symbols (memmove, cout, etc.) are missing.
+    if [[ "$PLATFORM" == *"ARM64"* || "$PLATFORM" == *"arm64"* ]] &&        [[ "$PLATFORM" == *"Win"* || "$PLATFORM" == *"win"* || "$TARGET" == "windows-arm64" ]]; then
+        local MSVC_EXTRA_LIBS=()
+        if [ -n "${LIB:-}" ]; then
+            IFS=';'  read -ra WIN_LIBS <<< "$LIB"
+            for lib in "${WIN_LIBS[@]}"; do
+                [ -z "$lib" ] && continue
+                local bash_lib; bash_lib=$(echo "$lib" | sed 's|\\|/|g' | sed 's|^\([A-Za-z]\):|/\L\1|')
+                MSVC_EXTRA_LIBS+=(-L"$bash_lib")
+            done
+        fi
+        "$COMPILER" $SOURCES $INCLUDES             --target=aarch64-pc-windows-msvc             -std=c++17 -O2             -D_MT -D_DLL             "${MSVC_EXTRA_LIBS[@]}"             -lmsvcrt -lvcruntime -lucrt             -lkernel32 -luser32             -Wno-unused-command-line-argument             -o "$OUTPUT"
+    else
+        "$COMPILER" $SOURCES $INCLUDES -o "$OUTPUT" $FLAGS
+    fi
     echo -e "${GREEN}✔ $PLATFORM (Transpiler Mode) Build Success${NC}"
 }
 

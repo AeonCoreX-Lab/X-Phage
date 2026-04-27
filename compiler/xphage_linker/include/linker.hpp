@@ -6,7 +6,7 @@
 //   • Resolve ~link directives to .xh files on disk
 //   • Parse .xh files: globals, #defines, ~hook, pulse stubs
 //   • Trigger GPU/NPU hooks when hardware decorators are found
-//   • Auto-fetch missing modules via XPM_Cloud
+//   • Auto-fetch missing modules via xpm CLI
 // ============================================================
 #include "xphage/runtime.hpp"
 #include <string>

@@ -9,10 +9,6 @@
  * Features: Global Registry, Hardware Hooks, Cloud Sync
  */
 
-namespace XPM_Cloud {
-    bool sync_module(std::string module_name);
-}
-
 void XPhageLinker::link_library(std::string lib_name, XPhageRuntime& runtime) {
     
     std::string clean_name = lib_name.substr(0, lib_name.find("."));
@@ -35,16 +31,11 @@ void XPhageLinker::link_library(std::string lib_name, XPhageRuntime& runtime) {
         file.open(path);
     }
 
-    // Priority 4: XPM Cloud Auto-Fetch
+    // Priority 4: Module not found — tell user to install via xpm
     if (!file.is_open()) {
-        std::cout << "\033[1;33m[LINKER] ⚠️ Module '" << lib_name << "' not found locally.\033[0m\n";
-        if (XPM_Cloud::sync_module(clean_name)) {
-            path = "modules/" + clean_name + "/" + lib_name;
-            file.open(path);
-        } else {
-            std::cerr << "\033[1;31m[SYS PANIC] ⛔ Module resolution failed for: " << lib_name << "\033[0m\n";
-            return;
-        }
+        std::cerr << "\033[1;31m[LINKER] ⛔ Module '" << lib_name << "' not found.\033[0m\n";
+        std::cerr << "  Run: \033[1;36mxpm add " << clean_name << "\033[0m\n";
+        return;
     }
 
     std::cout << "\033[1;34m[LINKER] 🔗 Resolving Neural Pathways from: " << lib_name << "\033[0m\n";

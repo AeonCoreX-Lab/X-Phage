@@ -6,7 +6,7 @@
 //   • xphage::interface::compile()
 //   • xphage::interface::run_file()
 //   • xphage::interface::start_repl()
-//   • XPM_Cloud package management
+//   • Package management via xpm CLI (separate tool)
 // ============================================================
 #include "xphage/runtime.hpp"
 #include <string>
