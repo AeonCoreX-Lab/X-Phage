@@ -1,0 +1,43 @@
+# ==============================================================================
+# XPhage Language Core Ecosystem - Official CODEOWNERS
+# Owner: AeonCoreX Lab
+# Main Lead Developer: @cybernahid-dev
+# ==============================================================================
+
+*                                                 @cybernahid-dev
+
+# ------------------------------------------------------------------------------
+# CORE COMPILER DIRECTORIES (Strictly Controlled by Lead Developer)
+# ------------------------------------------------------------------------------
+
+/compiler/xphage_ast/                             @cybernahid-dev
+/compiler/xphage_codegen_llvm/                    @cybernahid-dev
+/compiler/xphage_codegen_transpiler/              @cybernahid-dev
+/compiler/xphage_driver/                          @cybernahid-dev
+/compiler/xphage_interface/                       @cybernahid-dev
+/compiler/xphage_lexer/                           @cybernahid-dev
+/compiler/xphage_linker/                          @cybernahid-dev
+/compiler/xphage_middle/                          @cybernahid-dev
+/compiler/xphage_parse/                           @cybernahid-dev
+
+# ------------------------------------------------------------------------------
+# PROJECT INFRASTRUCTURE & ROOT DIRECTORIES
+# ------------------------------------------------------------------------------
+
+/.github/                                         @cybernahid-dev
+/scripts/                                         @cybernahid-dev
+/tools/                                           @cybernahid-dev
+/include/                                         @cybernahid-dev
+/src/                                             @cybernahid-dev
+
+# ------------------------------------------------------------------------------
+# ECOSYSTEM & COMMUNITY DELEGATION (Future Maintainers Option)
+# ------------------------------------------------------------------------------
+
+
+/library/                                         @cybernahid-dev @future-maintainer-lib
+/docs/                                            @cybernahid-dev @future-maintainer-docs
+/examples/                                        @cybernahid-dev @future-maintainer-community
+/samples/                                         @cybernahid-dev @future-maintainer-community
+/tests/                                           @cybernahid-dev @future-maintainer-tests
+/assets/                                          @cybernahid-dev @future-maintainer-assets
