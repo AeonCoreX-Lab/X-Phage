@@ -1,0 +1,99 @@
+# ============================================================
+# X-Phage CI v4.0.0
+# Builds + tests on Linux, macOS, Windows
+# Note: macos-latest used (macos-13 runner retired)
+# ============================================================
+name: X-Phage CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-linux:
+    name: Linux (x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ ninja-build
+      - name: Build
+        run: bash scripts/build.sh --jobs 4
+      - name: Run tests
+        run: |
+          cd build && ctest --output-on-failure
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: xphage-linux-x86_64
+          path: build/xphage
+
+  build-macos:
+    name: macOS (arm64 + x86_64)
+    runs-on: macos-latest    # macos-13 retired; use macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: brew install cmake ninja
+      - name: Build (${{ matrix.arch }})
+        run: |
+          LLVM_CXXFLAGS=$(llvm-config --cxxflags 2>/dev/null | \
+            sed 's/-fno-exceptions//g; s/-fno-rtti//g' || true)
+          export CXXFLAGS="$LLVM_CXXFLAGS"
+          bash scripts/build.sh --${{ matrix.arch }} --jobs 4
+      - name: Run tests
+        run: cd build && ctest --output-on-failure
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: xphage-macos-${{ matrix.arch }}
+          path: build/xphage
+
+  build-windows:
+    name: Windows (x86_64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel 4
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: xphage-windows-x86_64
+          path: build/Release/xphage.exe
+
+  build-llvm-ubuntu:
+    name: Phase 4 — LLVM Backend (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM 17 + deps
+        run: |
+          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 17
+          sudo apt-get install -y llvm-17-dev cmake g++ ninja-build
+      - name: Build with LLVM
+        run: bash scripts/build_llvm.sh --jobs 4
+      - name: Run LLVM tests
+        run: cd build_llvm && ctest -R LLVM --output-on-failure
+      - name: Phase 4 smoke test
+        run: |
+          echo 'beam "LLVM OK"\natom x: int = 21\nbeam f"2x={x*2}"' > /tmp/p4.xp0
+          ./build_llvm/xphage --backend=llvm /tmp/p4.xp0
+      - name: Upload LLVM binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: xphage-llvm-linux-x86_64
+          path: build_llvm/xphage

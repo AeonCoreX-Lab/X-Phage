@@ -1,0 +1,1 @@
+forge AppConfig { host: str = "localhost"   port: int = 8080 }

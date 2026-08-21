@@ -1,0 +1,14 @@
+flux event_count: int = 0
+flux last_event: str  = ""
+absorb "login"    { beam f"login: {last_event}" }
+absorb "purchase" {
+    event_count = event_count + 1
+    beam f"purchase: {last_event}"
+}
+last_event = "nahid"
+emit "login" {}
+last_event = "book"
+emit "purchase" {}
+last_event = "pen"
+emit "purchase" {}
+beam f"total={event_count}"

@@ -1,0 +1,4 @@
+// X-Phage v4.0.0 — Hello World (Phase 1)
+beam "Hello, X-Phage!"
+atom name: str = "AeonCoreX"
+beam f"Welcome to {name}!"

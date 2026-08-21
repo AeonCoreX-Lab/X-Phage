@@ -1,0 +1,128 @@
+// ============================================================
+// X-Phage Standard Library — Collections Module v4.0.0
+// ~link "collections"
+// ============================================================
+
+// ── Option<T> — replaces null ─────────────────────────────────
+forge Option {
+    has_value: bool = false
+    _data:     str  = ""
+    _type:     str  = "auto"
+}
+pulse option_some(value: auto) -> Option
+pulse option_none() -> Option
+pulse option_is_some(o: Option) -> bool
+pulse option_is_none(o: Option) -> bool
+pulse option_unwrap(o: Option) -> auto
+pulse option_unwrap_or(o: Option, default: auto) -> auto
+pulse option_map(o: Option, f: auto) -> Option
+
+// ── Result<T,E> — expected-error propagation ──────────────────
+forge Result {
+    ok:    bool = false
+    value: str  = ""
+    error: str  = ""
+}
+pulse result_ok(value: auto) -> Result
+pulse result_err(msg: str) -> Result
+pulse result_is_ok(r: Result) -> bool
+pulse result_is_err(r: Result) -> bool
+pulse result_unwrap(r: Result) -> auto
+pulse result_unwrap_err(r: Result) -> str
+pulse result_unwrap_or(r: Result, default: auto) -> auto
+pulse result_map(r: Result, f: auto) -> Result
+
+// ── Vec — dynamic array ───────────────────────────────────────
+// Until generics land (Phase 6), items are stored as strings internally
+pulse vec_new() -> str                         // returns handle
+pulse vec_push(v: str, item: auto) -> str
+pulse vec_pop(v: str) -> str                   // returns (new_v, item) pair
+pulse vec_get(v: str, i: int) -> str           // supports negative index (-1 = last)
+pulse vec_set(v: str, i: int, val: auto) -> str
+pulse vec_size(v: str) -> int
+pulse vec_len(v: str) -> int                   // alias of vec_size
+pulse vec_is_empty(v: str) -> bool
+pulse vec_first(v: str) -> str
+pulse vec_last(v: str) -> str
+pulse vec_remove(v: str, i: int) -> str
+pulse vec_remove_item(v: str, item: auto) -> str
+pulse vec_insert(v: str, i: int, item: auto) -> str
+pulse vec_contains(v: str, item: auto) -> bool
+pulse vec_index_of(v: str, item: auto) -> int  // -1 if not found
+pulse vec_reverse(v: str) -> str
+pulse vec_sort(v: str) -> str
+pulse vec_sort_by(v: str, cmp: auto) -> str
+pulse vec_filter(v: str, pred: auto) -> str
+pulse vec_map(v: str, f: auto) -> str
+pulse vec_reduce(v: str, init: auto, f: auto) -> auto
+pulse vec_each(v: str, f: auto) -> void
+pulse vec_flat(v: str) -> str
+pulse vec_unique(v: str) -> str
+pulse vec_slice(v: str, start: int, end: int) -> str
+pulse vec_concat(a: str, b: str) -> str
+pulse vec_join(v: str, sep: str) -> str
+pulse vec_zip(a: str, b: str) -> str           // → newline-separated "a_i:b_i" pairs
+pulse vec_enumerate(v: str) -> str             // → newline-separated "i:item" pairs
+pulse vec_sum(v: str) -> float                 // numeric vecs
+pulse vec_min(v: str) -> float
+pulse vec_max(v: str) -> float
+pulse vec_avg(v: str) -> float
+pulse vec_from_str(csv: str, delim: str) -> str // "a,b,c" → vec
+
+// ── Map — string key → string value ──────────────────────────
+pulse map_new() -> str
+pulse map_set(m: str, key: str, val: auto) -> str
+pulse map_get(m: str, key: str) -> str
+pulse map_get_or(m: str, key: str, default: str) -> str
+pulse map_has(m: str, key: str) -> bool
+pulse map_remove(m: str, key: str) -> str
+pulse map_keys(m: str) -> str                  // newline-separated keys
+pulse map_values(m: str) -> str                // newline-separated values
+pulse map_size(m: str) -> int
+pulse map_is_empty(m: str) -> bool
+pulse map_merge(a: str, b: str) -> str
+pulse map_from_pairs(csv: str) -> str          // "k1=v1\nk2=v2" → map
+
+// ── Set ───────────────────────────────────────────────────────
+pulse set_new() -> str
+pulse set_add(s: str, item: auto) -> str
+pulse set_remove(s: str, item: auto) -> str
+pulse set_contains(s: str, item: auto) -> bool
+pulse set_size(s: str) -> int
+pulse set_union(a: str, b: str) -> str
+pulse set_intersect(a: str, b: str) -> str
+pulse set_diff(a: str, b: str) -> str          // items in a not in b
+pulse set_to_vec(s: str) -> str
+pulse set_from_vec(v: str) -> str
+
+// ── Queue (FIFO) ──────────────────────────────────────────────
+pulse queue_new() -> str
+pulse queue_push(q: str, item: auto) -> str
+pulse queue_pop(q: str) -> str                 // returns new_q (front removed)
+pulse queue_peek(q: str) -> str                // front item
+pulse queue_size(q: str) -> int
+pulse queue_is_empty(q: str) -> bool
+
+// ── Stack (LIFO) ──────────────────────────────────────────────
+pulse stack_new() -> str
+pulse stack_push(s: str, item: auto) -> str
+pulse stack_pop(s: str) -> str                 // returns new_s (top removed)
+pulse stack_peek(s: str) -> str                // top item
+pulse stack_size(s: str) -> int
+pulse stack_is_empty(s: str) -> bool
+
+// ── Range / iterator helpers ──────────────────────────────────
+pulse range(start: int, end: int) -> str       // newline-separated integers
+pulse range_step(start: int, end: int, step: int) -> str
+pulse range_float(start: float, end: float, step: float) -> str
+
+// ── Functional helpers ────────────────────────────────────────
+pulse zip(a: str, b: str) -> str               // → "a_0:b_0\na_1:b_1\n..."
+pulse enumerate(v: str) -> str                 // → "0:item0\n1:item1\n..."
+pulse flatten(v: str) -> str                   // nested newlines → single level
+pulse partition(v: str, pred: auto) -> str     // → "true_items||false_items"
+pulse take(v: str, n: int) -> str
+pulse drop(v: str, n: int) -> str
+pulse take_while(v: str, pred: auto) -> str
+pulse drop_while(v: str, pred: auto) -> str
+pulse chunk(v: str, size: int) -> str          // split into groups of size

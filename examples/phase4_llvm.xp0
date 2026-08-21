@@ -1,0 +1,60 @@
+// X-Phage Phase 4 — LLVM Native Backend Demo
+// Compile: xphage --backend=llvm phase4_llvm.xp0
+// Emit IR:  xphage --emit=llvm phase4_llvm.xp0
+// Emit obj: xphage --emit=obj  phase4_llvm.xp0
+
+beam "X-Phage Phase 4 — LLVM Native Backend"
+beam "No C++ intermediate. Direct AST → LLVM IR → binary."
+
+// Pure numeric computation — LLVM can fully optimise this
+pulse fib(n: int) -> int {
+    if n <= 1 { return n }
+    shadow a: int = 0
+    shadow b: int = 1
+    for i in 2..n {
+        shadow t: int = a + b
+        a = b
+        b = t
+    }
+    return b
+}
+
+pulse is_prime(n: int) -> bool {
+    if n < 2  { return false }
+    if n == 2 { return true }
+    for i in 2..n {
+        if n % i == 0 { return false }
+    }
+    return true
+}
+
+// Fibonacci sequence
+beam "Fibonacci:"
+for i in 0..10 {
+    beam f"  fib({i}) = {fib(i)}"
+}
+
+// Prime checker
+beam "Primes < 20:"
+for n in 2..20 {
+    if is_prime(n) {
+        beam f"  {n} is prime"
+    }
+}
+
+// Float arithmetic  
+atom pi: float = 3.14159265358979
+atom r:  float = 5.0
+atom area = pi * r * r
+beam f"Circle area (r={r}): {area}"
+
+// Nested control flow
+shadow total: int = 0
+for i in 1..6 {
+    for j in 1..6 {
+        if i * j > 10 {
+            total = total + 1
+        }
+    }
+}
+beam f"Pairs where i*j > 10: {total}"

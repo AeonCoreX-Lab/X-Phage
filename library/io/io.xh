@@ -1,0 +1,55 @@
+// ============================================================
+// X-Phage Standard Library — IO Module v4.0.0
+// ~link "io"
+// ============================================================
+
+// ── File I/O ─────────────────────────────────────────────────
+pulse io_read(path: str) -> str
+pulse io_write(path: str, content: str) -> bool
+pulse io_append(path: str, content: str) -> bool
+pulse io_exists(path: str) -> bool
+pulse io_delete(path: str) -> bool
+pulse io_mkdir(path: str) -> bool
+pulse io_mkdir_all(path: str) -> bool
+pulse io_copy(src: str, dst: str) -> bool
+pulse io_move(src: str, dst: str) -> bool
+pulse io_size(path: str) -> int
+pulse io_list_dir(path: str) -> str      // newline-separated entries
+pulse io_is_dir(path: str) -> bool
+pulse io_is_file(path: str) -> bool
+
+// ── Console I/O ───────────────────────────────────────────────
+pulse print(msg: str) -> void            // no newline
+pulse println(msg: str) -> void          // with newline (alias of beam)
+pulse eprint(msg: str) -> void           // stderr, no newline
+pulse eprintln(msg: str) -> void         // stderr, with newline
+pulse input(prompt: str) -> str          // prompt + read line
+
+// ── Path utilities ────────────────────────────────────────────
+pulse path_join(a: str, b: str) -> str
+pulse path_join3(a: str, b: str, c: str) -> str
+pulse path_basename(p: str) -> str       // last component
+pulse path_dirname(p: str) -> str        // parent directory
+pulse path_extension(p: str) -> str      // ".xp0" etc.
+pulse path_stem(p: str) -> str           // basename without extension
+pulse path_absolute(p: str) -> str       // resolve to absolute path
+pulse path_normalize(p: str) -> str      // remove ./ ../ etc.
+
+// ── proc / env / glob are built-in keywords ───────────────────
+// atom output = proc "git log --oneline -5"
+// atom home   = env.HOME
+// atom files  = glob "src/*.xh"
+
+// ── Environment helpers ───────────────────────────────────────
+pulse env_get(key: str) -> str
+pulse env_set(key: str, val: str) -> void
+pulse env_has(key: str) -> bool
+
+// ── Buffered read/write ───────────────────────────────────────
+pulse io_read_lines(path: str) -> str    // newline-separated lines
+pulse io_read_bytes(path: str) -> str    // raw bytes as str
+pulse io_write_bytes(path: str, data: str) -> bool
+
+// ── Temp files ────────────────────────────────────────────────
+pulse io_temp_file() -> str              // path to new temp file
+pulse io_temp_dir() -> str              // system temp directory

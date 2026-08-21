@@ -1,0 +1,7 @@
+forge Server { host: str = ""   port: int = 0 }
+pulse make_server(h: str, p: int) -> Server {
+    return spawn Server { host: h   port: p }
+}
+pulse server_str(s: Server) -> str {
+    return f"{s.host}:{s.port}"
+}

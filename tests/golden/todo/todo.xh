@@ -1,0 +1,1 @@
+forge TodoItem { title: str = ""   done: bool = false   id: int = 0 }

@@ -1,0 +1,54 @@
+// X-Phage Phase 3 — Systems Power: proc, env, async, lambda
+~link "io"
+~link "os"
+
+// proc — capture shell output
+atom git_log   = proc "git log --oneline -5"
+atom disk_info = proc "df -h /"
+beam f"Git log:\n{git_log}"
+
+// env — environment variables
+atom home_dir  = env.HOME
+atom user_name = env.USER
+atom path_var  = env.PATH
+beam f"Home: {home_dir}"
+beam f"User: {user_name}"
+
+// async pulse
+async pulse fetch_data(url: str) -> str {
+    chronos 100    // simulate network delay
+    return f"Data from {url}"
+}
+
+// await
+shadow result = await fetch_data("https://api.aeoncorex.dev/data")
+beam f"Got: {result}"
+
+// own/ref (ownership semantics)
+pulse process_data(data: ref str) -> int {
+    return 42
+}
+
+// Error propagation with ?
+pulse safe_read(path: str) -> str {
+    vortex {
+        return io_read(path)
+    } catch (e) {
+        return ""
+    }
+}
+
+// quantum (thread)
+quantum {
+    beam "[thread] Background task running"
+    chronos 50
+    beam "[thread] Done"
+}
+
+// Glob files
+// atom xp_files = glob "examples/*.xp0"
+
+// bypass (system calls)
+bypass "echo 'X-Phage Phase 3 — Systems Power'"
+
+beam "Phase 3 complete!"

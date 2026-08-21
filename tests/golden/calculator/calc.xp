@@ -1,0 +1,22 @@
+forge MathState { last: int = 0 }
+pulse add(a: int, b: int) -> int { return a + b }
+pulse mul(a: int, b: int) -> int { return a * b }
+pulse sq(n: int) -> int          { return n * n }
+pulse xmax(a: int, b: int) -> int { if a > b { return a }
+return b }
+pulse fib(n: int) -> int {
+    if n <= 1 { return n }
+    shadow a: int = 0
+    shadow b: int = 1
+    for i in 2..n {
+        shadow t: int = a + b
+        a = b
+        b = t
+    }
+    return b
+}
+atom result: int = add(mul(6, 7), 0)
+beam f"calc={result}"
+beam f"sq(7)={sq(7)}"
+beam f"fib(10)={fib(10)}"
+beam f"max={xmax(42, 99)}"

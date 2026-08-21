@@ -1,0 +1,10 @@
+pulse compute(n: int) -> int { return n * n + 1 }
+forge Result { val: int = 0   label: str = "" }
+atom r = spawn Result { val: compute(7)   label: "squared" }
+flux counter: int = 0
+const LIMIT: int = 100
+counter = 5
+beam f"val={r.val}"
+beam f"label={r.label}"
+beam f"counter={counter}"
+beam f"limit={LIMIT}"

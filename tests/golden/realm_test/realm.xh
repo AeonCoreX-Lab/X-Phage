@@ -1,0 +1,27 @@
+realm Geometry {
+    const PI: float = 3.14159
+
+    forge Vector2 {
+        x: float = 0.0
+        y: float = 0.0
+    }
+
+    pulse length_sq(v: Geometry::Vector2) -> float {
+        return v.x * v.x + v.y * v.y
+    }
+
+    pulse circle_area(r: float) -> float {
+        return PI * r * r
+    }
+}
+
+realm App {
+    realm Models {
+        forge User { name: str = ""   score: int = 0 }
+    }
+
+    pulse rank(u: App::Models::User) -> str {
+        if u.score >= 100 { return "champion" }
+        return "player"
+    }
+}

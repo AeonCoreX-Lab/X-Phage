@@ -1,0 +1,1 @@
+forge MathState { last: int = 0 }

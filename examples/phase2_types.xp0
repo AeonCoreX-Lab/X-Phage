@@ -1,0 +1,74 @@
+// X-Phage Phase 2 — Types, Events, Reactive State
+~link "collections"
+
+// forge (struct)
+forge User {
+    name:  str = ""
+    email: str = ""
+    score: int = 0
+    admin: bool = false
+}
+
+// nexus (interface/trait)
+nexus Printable {
+    describe() -> str
+}
+
+// flux (reactive state)
+flux counter: int = 0
+flux username: str = "Guest"
+
+// impl (implement nexus for forge)
+impl Printable for User {
+    pulse describe() -> str {
+        return f"User({self.name}, score={self.score})"
+    }
+}
+
+// spawn + use
+shadow alice = spawn User {
+    name:  "Alice"
+    email: "alice@aeoncorex.dev"
+    score: 100
+    admin: true
+}
+beam f"User: {alice.name}"
+beam f"Score: {alice.score}"
+
+// probe/diverge (match expression)
+shadow status = "ok"
+probe status {
+    diverge "ok"    -> beam "System healthy"
+    diverge "error" -> beam "System error!"
+    diverge _       -> beam "Unknown status"
+}
+
+// emit/absorb (event bus)
+absorb "login" {
+    beam "User login event received"
+}
+absorb "score_update" {
+    beam "Score updated!"
+}
+
+emit "login"        { user: "alice" }
+emit "score_update" { user: "alice" value: "150" }
+
+// flux triggers
+counter = 42
+beam f"Counter is now: {counter}"
+username = "Alice"
+beam f"Welcome {username}!"
+
+// lambda
+atom double = |x: int| x * 2
+atom triple = |x: int| x * 3
+beam f"double(7) = {double(7)}"
+beam f"triple(7) = {triple(7)}"
+
+// Pipeline + lambda
+// atom nums = range(1, 6) |> vec_map(|x: int| x * x)
+
+// cast
+shadow pi_int = cast(3.14, int)
+beam f"Pi as int: {pi_int}"

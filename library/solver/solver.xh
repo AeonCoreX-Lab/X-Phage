@@ -1,0 +1,25 @@
+// ============================================================
+// X-Phage Standard Library — Solver Module v4.0.0
+// ~link "solver"
+//
+// STATUS: Phase 10 (long-term roadmap item). Not yet implemented.
+// This module exists so `~link "solver"` resolves and the
+// `solve { find: ... subject_to { ... } minimize: ... }`
+// syntax has a documented home, matching the language book's
+// Chapter 22. The book itself describes this as "the most
+// distant feature on the entire roadmap" — present for design
+// record, not because an implementation is imminent.
+//
+// A real implementation requires a constraint-solving engine
+// (SAT/SMT or branch-and-bound) integrated with the `solve {}`
+// compiler syntax — this is a research-level subsystem, not a
+// straightforward stdlib wrapper like math/string/io.
+// ============================================================
+
+// Placeholder signature — calling this from a real program will
+// link but always returns a Result indicating "not implemented",
+// until Phase 10 lands.
+forge SolveResult {
+    success: bool = false
+    error:   str  = "solver module not yet implemented (Phase 10)"
+}

@@ -1,0 +1,134 @@
+// ============================================================
+// X-Phage Standard Library — Math Module v4.0.0
+// ~link "math"
+// ============================================================
+
+// ── Constants ─────────────────────────────────────────────────
+atom PI:  float = 3.14159265358979323846
+atom E:   float = 2.71828182845904523536
+atom TAU: float = 6.28318530717958647692
+atom PHI: float = 1.61803398874989484820   // golden ratio
+atom INF: float = 1e308
+atom NAN: float = 0.0                       // use nan_check() to test
+
+// ── Basic ─────────────────────────────────────────────────────
+pulse sqrt(x: float) -> float
+pulse cbrt(x: float) -> float
+pulse pow(base: float, exp: float) -> float
+pulse exp(x: float) -> float
+pulse exp2(x: float) -> float
+pulse log(x: float) -> float
+pulse log2(x: float) -> float
+pulse log10(x: float) -> float
+pulse abs(x: float) -> float
+pulse sign(x: float) -> float              // -1.0, 0.0, or 1.0
+pulse floor(x: float) -> float
+pulse ceil(x: float) -> float
+pulse round(x: float) -> float
+pulse trunc(x: float) -> float
+pulse fract(x: float) -> float             // fractional part
+
+// ── Trig ──────────────────────────────────────────────────────
+pulse sin(x: float) -> float
+pulse cos(x: float) -> float
+pulse tan(x: float) -> float
+pulse asin(x: float) -> float
+pulse acos(x: float) -> float
+pulse atan(x: float) -> float
+pulse atan2(y: float, x: float) -> float
+pulse sinh(x: float) -> float
+pulse cosh(x: float) -> float
+pulse tanh(x: float) -> float
+pulse to_rad(deg: float) -> float          // degrees → radians
+pulse to_deg(rad: float) -> float          // radians → degrees
+
+// ── Integer math ──────────────────────────────────────────────
+pulse min(a: int, b: int) -> int
+pulse max(a: int, b: int) -> int
+pulse clamp(v: int, lo: int, hi: int) -> int
+pulse minf(a: float, b: float) -> float
+pulse maxf(a: float, b: float) -> float
+pulse clampf(v: float, lo: float, hi: float) -> float
+pulse gcd(a: int, b: int) -> int
+pulse lcm(a: int, b: int) -> int
+
+// ── Interpolation ─────────────────────────────────────────────
+pulse lerp(a: float, b: float, t: float) -> float
+pulse lerp_clamp(a: float, b: float, t: float) -> float
+pulse smoothstep(edge0: float, edge1: float, x: float) -> float
+pulse smootherstep(edge0: float, edge1: float, x: float) -> float
+pulse map_range(v: float, in_lo: float, in_hi: float, out_lo: float, out_hi: float) -> float
+pulse bezier3(p0: float, p1: float, p2: float, t: float) -> float
+pulse bezier4(p0: float, p1: float, p2: float, p3: float, t: float) -> float
+
+// ── Random ────────────────────────────────────────────────────
+pulse rand() -> float                      // 0.0 .. 1.0
+pulse rand_int(lo: int, hi: int) -> int    // inclusive range
+pulse rand_float(lo: float, hi: float) -> float
+pulse rand_bool() -> bool
+pulse rand_gaussian(mean: float, std: float) -> float
+pulse rand_seed(seed: int) -> void
+
+// ── Statistics ────────────────────────────────────────────────
+// Takes comma-separated number strings until generics land (Phase 6)
+pulse mean_list(csv: str) -> float
+pulse median_list(csv: str) -> float
+pulse stddev_list(csv: str) -> float
+pulse variance_list(csv: str) -> float
+pulse sum_list(csv: str) -> float
+pulse min_list(csv: str) -> float
+pulse max_list(csv: str) -> float
+
+// ── 2D / 3D Vector math ───────────────────────────────────────
+forge Vec2 { x: float = 0.0   y: float = 0.0 }
+forge Vec3 { x: float = 0.0   y: float = 0.0   z: float = 0.0 }
+forge Vec4 { x: float = 0.0   y: float = 0.0   z: float = 0.0   w: float = 0.0 }
+
+pulse vec2_add(a: Vec2, b: Vec2) -> Vec2
+pulse vec2_sub(a: Vec2, b: Vec2) -> Vec2
+pulse vec2_scale(v: Vec2, s: float) -> Vec2
+pulse vec2_dot(a: Vec2, b: Vec2) -> float
+pulse vec2_length(v: Vec2) -> float
+pulse vec2_length_sq(v: Vec2) -> float
+pulse vec2_normalize(v: Vec2) -> Vec2
+pulse vec2_lerp(a: Vec2, b: Vec2, t: float) -> Vec2
+pulse vec2_distance(a: Vec2, b: Vec2) -> float
+pulse vec2_perp(v: Vec2) -> Vec2
+pulse vec2_angle(v: Vec2) -> float
+
+pulse vec3_add(a: Vec3, b: Vec3) -> Vec3
+pulse vec3_sub(a: Vec3, b: Vec3) -> Vec3
+pulse vec3_scale(v: Vec3, s: float) -> Vec3
+pulse vec3_dot(a: Vec3, b: Vec3) -> float
+pulse vec3_cross(a: Vec3, b: Vec3) -> Vec3
+pulse vec3_length(v: Vec3) -> float
+pulse vec3_normalize(v: Vec3) -> Vec3
+pulse vec3_lerp(a: Vec3, b: Vec3, t: float) -> Vec3
+pulse vec3_distance(a: Vec3, b: Vec3) -> float
+pulse vec3_reflect(v: Vec3, normal: Vec3) -> Vec3
+pulse vec3_refract(v: Vec3, normal: Vec3, eta: float) -> Vec3
+
+// ── 4×4 Matrix (3D transforms, AI compute) ───────────────────
+forge Mat4 { data: str = "" }             // 16 floats, newline-separated
+
+pulse mat4_identity() -> Mat4
+pulse mat4_multiply(a: Mat4, b: Mat4) -> Mat4
+pulse mat4_translate(m: Mat4, t: Vec3) -> Mat4
+pulse mat4_rotate_x(m: Mat4, angle: float) -> Mat4
+pulse mat4_rotate_y(m: Mat4, angle: float) -> Mat4
+pulse mat4_rotate_z(m: Mat4, angle: float) -> Mat4
+pulse mat4_scale(m: Mat4, s: Vec3) -> Mat4
+pulse mat4_perspective(fov: float, aspect: float, near: float, far: float) -> Mat4
+pulse mat4_orthographic(left: float, right: float, bottom: float, top: float, near: float, far: float) -> Mat4
+pulse mat4_look_at(eye: Vec3, center: Vec3, up: Vec3) -> Mat4
+pulse mat4_inverse(m: Mat4) -> Mat4
+pulse mat4_transpose(m: Mat4) -> Mat4
+pulse mat4_transform_vec3(m: Mat4, v: Vec3) -> Vec3
+
+// ── Bitwise integer helpers ───────────────────────────────────
+pulse bit_count(n: int) -> int            // popcount
+pulse bit_leading_zeros(n: int) -> int
+pulse bit_trailing_zeros(n: int) -> int
+pulse bit_reverse(n: int) -> int
+pulse is_power_of_two(n: int) -> bool
+pulse next_power_of_two(n: int) -> int

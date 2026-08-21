@@ -1,0 +1,174 @@
+// ============================================================
+// X-Phage Standard Library — AI/ML/Robotics v4.0.0
+// ~link "ai"
+// ============================================================
+
+// ── Tensor ────────────────────────────────────────────────────
+forge Tensor {
+    shape:    str  = ""     // "3x4x5" format
+    dtype:    str  = "f32"  // f32 | f16 | bf16 | i8 | i32 | i64
+    device:   str  = "cpu"  // cpu | gpu | npu
+    _handle:  int  = 0
+}
+pulse tensor_new(shape: str, dtype: str) -> Tensor
+pulse tensor_zeros(shape: str) -> Tensor
+pulse tensor_ones(shape: str) -> Tensor
+pulse tensor_rand(shape: str) -> Tensor
+pulse tensor_from_list(data: str, shape: str) -> Tensor  // comma-sep floats
+pulse tensor_to_list(t: Tensor) -> str                   // → comma-sep floats
+pulse tensor_shape(t: Tensor) -> str
+pulse tensor_numel(t: Tensor) -> int
+pulse tensor_dtype(t: Tensor) -> str
+
+// ── Tensor device placement ───────────────────────────────────
+pulse tensor_to_gpu(t: Tensor) -> Tensor
+pulse tensor_to_npu(t: Tensor) -> Tensor
+pulse tensor_to_cpu(t: Tensor) -> Tensor
+pulse tensor_device(t: Tensor) -> str
+
+// ── Tensor math ───────────────────────────────────────────────
+pulse tensor_add(a: Tensor, b: Tensor) -> Tensor
+pulse tensor_sub(a: Tensor, b: Tensor) -> Tensor
+pulse tensor_mul(a: Tensor, b: Tensor) -> Tensor       // element-wise
+pulse tensor_div(a: Tensor, b: Tensor) -> Tensor
+pulse tensor_matmul(a: Tensor, b: Tensor) -> Tensor    // matrix multiply
+pulse tensor_transpose(t: Tensor) -> Tensor
+pulse tensor_reshape(t: Tensor, shape: str) -> Tensor
+pulse tensor_squeeze(t: Tensor) -> Tensor
+pulse tensor_unsqueeze(t: Tensor, dim: int) -> Tensor
+pulse tensor_cat(a: Tensor, b: Tensor, dim: int) -> Tensor
+pulse tensor_split(t: Tensor, n: int, dim: int) -> str   // → handles, comma-sep
+pulse tensor_norm(t: Tensor) -> float
+pulse tensor_sum(t: Tensor) -> float
+pulse tensor_mean(t: Tensor) -> float
+pulse tensor_max(t: Tensor) -> float
+pulse tensor_min(t: Tensor) -> float
+pulse tensor_argmax(t: Tensor) -> int
+pulse tensor_argmin(t: Tensor) -> int
+pulse tensor_scale(t: Tensor, s: float) -> Tensor
+pulse tensor_clamp(t: Tensor, lo: float, hi: float) -> Tensor
+pulse tensor_abs(t: Tensor) -> Tensor
+pulse tensor_exp(t: Tensor) -> Tensor
+pulse tensor_log(t: Tensor) -> Tensor
+pulse tensor_sqrt(t: Tensor) -> Tensor
+pulse tensor_pow(t: Tensor, exp: float) -> Tensor
+
+// ── Activation functions ──────────────────────────────────────
+pulse nn_relu(t: Tensor) -> Tensor
+pulse nn_gelu(t: Tensor) -> Tensor
+pulse nn_silu(t: Tensor) -> Tensor
+pulse nn_tanh(t: Tensor) -> Tensor
+pulse nn_sigmoid(t: Tensor) -> Tensor
+pulse nn_softmax(t: Tensor, axis: int) -> Tensor
+pulse nn_log_softmax(t: Tensor, axis: int) -> Tensor
+
+// ── Neural network layers ─────────────────────────────────────
+pulse nn_linear(input: Tensor, weight: Tensor, bias: Tensor) -> Tensor
+pulse nn_conv2d(input: Tensor, kernel: Tensor, stride: int, padding: int) -> Tensor
+pulse nn_conv1d(input: Tensor, kernel: Tensor, stride: int) -> Tensor
+pulse nn_depthwise_conv2d(input: Tensor, kernel: Tensor, stride: int) -> Tensor
+pulse nn_attention(q: Tensor, k: Tensor, v: Tensor, mask: Tensor) -> Tensor
+pulse nn_multi_head_attention(q: Tensor, k: Tensor, v: Tensor, heads: int) -> Tensor
+pulse nn_layer_norm(t: Tensor, eps: float) -> Tensor
+pulse nn_batch_norm(t: Tensor, training: bool) -> Tensor
+pulse nn_rms_norm(t: Tensor, eps: float) -> Tensor
+pulse nn_dropout(t: Tensor, rate: float, training: bool) -> Tensor
+pulse nn_embedding(ids: Tensor, table: Tensor) -> Tensor
+pulse nn_max_pool2d(t: Tensor, kernel: int, stride: int) -> Tensor
+pulse nn_avg_pool2d(t: Tensor, kernel: int, stride: int) -> Tensor
+
+// ── Loss functions ────────────────────────────────────────────
+pulse loss_mse(pred: Tensor, target: Tensor) -> float
+pulse loss_mae(pred: Tensor, target: Tensor) -> float
+pulse loss_cross_entropy(logits: Tensor, labels: Tensor) -> float
+pulse loss_bce(pred: Tensor, target: Tensor) -> float
+
+// ── Model loading (ONNX / GGUF) ──────────────────────────────
+forge Model {
+    name:     str  = ""
+    path:     str  = ""
+    format:   str  = ""    // "onnx" | "gguf" | "xphage"
+    device:   str  = "cpu"
+    loaded:   bool = false
+    _handle:  int  = 0
+}
+pulse model_load(path: str, device: str) -> Model
+pulse model_run(m: Model, input: Tensor) -> Tensor
+pulse model_run_named(m: Model, inputs: str) -> str   // key=tensor_handle\n...
+pulse model_inputs(m: Model) -> str        // → "name:shape\n..."
+pulse model_outputs(m: Model) -> str
+pulse model_unload(m: Model) -> void
+
+// ── LLM inference (llama.cpp backend) ─────────────────────────
+forge LLMModel {
+    name:       str  = ""
+    path:       str  = ""
+    ctx_len:    int  = 4096
+    threads:    int  = 4
+    gpu_layers: int  = 0
+    loaded:     bool = false
+    _handle:    int  = 0
+}
+pulse llm_load(path: str, ctx_len: int, gpu_layers: int) -> LLMModel
+pulse llm_generate(m: LLMModel, prompt: str, max_tokens: int) -> str
+pulse llm_generate_ex(m: LLMModel, prompt: str, max_tokens: int,
+                      temp: float, top_p: float, repeat_penalty: float) -> str
+pulse llm_chat(m: LLMModel, messages_json: str) -> str   // OpenAI-style chat
+pulse llm_embed(m: LLMModel, text: str) -> Tensor
+pulse llm_tokenize(m: LLMModel, text: str) -> str         // → comma-sep token ids
+pulse llm_token_count(m: LLMModel, text: str) -> int
+pulse llm_unload(m: LLMModel) -> void
+pulse llm_set_system(m: LLMModel, system_prompt: str) -> void
+pulse llm_reset(m: LLMModel) -> void                       // clear KV cache
+
+// ── Vector database (for RAG) ─────────────────────────────────
+forge VecDB {
+    dims:    int  = 768
+    size:    int  = 0
+    metric:  str  = "cosine"   // "cosine" | "l2" | "dot"
+    _handle: int  = 0
+}
+forge VecDBResult {
+    id:       str   = ""
+    score:    float = 0.0
+    metadata: str   = ""
+}
+pulse vecdb_new(dims: int) -> VecDB
+pulse vecdb_new_ex(dims: int, metric: str) -> VecDB
+pulse vecdb_add(db: VecDB, id: str, embedding: Tensor, metadata: str) -> void
+pulse vecdb_search(db: VecDB, query: Tensor, k: int) -> str  // → "id:score\n..."
+pulse vecdb_remove(db: VecDB, id: str) -> void
+pulse vecdb_save(db: VecDB, path: str) -> bool
+pulse vecdb_load(path: str) -> VecDB
+pulse vecdb_size(db: VecDB) -> int
+
+// ── Robotics ─────────────────────────────────────────────────
+forge RobotJoint {
+    name:      str   = ""
+    angle:     float = 0.0
+    velocity:  float = 0.0
+    torque:    float = 0.0
+    min_angle: float = -180.0
+    max_angle: float = 180.0
+}
+forge RobotPose {
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
+    roll: float = 0.0
+    pitch: float = 0.0
+    yaw: float = 0.0
+}
+pulse robot_ik_solve(target: RobotPose, joints: str) -> str   // → updated joint angles
+pulse robot_fk_solve(joints: str) -> RobotPose
+pulse robot_path_plan(start: RobotPose, goal: RobotPose, obstacles: str) -> str
+pulse robot_pid_update(kp: float, ki: float, kd: float,
+                        error: float, dt: float) -> float
+
+// ── NPU / hardware dispatch ───────────────────────────────────
+pulse npu_available() -> bool
+pulse gpu_available() -> bool
+pulse npu_device_name() -> str
+pulse gpu_device_name() -> str
+pulse gpu_memory_mb() -> int
+// accelerate keyword (Phase 7) dispatches compute kernels to NPU/GPU

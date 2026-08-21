@@ -1,0 +1,14 @@
+forge Server { host: str = ""   port: int = 0 }
+pulse make_server(h: str, p: int) -> Server {
+    return spawn Server { host: h   port: p }
+}
+pulse server_str(s: Server) -> str {
+    return f"{s.host}:{s.port}"
+}
+flux req_count: int = 0
+absorb "request" { req_count = req_count + 1 }
+atom srv = make_server("localhost", 8080)
+beam server_str(srv)
+emit "request" {}
+emit "request" {}
+beam f"requests={req_count}"

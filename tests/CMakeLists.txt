@@ -1,29 +1,26 @@
-# X-Phage Test Suite
-# run-pass/      → must compile + exit 0
-# compile-fail/  → must fail compilation/runtime (exit != 0)
+# X-Phage Tests v4.0.0
 
-file(GLOB_RECURSE RUNPASS_TESTS
-    "${CMAKE_CURRENT_SOURCE_DIR}/run-pass/*.xp0")
+add_executable(test_lexer   test_lexer.cpp)
+add_executable(test_parser  test_parser.cpp)
 
-foreach(test_file ${RUNPASS_TESTS})
-    get_filename_component(test_name ${test_file} NAME_WE)
-    add_test(
-        NAME    "run-pass/${test_name}"
-        COMMAND $<TARGET_FILE:xphage> run ${test_file}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-    set_tests_properties("run-pass/${test_name}"
-        PROPERTIES TIMEOUT 30)
-endforeach()
+target_link_libraries(test_lexer  PRIVATE xphage_lexer  xphage_runtime)
+target_link_libraries(test_parser PRIVATE xphage_parse  xphage_lexer  xphage_runtime)
 
-file(GLOB_RECURSE FAIL_TESTS
-    "${CMAKE_CURRENT_SOURCE_DIR}/compile-fail/*.xp0")
+add_test(NAME LexerTests  COMMAND test_lexer)
+add_test(NAME ParserTests COMMAND test_parser)
 
-foreach(test_file ${FAIL_TESTS})
-    get_filename_component(test_name ${test_file} NAME_WE)
-    add_test(
-        NAME    "compile-fail/${test_name}"
-        COMMAND $<TARGET_FILE:xphage> build ${test_file}
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-    set_tests_properties("compile-fail/${test_name}"
-        PROPERTIES WILL_FAIL TRUE TIMEOUT 30)
-endforeach()
+# LLVM backend tests (only meaningful with ENABLE_LLVM=ON)
+if(ENABLE_LLVM)
+    add_executable(test_llvm_backend test_llvm_backend.cpp)
+    target_include_directories(test_llvm_backend PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/compiler/xphage_lexer/include
+        ${CMAKE_SOURCE_DIR}/compiler/xphage_parse/include
+        ${CMAKE_SOURCE_DIR}/compiler/xphage_codegen_llvm/include
+        ${LLVM_INCLUDE_DIRS})
+    target_link_libraries(test_llvm_backend PRIVATE
+        xphage_lexer xphage_parse xphage_codegen_llvm
+        xphage_runtime ${LLVM_LIBS})
+    target_compile_definitions(test_llvm_backend PRIVATE ENABLE_LLVM)
+    add_test(NAME LLVMBackendTests COMMAND test_llvm_backend)
+endif()

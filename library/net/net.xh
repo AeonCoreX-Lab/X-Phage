@@ -1,0 +1,107 @@
+// ============================================================
+// X-Phage Standard Library — Network Module v4.0.0
+// ~link "net"     (link with -lcurl)
+// ============================================================
+
+// ── HTTP response forge ───────────────────────────────────────
+forge HttpResponse {
+    status:       int  = 0
+    body:         str  = ""
+    headers:      str  = ""
+    content_type: str  = ""
+    error:        str  = ""
+    elapsed_ms:   int  = 0
+}
+pulse http_is_ok(r: HttpResponse) -> bool      // status 200-299
+pulse http_is_error(r: HttpResponse) -> bool   // status 400+
+
+// ── HTTP methods ──────────────────────────────────────────────
+pulse http_get(url: str) -> HttpResponse
+pulse http_post(url: str, body: str) -> HttpResponse
+pulse http_post_json(url: str, body: str) -> HttpResponse
+pulse http_put(url: str, body: str) -> HttpResponse
+pulse http_patch(url: str, body: str) -> HttpResponse
+pulse http_delete(url: str) -> HttpResponse
+pulse http_head(url: str) -> HttpResponse
+
+// ── HTTP with headers ─────────────────────────────────────────
+pulse http_get_with_headers(url: str, headers: str) -> HttpResponse
+pulse http_post_with_headers(url: str, body: str, headers: str) -> HttpResponse
+
+// ── HTTP configuration ────────────────────────────────────────
+pulse http_set_timeout(ms: int) -> void
+pulse http_set_user_agent(ua: str) -> void
+pulse http_set_bearer_token(token: str) -> void
+pulse http_set_basic_auth(user: str, pass: str) -> void
+pulse http_disable_ssl_verify() -> void
+
+// ── File transfer ─────────────────────────────────────────────
+pulse http_download(url: str, dest_path: str) -> bool
+pulse http_upload(url: str, file_path: str) -> HttpResponse
+
+// ── JSON helpers ──────────────────────────────────────────────
+pulse json_get(body: str, key_path: str) -> str   // "user.name" dotted path
+pulse json_get_int(body: str, key_path: str) -> int
+pulse json_get_float(body: str, key_path: str) -> float
+pulse json_get_bool(body: str, key_path: str) -> bool
+pulse json_array(body: str, key_path: str) -> str  // → newline-separated items
+pulse json_array_len(body: str, key_path: str) -> int
+pulse json_has(body: str, key_path: str) -> bool
+pulse json_parse(s: str) -> str                    // → normalised key=val lines
+pulse json_stringify(kv: str) -> str               // key=val lines → JSON
+pulse json_pretty(s: str) -> str                   // pretty-print JSON
+pulse json_minify(s: str) -> str
+
+// ── WebSocket ─────────────────────────────────────────────────
+forge WebSocket {
+    url:       str  = ""
+    connected: bool = false
+    _handle:   int  = 0
+}
+pulse ws_connect(url: str) -> WebSocket
+pulse ws_connect_with_headers(url: str, headers: str) -> WebSocket
+pulse ws_send(ws: WebSocket, msg: str) -> bool
+pulse ws_send_binary(ws: WebSocket, data: str) -> bool
+pulse ws_receive(ws: WebSocket, timeout_ms: int) -> str  // "" on timeout
+pulse ws_close(ws: WebSocket) -> void
+pulse ws_is_connected(ws: WebSocket) -> bool
+pulse ws_on_message(ws: WebSocket, handler: auto) -> void
+pulse ws_on_close(ws: WebSocket, handler: auto) -> void
+
+// ── DNS ───────────────────────────────────────────────────────
+pulse dns_lookup(hostname: str) -> str         // → IP address
+pulse dns_lookup_all(hostname: str) -> str     // → newline-separated IPs
+pulse dns_reverse(ip: str) -> str              // → hostname
+
+// ── URL parsing ───────────────────────────────────────────────
+forge Url {
+    scheme:   str = ""
+    host:     str = ""
+    port:     int = 0
+    path:     str = ""
+    query:    str = ""
+    fragment: str = ""
+    username: str = ""
+    password: str = ""
+}
+pulse url_parse(url: str) -> Url
+pulse url_build(u: Url) -> str
+pulse url_encode(s: str) -> str
+pulse url_decode(s: str) -> str
+pulse url_encode_component(s: str) -> str
+pulse url_query_get(url: str, key: str) -> str
+pulse url_query_set(url: str, key: str, val: str) -> str
+
+// ── TCP / UDP (low-level) ─────────────────────────────────────
+forge TcpSocket {
+    host:      str  = ""
+    port:      int  = 0
+    connected: bool = false
+    _fd:       int  = -1
+}
+pulse tcp_connect(host: str, port: int) -> TcpSocket
+pulse tcp_send(s: TcpSocket, data: str) -> int     // bytes sent
+pulse tcp_recv(s: TcpSocket, max_bytes: int) -> str
+pulse tcp_close(s: TcpSocket) -> void
+pulse tcp_listen(port: int) -> TcpSocket            // server socket
+pulse tcp_accept(server: TcpSocket) -> TcpSocket

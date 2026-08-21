@@ -1,0 +1,70 @@
+// ============================================================
+// X-Phage Standard Library — Cryptography v4.0.0
+// ~link "crypt"     (links -lssl -lcrypto)
+// ============================================================
+
+// ── Hashing ───────────────────────────────────────────────────
+pulse hash_sha256(data: str) -> str       // hex digest
+pulse hash_sha512(data: str) -> str
+pulse hash_sha1(data: str) -> str         // legacy only — not for security
+pulse hash_md5(data: str) -> str          // legacy only
+pulse hash_blake3(data: str) -> str       // fast modern hash
+pulse hash_hmac_sha256(data: str, key: str) -> str
+pulse hash_file_sha256(path: str) -> str
+
+// ── Password hashing ──────────────────────────────────────────
+pulse argon2_hash(password: str) -> str
+pulse argon2_hash_ex(password: str, time_cost: int, mem_mb: int) -> str
+pulse argon2_verify(password: str, hash: str) -> bool
+pulse bcrypt_hash(password: str, cost: int) -> str
+pulse bcrypt_verify(password: str, hash: str) -> bool
+
+// ── Symmetric encryption: AES-256-GCM ────────────────────────
+pulse aes_generate_key() -> str           // 32 random bytes → hex
+pulse aes_generate_iv() -> str            // 12 random bytes → hex (GCM nonce)
+pulse aes_encrypt(plaintext: str, key: str, iv: str) -> str  // → ciphertext+tag hex
+pulse aes_decrypt(ciphertext: str, key: str, iv: str) -> str // → plaintext or ""
+pulse crypt_rand_key() -> str             // alias: aes_generate_key
+
+// ── Asymmetric: RSA ────────────────────────────────────────────
+forge RSAKey {
+    public_pem:  str = ""
+    private_pem: str = ""
+    bits:        int = 2048
+}
+pulse rsa_generate(bits: int) -> RSAKey
+pulse rsa_encrypt(data: str, public_pem: str) -> str    // PKCS1-OAEP
+pulse rsa_decrypt(ciphertext: str, private_pem: str) -> str
+pulse rsa_sign(data: str, private_pem: str) -> str      // SHA256+RSA-PSS
+pulse rsa_verify(data: str, signature: str, public_pem: str) -> bool
+
+// ── Asymmetric: Ed25519 ───────────────────────────────────────
+forge Ed25519Key {
+    public_hex:  str = ""
+    private_hex: str = ""
+}
+pulse ed25519_generate() -> Ed25519Key
+pulse ed25519_sign(msg: str, private_hex: str) -> str
+pulse ed25519_verify(msg: str, signature: str, public_hex: str) -> bool
+
+// ── X25519 key exchange ───────────────────────────────────────
+pulse x25519_generate() -> Ed25519Key    // same struct, Diffie-Hellman keys
+pulse x25519_shared_secret(our_private: str, their_public: str) -> str
+
+// ── UUID ──────────────────────────────────────────────────────
+pulse crypt_uuid() -> str                // UUID v4 (random)
+pulse crypt_uuid_v7() -> str             // UUID v7 (time-ordered)
+
+// ── Encoding ─────────────────────────────────────────────────
+pulse base64_encode(data: str) -> str
+pulse base64_decode(data: str) -> str
+pulse base64_url_encode(data: str) -> str
+pulse base64_url_decode(data: str) -> str
+pulse hex_encode(data: str) -> str       // → lowercase hex
+pulse hex_decode(hex: str) -> str
+pulse base32_encode(data: str) -> str
+
+// ── Secure random ─────────────────────────────────────────────
+pulse crypt_rand_bytes(n: int) -> str    // n random bytes → hex
+pulse crypt_rand_int(lo: int, hi: int) -> int   // cryptographically secure
+pulse crypt_rand_token(bytes: int) -> str        // URL-safe base64 token

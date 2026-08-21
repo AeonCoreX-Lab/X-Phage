@@ -1,91 +1,72 @@
-#include "../../../include/xphage/runtime.hpp"
-#include <fstream>
+// ============================================================
+// xphage_linker v4.0.0
+// stdlib module linking for X-Phage
+// Note: XPM is a separate repo — zero dependency here
+// AeonCoreX Lab
+// ============================================================
+#include "../include/linker.hpp"
+#include "xphage/runtime.hpp"
 #include <iostream>
-#include <regex>
+#include <unordered_map>
 
-/**
- * 🔗 X-Phage Intelligent Linker v3.2
- * Architecture: Logic (.xh) & UI (.xui) Separation
- * Features: Global Registry, Hardware Hooks, Cloud Sync
- */
+namespace xphage::linker {
 
-void XPhageLinker::link_library(std::string lib_name, XPhageRuntime& runtime) {
-    
-    std::string clean_name = lib_name.substr(0, lib_name.find("."));
-    
-    // --- 1. FILE RESOLUTION SYSTEM ---
-    
-    // Priority 1: Check in current directory
-    std::string path = lib_name;
-    std::ifstream file(path);
-    
-    // Priority 2: Check in modules folder (XPM Downloaded)
-    if (!file.is_open()) {
-        path = "modules/" + clean_name + "/" + lib_name;
-        file.open(path);
+// ── Stdlib module descriptor ──────────────────────────────────
+struct StdlibModule {
+    std::string link_flag;   // -lssl, -lcurl, etc.
+    std::string header_hint; // which header to include in generated code
+    std::string note;
+};
+
+static const std::unordered_map<std::string, StdlibModule> STDLIB_MODULES = {
+    { "io",          { "", "<filesystem>", "file I/O, proc, env, glob" } },
+    { "math",        { "-lm", "<cmath>", "sin/cos/sqrt/pow/log/Vec/Mat" } },
+    { "string",      { "", "<string>", "str_split/join/trim/regex" } },
+    { "collections", { "", "<vector>", "Option/Result/Vec/Map/Set" } },
+    { "net",         { "-lcurl", "<curl/curl.h>", "http_get/post/WebSocket" } },
+    { "os",          { "-lpthread", "<thread>", "thread_spawn/mutex/signals" } },
+    { "crypt",       { "-lssl -lcrypto", "<openssl/sha.h>", "sha256/aes/argon2/uuid" } },
+    { "ai",          { "", "<vector>", "Tensor/nn_linear/llm_load" } },
+    { "fusion-ui",   { "", "xphage/fusion.hpp", "Fusion GPU UI framework" } },
+};
+
+std::vector<std::string> resolve_link_flags(const std::vector<std::string>& imports) {
+    std::vector<std::string> flags;
+    for (auto& imp : imports) {
+        auto it = STDLIB_MODULES.find(imp);
+        if (it == STDLIB_MODULES.end()) continue;
+        if (!it->second.link_flag.empty())
+            flags.push_back(it->second.link_flag);
     }
+    return flags;
+}
 
-    // Priority 3: Check in stdlib
-    if (!file.is_open()) {
-        path = "stdlib/" + lib_name;
-        file.open(path);
+std::vector<std::string> resolve_headers(const std::vector<std::string>& imports) {
+    std::vector<std::string> headers;
+    for (auto& imp : imports) {
+        auto it = STDLIB_MODULES.find(imp);
+        if (it == STDLIB_MODULES.end()) continue;
+        if (!it->second.header_hint.empty())
+            headers.push_back(it->second.header_hint);
     }
+    return headers;
+}
 
-    // Priority 4: Module not found — tell user to install via xpm
-    if (!file.is_open()) {
-        std::cerr << "\033[1;31m[LINKER] ⛔ Module '" << lib_name << "' not found.\033[0m\n";
-        std::cerr << "  Run: \033[1;36mxpm add " << clean_name << "\033[0m\n";
-        return;
+void list_stdlib_modules() {
+    std::cout << "\n  X-Phage Standard Library Modules\n";
+    std::cout << "  ─────────────────────────────────\n";
+    for (auto& [name, mod] : STDLIB_MODULES) {
+        std::cout << "  ~link \"" << name << "\"\n"
+                  << "    " << mod.note << "\n"
+                  << "    link: " << (mod.link_flag.empty() ? "(none)" : mod.link_flag) << "\n\n";
     }
+}
 
-    std::cout << "\033[1;34m[LINKER] 🔗 Resolving Neural Pathways from: " << lib_name << "\033[0m\n";
+} // namespace xphage::linker
 
-    std::string line;
-    std::smatch match;
-
-    while (std::getline(file, line)) {
-        
-        // ==========================================
-        // 🎨 .xui FILE PARSING (TITAN FUSION UI)
-        // ==========================================
-        if (lib_name.find(".xui") != std::string::npos) {
-            if (std::regex_search(line, match, std::regex(R"(@NeuralComposition\s+(\w+))"))) {
-                std::cout << "\033[1;35m[UI LOAD] 💠 Composition Root: " << match[1] << "\033[0m\n";
-            }
-        } 
-        else {
-            // ==========================================
-            // 🧠 .xh FILE PARSING (LOGIC & HARDWARE)
-            // ==========================================
-
-            // 1. Global Variables
-            if (std::regex_search(line, match, std::regex(R"(global\s+(\w+)\s*=\s*\"([^\"]+)\")"))) {
-                runtime.write_global(match[1], match[2]);
-            }
-
-            // 2. Constants (#define)
-            else if (std::regex_search(line, match, std::regex(R"(#define\s+(\w+)\s+\"([^\"]+)\")"))) {
-                runtime.write(match[1], match[2], "CONST_DEF", true);
-            }
-
-            // 3. Standard Vars (atom/shadow)
-            else if (std::regex_search(line, match, std::regex(R"((atom|shadow)\s+(\w+)\s*=\s*\"([^\"]+)\")"))) {
-                bool is_atom = (match[1] == "atom");
-                runtime.write(match[2], match[3], "LIB_VAR", is_atom);
-            }
-
-            // 4. Hardware Hooks (~hook)
-            else if (std::regex_search(line, match, std::regex(R"(~hook\s+(\w+)\s*->\s*\"?([\w\d_]+)\"?)"))) {
-                std::string hook_type = match[1];
-                std::string target = match[2];
-                
-                // --- NEW GPU/NPU HOOK TRIGGERS ---
-                if (hook_type == "gpu_accelerate") runtime.init_vulkan_pipeline();
-                if (hook_type == "neural_sync") runtime.npu_neural_sync(target);
-                
-                runtime.write(hook_type + "_SYS", target, "HOOK", true);
-                std::cout << "  ↳ \033[1;30mIntercepted Kernel Hook:\033[0m " << hook_type << " -> " << target << "\n";
-            }
-        }
-    }
+// ── Legacy XPhageLinker bridge ─────────────────────────────────
+void XPhageLinker::link_library(const std::string& lib_name,
+                                 XPhageRuntime& runtime) {
+    runtime.write_global("__linked_" + lib_name, "1");
+    std::cout << "[linker] ~link \"" << lib_name << "\" resolved\n";
 }

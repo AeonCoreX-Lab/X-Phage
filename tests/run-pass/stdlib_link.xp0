@@ -1,15 +1,15 @@
 // run-pass: stdlib link + constants
-~link core/types
-~link math/basic
+~link "math"
 
-pulse main {
-    atom pi  = MATH_PI
-    atom e   = MATH_E
-    atom phi = MATH_PHI
+pulse main() -> int {
+    atom pi  = PI
+    atom e   = E
+    atom phi = PHI
     beam "PI  = "
     beam pi
     beam "E   = "
     beam e
     beam "PHI = "
     beam phi
+    return 0
 }

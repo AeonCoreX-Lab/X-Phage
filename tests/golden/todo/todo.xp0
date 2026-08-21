@@ -1,0 +1,19 @@
+pulse make_todo(title: str, id: int) -> TodoItem {
+    return spawn TodoItem { title: title   done: false   id: id }
+}
+pulse mark_done(t: TodoItem) -> TodoItem {
+    return spawn TodoItem { title: t.title   done: true   id: t.id }
+}
+pulse count_open(a: TodoItem, b: TodoItem) -> int {
+    shadow n: int = 0
+    if !a.done { n = n + 1 }
+    if !b.done { n = n + 1 }
+    return n
+}
+shadow t1 = make_todo("Buy milk", 1)
+shadow t2 = make_todo("Write code", 2)
+beam f"added: {t1.title}"
+beam f"added: {t2.title}"
+t1 = mark_done(t1)
+beam f"done: {t1.title}"
+beam f"open={count_open(t1, t2)}"

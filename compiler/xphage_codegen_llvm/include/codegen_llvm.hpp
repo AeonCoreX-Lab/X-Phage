@@ -1,60 +1,59 @@
 #pragma once
 // ============================================================
-// xphage_codegen_llvm — LLVM Native Backend Header v3.5.0
-//
-// Converts X-Phage token stream (or IR) to LLVM IR,
-// then emits a native object file via the LLVM TargetMachine.
-//
-// Platform support:
-//   x86-64 (linux, windows, macos)
-//   aarch64 (linux arm64, macos apple silicon, windows arm64)
-//
-// LLVM version compatibility:
-//   Tested: LLVM 16, 17, 18, 19, 20, 21
-//   Version-gated includes/API for breaking changes per major.
+// xphage_codegen_llvm — LLVM Native Backend v4.0.0
+// AST → LLVM IR → native object → binary (no C++ intermediate)
+// LLVM 16-21 compatible (version-gated includes)
+// AeonCoreX Lab
 // ============================================================
-#include "xphage/runtime.hpp"
+#include "xphage/ast.hpp"
 #include "xphage/ir.hpp"
 #include <string>
 #include <vector>
 
 namespace xphage::codegen_llvm {
 
-struct LLVMCodegenConfig {
-    std::string  target_triple;   // "" = host default
-    std::string  cpu             = "generic";
-    std::string  features;        // "+avx2,+fma" etc.
-    bool         optimize        = true;
-    bool         debug_info      = false;
-    bool         pic             = false;     // position-independent code
-    bool         verbose         = false;
+struct LLVMConfig {
+    std::string  target_triple;     // "" = host auto-detect
+    std::string  cpu        = "native";
+    std::string  features   = "";
+    int          opt_level  = 2;    // 0=none 1=less 2=default 3=aggressive
+    bool         debug_info = false;
+    bool         pic        = false;
+    bool         emit_llvm_ir = false;   // write .ll alongside .o
+    bool         verbose    = false;
 };
 
-struct LLVMCodegenResult {
-    bool        success      = false;
-    std::string output_path;
+struct LLVMResult {
+    bool        success     = false;
+    std::string output_obj;          // path to .o
+    std::string output_bin;          // path to linked binary (if link=true)
+    std::string llvm_ir_path;        // .ll dump if emit_llvm_ir
     std::string error;
+    double      elapsed_ms  = 0.0;
 };
 
-// Compile a token stream to a native object file.
-LLVMCodegenResult compile_tokens(const std::vector<Token>& tokens,
-                                  const std::string& output_obj,
-                                  const LLVMCodegenConfig& cfg = {});
+// Primary: compile AST → native .o  then link with xprt
+LLVMResult compile_ast(const Program&         ast,
+                        const std::string&     output_obj,
+                        const LLVMConfig&      cfg = {});
 
-// Compile an IR module to a native object file.
-LLVMCodegenResult compile_ir(const xphage::ir::IRModule& mod,
-                               const std::string& output_obj,
-                               const LLVMCodegenConfig& cfg = {});
+// IR module → native .o
+LLVMResult compile_ir(const xphage::ir::IRModule& mod,
+                       const std::string&     output_obj,
+                       const LLVMConfig&      cfg = {});
 
-// Check whether LLVM was compiled in at build time.
-bool is_available();
+// Link object file(s) + xprt → executable
+bool link_binary(const std::vector<std::string>& objs,
+                 const std::string&              xprt_lib,
+                 const std::string&              output_bin,
+                 bool                            verbose = false);
 
-// Return the LLVM version string, or "disabled" if not compiled.
-std::string llvm_version();
+bool        is_available();
+std::string llvm_version_str();
 
 } // namespace xphage::codegen_llvm
 
-// ── Legacy class interface ────────────────────────────────────
+// Legacy bridge
 class XPhageLLVMCompiler {
 public:
     void compile_tokens(const std::vector<Token>& tokens,

@@ -78,7 +78,7 @@ ASTNodePtr ASTBuilder::make_string_lit(std::string value, uint32_t line) {
     return mk(NodeKind::StringLit, std::move(value), line);
 }
 ASTNodePtr ASTBuilder::make_number_lit(std::string value, uint32_t line) {
-    return mk(NodeKind::NumberLit, std::move(value), line);
+    return mk(NodeKind::IntLit, std::move(value), line);
 }
 ASTNodePtr ASTBuilder::make_identifier(std::string name, uint32_t line) {
     return mk(NodeKind::Identifier, std::move(name), line);
@@ -137,33 +137,100 @@ Program transform_program(const Program& prog, const NodeTransform& fn) {
 // ── Pretty-printer ───────────────────────────────────────────
 std::string node_kind_name(NodeKind k) {
     switch (k) {
-        case NodeKind::Program:     return "Program";
-        case NodeKind::Block:       return "Block";
-        case NodeKind::PulseDecl:   return "PulseDecl";
-        case NodeKind::GlobalDecl:  return "GlobalDecl";
-        case NodeKind::AtomDecl:    return "AtomDecl";
-        case NodeKind::ShadowDecl:  return "ShadowDecl";
-        case NodeKind::BeamStmt:    return "BeamStmt";
-        case NodeKind::BypassStmt:  return "BypassStmt";
-        case NodeKind::QuantumStmt: return "QuantumStmt";
-        case NodeKind::ScanStmt:    return "ScanStmt";
-        case NodeKind::MatrixStmt:  return "MatrixStmt";
-        case NodeKind::ChronosStmt: return "ChronosStmt";
-        case NodeKind::EtherStmt:   return "EtherStmt";
-        case NodeKind::VortexStmt:  return "VortexStmt";
-        case NodeKind::VoidStmt:    return "VoidStmt";
-        case NodeKind::SynapseStmt: return "SynapseStmt";
-        case NodeKind::LinkStmt:    return "LinkStmt";
-        case NodeKind::FusionDecl:  return "FusionDecl";
-        case NodeKind::UIComponent: return "UIComponent";
-        case NodeKind::Identifier:  return "Identifier";
-        case NodeKind::StringLit:   return "StringLit";
-        case NodeKind::NumberLit:   return "NumberLit";
-        case NodeKind::BinaryOp:    return "BinaryOp";
-        case NodeKind::Call:        return "Call";
-        case NodeKind::ConfigBlock: return "ConfigBlock";
-        case NodeKind::ConfigPair:  return "ConfigPair";
-        default:                    return "Unknown";
+        // ── Top-level ──────────────────────────────────────
+        case NodeKind::Program:       return "Program";
+        case NodeKind::Block:         return "Block";
+
+        // ── Declarations ───────────────────────────────────
+        case NodeKind::PulseDecl:     return "PulseDecl";
+        case NodeKind::AsyncPulseDecl:return "AsyncPulseDecl";
+        case NodeKind::GlobalDecl:    return "GlobalDecl";
+        case NodeKind::AtomDecl:      return "AtomDecl";
+        case NodeKind::ShadowDecl:    return "ShadowDecl";
+        case NodeKind::ConstDecl:     return "ConstDecl";
+        case NodeKind::ForgeDecl:     return "ForgeDecl";
+        case NodeKind::NexusDecl:     return "NexusDecl";
+        case NodeKind::FluxDecl:      return "FluxDecl";
+        case NodeKind::ImplDecl:      return "ImplDecl";
+        case NodeKind::UseDecl:       return "UseDecl";
+        case NodeKind::RealmDecl:     return "RealmDecl";
+
+        // ── Statements ─────────────────────────────────────
+        case NodeKind::IfStmt:        return "IfStmt";
+        case NodeKind::ElifStmt:      return "ElifStmt";
+        case NodeKind::ElseStmt:      return "ElseStmt";
+        case NodeKind::WhileStmt:     return "WhileStmt";
+        case NodeKind::ForStmt:       return "ForStmt";
+        case NodeKind::ReturnStmt:    return "ReturnStmt";
+        case NodeKind::BreakStmt:     return "BreakStmt";
+        case NodeKind::ContinueStmt:  return "ContinueStmt";
+        case NodeKind::BeamStmt:      return "BeamStmt";
+        case NodeKind::BypassStmt:    return "BypassStmt";
+        case NodeKind::QuantumStmt:   return "QuantumStmt";
+        case NodeKind::ScanStmt:      return "ScanStmt";
+        case NodeKind::LinkStmt:      return "LinkStmt";
+        case NodeKind::ChronosStmt:   return "ChronosStmt";
+        case NodeKind::EtherStmt:     return "EtherStmt";
+        case NodeKind::VortexStmt:    return "VortexStmt";
+        case NodeKind::VoidStmt:      return "VoidStmt";
+        case NodeKind::SynapseStmt:   return "SynapseStmt";
+        case NodeKind::MatrixStmt:    return "MatrixStmt";
+        case NodeKind::ProbeStmt:     return "ProbeStmt";
+        case NodeKind::ProbeArm:      return "ProbeArm";
+        case NodeKind::EmitStmt:      return "EmitStmt";
+        case NodeKind::AbsorbStmt:    return "AbsorbStmt";
+        case NodeKind::YieldStmt:     return "YieldStmt";
+        case NodeKind::ExprStmt:      return "ExprStmt";
+
+        // ── UI Declarations ────────────────────────────────
+        case NodeKind::FusionDecl:    return "FusionDecl";
+        case NodeKind::UIComponent:   return "UIComponent";
+        case NodeKind::WeaveExpr:     return "WeaveExpr";
+        case NodeKind::StrandDecl:    return "StrandDecl";
+
+        // ── Expressions ─────────────────────────────────────
+        case NodeKind::Identifier:    return "Identifier";
+        case NodeKind::PathExpr:      return "PathExpr";
+        case NodeKind::StringLit:     return "StringLit";
+        case NodeKind::FStringLit:    return "FStringLit";
+        case NodeKind::IntLit:        return "IntLit";
+        case NodeKind::FloatLit:      return "FloatLit";
+        case NodeKind::BoolLit:       return "BoolLit";
+        case NodeKind::NullLit:       return "NullLit";
+        case NodeKind::BinaryOp:      return "BinaryOp";
+        case NodeKind::UnaryOp:       return "UnaryOp";
+        case NodeKind::AssignExpr:    return "AssignExpr";
+        case NodeKind::CallExpr:      return "CallExpr";
+        case NodeKind::IndexExpr:     return "IndexExpr";
+        case NodeKind::MemberExpr:    return "MemberExpr";
+        case NodeKind::PipelineExpr:  return "PipelineExpr";
+        case NodeKind::RangeExpr:     return "RangeExpr";
+        case NodeKind::LambdaExpr:    return "LambdaExpr";
+        case NodeKind::ProcExpr:      return "ProcExpr";
+        case NodeKind::EnvExpr:       return "EnvExpr";
+        case NodeKind::GlobExpr:      return "GlobExpr";
+        case NodeKind::SpawnExpr:     return "SpawnExpr";
+        case NodeKind::CastExpr:      return "CastExpr";
+        case NodeKind::TypeofExpr:    return "TypeofExpr";
+        case NodeKind::SizeofExpr:    return "SizeofExpr";
+        case NodeKind::AwaitExpr:     return "AwaitExpr";
+        case NodeKind::PropagateExpr: return "PropagateExpr";
+
+        // ── Type annotations ────────────────────────────────
+        case NodeKind::TypeAnnot:     return "TypeAnnot";
+        case NodeKind::OwnType:       return "OwnType";
+        case NodeKind::RefType:       return "RefType";
+        case NodeKind::MutRefType:    return "MutRefType";
+
+        // ── Field in forge/nexus ─────────────────────────────
+        case NodeKind::FieldDecl:     return "FieldDecl";
+        case NodeKind::MethodDecl:    return "MethodDecl";
+
+        // ── Config (deprecated, kept for compat) ─────────────
+        case NodeKind::ConfigBlock:   return "ConfigBlock";
+        case NodeKind::ConfigPair:    return "ConfigPair";
+
+        default:                      return "Unknown";
     }
 }
 

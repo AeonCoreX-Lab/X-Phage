@@ -1,0 +1,76 @@
+// ============================================================
+// X-Phage Standard Library — String Module v4.0.0
+// ~link "string"
+// ============================================================
+
+// ── Search ────────────────────────────────────────────────────
+pulse str_contains(s: str, sub: str) -> bool
+pulse str_find(s: str, sub: str) -> int        // -1 if not found
+pulse str_find_last(s: str, sub: str) -> int
+pulse str_count(s: str, sub: str) -> int       // count occurrences
+pulse str_starts_with(s: str, prefix: str) -> bool
+pulse str_ends_with(s: str, suffix: str) -> bool
+pulse str_is_empty(s: str) -> bool
+pulse str_is_blank(s: str) -> bool             // empty or only whitespace
+
+// ── Transform ─────────────────────────────────────────────────
+pulse str_upper(s: str) -> str
+pulse str_lower(s: str) -> str
+pulse str_title(s: str) -> str                 // Title Case
+pulse str_trim(s: str) -> str                  // both ends
+pulse str_trim_left(s: str) -> str
+pulse str_trim_right(s: str) -> str
+pulse str_trim_chars(s: str, chars: str) -> str
+pulse str_reverse(s: str) -> str
+pulse str_repeat(s: str, n: int) -> str
+
+// ── Slice / Substring ─────────────────────────────────────────
+pulse str_slice(s: str, start: int, end: int) -> str
+pulse str_left(s: str, n: int) -> str          // first n chars
+pulse str_right(s: str, n: int) -> str         // last n chars
+pulse str_char_at(s: str, i: int) -> str       // single char as str
+pulse str_len(s: str) -> int
+
+// ── Split / Join ──────────────────────────────────────────────
+pulse str_split(s: str, delim: str) -> str     // → newline-separated parts
+pulse str_split_lines(s: str) -> str           // split on \n
+pulse str_split_words(s: str) -> str           // split on whitespace
+pulse str_join(parts: str, sep: str) -> str    // newline-separated → joined
+
+// ── Replace ───────────────────────────────────────────────────
+pulse str_replace(s: str, from: str, to: str) -> str
+pulse str_replace_first(s: str, from: str, to: str) -> str
+pulse str_remove(s: str, sub: str) -> str
+
+// ── Padding / Alignment ───────────────────────────────────────
+pulse str_pad_left(s: str, width: int, ch: str) -> str
+pulse str_pad_right(s: str, width: int, ch: str) -> str
+pulse str_center(s: str, width: int, ch: str) -> str
+
+// ── Conversion ────────────────────────────────────────────────
+pulse str_to_int(s: str) -> int
+pulse str_to_float(s: str) -> float
+pulse str_to_bool(s: str) -> bool              // "true"/"1"/"yes" → true
+pulse int_to_str(v: int) -> str
+pulse float_to_str(v: float) -> str
+pulse bool_to_str(v: bool) -> str
+pulse str_to_hex(s: str) -> str                // encode each byte as 2-char hex
+pulse hex_to_str(s: str) -> str
+
+// ── Regex ─────────────────────────────────────────────────────
+pulse str_matches(s: str, pattern: str) -> bool
+pulse str_regex_find(s: str, pattern: str) -> str    // first match or ""
+pulse str_regex_find_all(s: str, pattern: str) -> str // newline-separated matches
+pulse str_regex_replace(s: str, pattern: str, rep: str) -> str
+pulse str_regex_split(s: str, pattern: str) -> str
+
+// ── Format ────────────────────────────────────────────────────
+pulse str_format_int(v: int, width: int, fill: str) -> str
+pulse str_format_float(v: float, decimals: int) -> str
+pulse str_format_hex(v: int) -> str            // "0x1f3a"
+pulse str_format_bin(v: int) -> str            // "0b10110"
+
+// ── Unicode helpers ───────────────────────────────────────────
+pulse str_char_count(s: str) -> int            // Unicode codepoints (≠ bytes)
+pulse str_is_ascii(s: str) -> bool
+pulse str_is_utf8(s: str) -> bool

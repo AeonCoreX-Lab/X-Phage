@@ -1,0 +1,108 @@
+// ============================================================
+// X-Phage Standard Library — OS Module v4.0.0
+// ~link "os"     (links -lpthread)
+// ============================================================
+
+// ── Platform detection ────────────────────────────────────────
+pulse os_platform() -> str   // "linux" | "macos" | "windows" | "android" | "ios" | "web"
+pulse os_arch() -> str       // "x86_64" | "arm64" | "wasm32" | "riscv64"
+pulse os_name() -> str       // "Ubuntu 22.04" / "macOS 14.2" etc.
+pulse os_hostname() -> str
+pulse os_username() -> str
+pulse os_cpu_count() -> int
+pulse os_cpu_model() -> str
+pulse os_total_ram_mb() -> int
+pulse os_free_ram_mb() -> int
+pulse os_is_64bit() -> bool
+
+// ── Time ──────────────────────────────────────────────────────
+pulse os_time_ms() -> int        // Unix timestamp milliseconds
+pulse os_time_ns() -> int        // Unix timestamp nanoseconds
+pulse os_uptime_ms() -> int      // system uptime ms
+pulse os_date() -> str           // "2026-06-08" (ISO 8601)
+pulse os_time() -> str           // "14:32:55"
+pulse os_datetime() -> str       // "2026-06-08 14:32:55"
+pulse os_timestamp_to_date(ms: int) -> str
+pulse os_date_to_timestamp(date: str) -> int
+pulse os_sleep(ms: int) -> void  // alias: chronos keyword
+
+// ── CLI args ──────────────────────────────────────────────────
+pulse os_argc() -> int
+pulse os_arg(i: int) -> str
+pulse os_args() -> str           // newline-separated argv
+
+// ── Environment ───────────────────────────────────────────────
+pulse os_cwd() -> str            // current working directory
+pulse os_chdir(path: str) -> bool
+pulse os_home_dir() -> str
+pulse os_config_dir() -> str     // ~/.config or %APPDATA%
+pulse os_temp_dir() -> str
+
+// ── Processes ─────────────────────────────────────────────────
+pulse os_pid() -> int            // current process ID
+pulse os_ppid() -> int           // parent PID
+pulse os_exit(code: int) -> void
+pulse os_exec(cmd: str) -> int   // wait + return exit code
+pulse os_exec_detach(cmd: str) -> int  // fire and forget (returns PID)
+
+// ── Threads ───────────────────────────────────────────────────
+forge Thread {
+    id:      int  = 0
+    name:    str  = ""
+    running: bool = false
+}
+pulse thread_spawn(f: auto) -> Thread
+pulse thread_spawn_named(name: str, f: auto) -> Thread
+pulse thread_join(t: Thread) -> void
+pulse thread_detach(t: Thread) -> void
+pulse thread_id() -> int                 // current thread ID
+pulse thread_count() -> int              // active thread count
+pulse thread_sleep_ms(ms: int) -> void
+pulse thread_yield() -> void
+
+// ── Mutex ─────────────────────────────────────────────────────
+forge Mutex { _handle: int = 0 }
+pulse mutex_new() -> Mutex
+pulse mutex_lock(m: Mutex) -> void
+pulse mutex_try_lock(m: Mutex) -> bool
+pulse mutex_unlock(m: Mutex) -> void
+pulse mutex_destroy(m: Mutex) -> void
+
+// ── Atomic operations ─────────────────────────────────────────
+pulse atomic_add(ptr: auto, val: int) -> int
+pulse atomic_sub(ptr: auto, val: int) -> int
+pulse atomic_load(ptr: auto) -> int
+pulse atomic_store(ptr: auto, val: int) -> void
+pulse atomic_compare_swap(ptr: auto, expected: int, desired: int) -> bool
+
+// ── Signals ───────────────────────────────────────────────────
+atom SIG_INT:  int = 2
+atom SIG_TERM: int = 15
+atom SIG_HUP:  int = 1
+atom SIG_ALRM: int = 14
+pulse signal_handle(sig: int, handler: auto) -> void
+pulse signal_ignore(sig: int) -> void
+pulse signal_raise(sig: int) -> void
+
+// ── ANSI Colors ───────────────────────────────────────────────
+atom COLOR_RESET:   str = "\033[0m"
+atom COLOR_BLACK:   str = "\033[30m"
+atom COLOR_RED:     str = "\033[31m"
+atom COLOR_GREEN:   str = "\033[32m"
+atom COLOR_YELLOW:  str = "\033[33m"
+atom COLOR_BLUE:    str = "\033[34m"
+atom COLOR_MAGENTA: str = "\033[35m"
+atom COLOR_CYAN:    str = "\033[36m"
+atom COLOR_WHITE:   str = "\033[37m"
+atom COLOR_BOLD:    str = "\033[1m"
+atom COLOR_DIM:     str = "\033[2m"
+atom COLOR_UNDER:   str = "\033[4m"
+
+// ── Terminal ─────────────────────────────────────────────────
+pulse term_width() -> int
+pulse term_height() -> int
+pulse term_clear() -> void
+pulse term_move_cursor(row: int, col: int) -> void
+pulse term_hide_cursor() -> void
+pulse term_show_cursor() -> void
+pulse term_raw_mode(on: bool) -> void

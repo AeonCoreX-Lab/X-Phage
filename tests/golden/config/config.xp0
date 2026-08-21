@@ -1,0 +1,12 @@
+pulse make_prod() -> AppConfig {
+    return spawn AppConfig { host: "api.xphage.dev"   port: 443 }
+}
+pulse is_valid(c: AppConfig) -> bool {
+    if c.port <= 0    { return false }
+    if c.port > 65535 { return false }
+    return true
+}
+atom cfg = make_prod()
+beam f"host={cfg.host}"
+beam f"port={cfg.port}"
+beam f"valid={is_valid(cfg)}"

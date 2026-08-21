@@ -1,0 +1,36 @@
+realm Geometry {
+    const PI: float = 3.14159
+
+    forge Vector2 {
+        x: float = 0.0
+        y: float = 0.0
+    }
+
+    pulse length_sq(v: Geometry::Vector2) -> float {
+        return v.x * v.x + v.y * v.y
+    }
+
+    pulse circle_area(r: float) -> float {
+        return PI * r * r
+    }
+}
+
+realm App {
+    realm Models {
+        forge User { name: str = ""   score: int = 0 }
+    }
+
+    pulse rank(u: App::Models::User) -> str {
+        if u.score >= 100 { return "champion" }
+        return "player"
+    }
+}
+
+use Geometry::circle_area
+
+atom v = spawn Geometry::Vector2 { x: 3.0   y: 4.0 }
+beam f"len_sq={Geometry::length_sq(v)}"
+beam f"area={circle_area(2.0)}"
+
+atom u = spawn App::Models::User { name: "Nahid"   score: 150 }
+beam App::rank(u)

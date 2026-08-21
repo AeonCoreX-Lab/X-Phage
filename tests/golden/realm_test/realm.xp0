@@ -1,0 +1,8 @@
+use Geometry::circle_area
+
+atom v = spawn Geometry::Vector2 { x: 3.0   y: 4.0 }
+beam f"len_sq={Geometry::length_sq(v)}"
+beam f"area={circle_area(2.0)}"
+
+atom u = spawn App::Models::User { name: "Nahid"   score: 150 }
+beam App::rank(u)

@@ -1,0 +1,80 @@
+// X-Phage Phase 1 — All Foundation Features
+~link "io"
+~link "string"
+
+// Variables
+atom PI:    float = 3.14159
+shadow counter: int = 0
+global APP_NAME = "X-Phage Demo"
+
+// Pulse (function)
+pulse greet(name: str) -> str {
+    return f"Hello, {name}! From {APP_NAME}"
+}
+
+pulse factorial(n: int) -> int {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+pulse fibonacci(n: int) -> int {
+    if n <= 1 { return n }
+    shadow a: int = 0
+    shadow b: int = 1
+    for i in 2..n {
+        shadow tmp: int = a + b
+        a = b
+        b = tmp
+    }
+    return b
+}
+
+// Entry — top-level statements act as main
+beam greet("Developer")
+
+// If/elif/else
+shadow score: int = 85
+if score >= 90 {
+    beam "Grade: A"
+} elif score >= 80 {
+    beam "Grade: B"
+} elif score >= 70 {
+    beam "Grade: C"
+} else {
+    beam "Grade: F"
+}
+
+// While loop
+shadow i: int = 0
+while i < 5 {
+    beam f"Count: {i}"
+    i = i + 1
+}
+
+// For + range
+for x in 0..5 {
+    beam f"Square of {x} = {x * x}"
+}
+
+// f-string interpolation
+atom result = factorial(10)
+beam f"10! = {result}"
+beam f"fib(10) = {fibonacci(10)}"
+
+// Pipeline operator
+atom msg = "  hello world  " |> str_trim |> str_upper
+beam f"Pipeline result: {msg}"
+
+// Process capture (Bash power)
+atom branch = proc "git rev-parse --abbrev-ref HEAD"
+beam f"Current branch: {branch}"
+
+// vortex (try/catch)
+vortex {
+    atom data = io_read("config.xh")
+    beam f"Config: {data}"
+} catch (e) {
+    beam "Config not found — using defaults"
+}
