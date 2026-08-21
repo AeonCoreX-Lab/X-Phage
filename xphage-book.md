@@ -1,8 +1,8 @@
-# The X-Phage Programming Language
+# The XPhage Programming Language
 
 **AeonCoreX Lab | v3.5.0**
 
-*By the X-Phage Team*
+*By the XPhage Team*
 
 ---
 
@@ -12,13 +12,50 @@
 
 ## Foreword
 
-X-Phage was born from a simple frustration: every language makes you choose. You can have speed or safety. Expressiveness or control. High-level abstractions or bare-metal access. Native performance or cross-platform UI.
+XPhage was born from a simple frustration: every language makes you choose. You can have speed or safety. Expressiveness or control. High-level abstractions or bare-metal access. Native performance or cross-platform UI.
 
-X-Phage refuses to make that choice.
+XPhage refuses to make that choice.
 
 This book is for anyone who wants to write software that is fast, safe, expressive, and runs everywhere — from a space rover's onboard computer to a mobile app, from an AI inference engine to an OS kernel. No compromises.
 
-Whether you are a C++ veteran tired of undefined behavior, a Python developer who needs more speed, a Rust programmer who wants simpler syntax, or a Kotlin developer who wants true native cross-platform UI — X-Phage is for you.
+Whether you are a C++ veteran tired of undefined behavior, a Python developer who needs more speed, a Rust programmer who wants simpler syntax, or a Kotlin developer who wants true native cross-platform UI — XPhage is for you.
+
+### XPhage is a Multi-Generation Language
+
+XPhage is the only language that gives you **3rd + 4th + 5th Generation** power in one coherent system:
+
+| Generation | What it means | In XPhage |
+|---|---|---|
+| **3GL** — Systems | Full memory control, native speed, hardware access | `own/ref/mut_ref`, `unsafe`, LLVM, `@register` |
+| **4GL** — Declarative | High-level abstractions, less code, more clarity | `flux/emit/absorb`, `select from where`, `filter/map` |
+| **5GL** — Intelligence | Constraints, auto-optimization, AI-native compute | `@differentiable`, `solve {}`, `@gpu_kernel` |
+
+**The golden rule:** 3GL and 4GL features are always available — no opt-in needed. 5GL features are completely opt-in using `@annotation` or special blocks. **Existing code never breaks. Never.**
+
+```
+┌─────────────────────────────────────────────────────┐
+│              XPhage Power Levels                    │
+├─────────────────────────────────────────────────────┤
+│  🟢 3GL + 4GL — Always Available, Zero Setup        │
+│                                                      │
+│  Memory, speed, ownership, reactive UI,             │
+│  query syntax, data pipelines                        │
+├─────────────────────────────────────────────────────┤
+│  🔴 5GL — Opt-In Only, Zero Cost When Unused        │
+│                                                      │
+│  @differentiable  — gradient auto-generation         │
+│  @gpu_kernel      — GPU parallel dispatch            │
+│  solve {}         — constraint-based solving         │
+│  @smart_ownership — ownership inference              │
+│                                                      │
+│  Activate: add @annotation or write solve {}         │
+│  Existing code: unchanged, unaffected                │
+└─────────────────────────────────────────────────────┘
+```
+
+### A Honest Note on Current Status
+
+XPhage is currently at **v3.5.0**, which is the version this book documents and the next release to ship. Phases 1–4 — the lexer, parser, AST, both compiler backends (the LLVM native backend and the C++17 transpiler fallback), and the full core language (variables, functions, control flow, `forge`/`nexus`/`impl`, `flux`/`emit`/`absorb`, ownership, async/await) — are **complete and stable** as of this version. Fusion UI's console backend is production-ready today. The GPU rendering backends (Vulkan, Metal, WebGPU) are in active development as part of Phase 5 — Chapter 16 shows the exact, honest status of each. Features marked with a phase number beyond 5 (e.g., "Phase 6," "Phase 7.5," "Phase 10") are planned and fully specified in this book, but not yet implemented — they describe where the language is going, not what v3.5.0 can do today.
 
 ---
 
@@ -26,15 +63,16 @@ Whether you are a C++ veteran tired of undefined behavior, a Python developer wh
 
 This book progresses from beginner to expert:
 
-- **Chapters 1-3**: Setup, first programs, basic syntax
-- **Chapters 4-6**: Core language features: types, functions, control flow
-- **Chapters 7-9**: The type system: forge, nexus, impl
-- **Chapters 10-11**: Reactive programming: flux, emit, absorb
-- **Chapters 12-13**: Systems programming: ownership, memory
-- **Chapters 14-15**: Standard library deep dive
-- **Chapters 16-18**: Fusion UI framework
-- **Chapters 19-20**: Advanced topics: async, AI, embedded
-- **Chapter 21**: Building real projects
+- **Chapters 1–3**: Setup, first programs, basic syntax
+- **Chapters 4–6**: Core language features: types, functions, control flow
+- **Chapters 7–9**: The type system: forge, nexus, impl, realm, enum
+- **Chapters 10–11**: Reactive programming: flux, emit, absorb
+- **Chapters 12–13**: Systems programming: ownership, memory
+- **Chapters 14–15**: Standard library deep dive
+- **Chapters 16–18**: Fusion UI framework
+- **Chapters 19–20**: Advanced topics: async, AI/ML
+- **Chapters 21–25**: 5th Generation Power (opt-in features)
+- **Chapter 26**: Building real projects
 
 ---
 
@@ -44,30 +82,34 @@ This book progresses from beginner to expert:
 
 ## Chapter 1: Installation and Hello World
 
-### 1.1 Installing X-Phage
+### 1.1 Installing XPhage
 
 **Linux / macOS:**
 ```bash
-curl -sL https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/scripts/install.sh | bash
+curl -sL https://xphage.dev/install | sh
 ```
 
 **Windows:**
 ```powershell
-irm https://raw.githubusercontent.com/AeonCoreX-Lab/X-Phage/main/scripts/install.ps1 | iex
+irm https://xphage.dev/install | iex
 ```
 
 This installs:
 - `xphage` — the compiler
 - `xpm` — the package manager
+- `xforge` — the toolchain version manager
 - Standard library
 
 Verify:
 ```bash
 xphage --version
-# X-Phage 3.5.0 (Titan Transpiler)
+# XPhage 3.5.0 (Titan Transpiler)
 
 xpm --version
 # XPM 1.0.0
+
+xforge --version
+# xforge 1.0.0
 ```
 
 ### 1.2 Your First Program
@@ -96,7 +138,7 @@ xphage build hello.xp0
 
 ### 1.3 The Tri-Modular File System
 
-X-Phage uses three file types. This is not optional — the compiler enforces it:
+XPhage's primary project layout uses three file types, each holding one layer of a program:
 
 | Extension | Layer | Purpose |
 |-----------|-------|---------|
@@ -119,6 +161,58 @@ my-app/
 └── xpm.toml           ← package config
 ```
 
+The compiler enforces layer discipline *within* each of these three extensions — the checks in §1.3.1 below (an execution statement in a `.xh` file, for instance, produces a warning) exist specifically because `.xh`/`.xui`/`.xp0` each promise to hold only one layer. This three-file split is the language's core, intended architecture for a real project — it stays the right structure to reach for as a codebase grows, since it's what keeps types, UI, and execution logic from tangling together. §1.3.1 covers a fourth extension, `.xp`, whose purpose is different: it exists specifically so a beginner (or anyone writing something small — a script, a one-off example, code for this book) doesn't have to learn or set up the three-file structure before writing their first working program. Reach for `.xp` while you're learning or prototyping; reach for the `.xh`/`.xui`/`.xp0` split once a project is real enough to benefit from the separation — `.xp` was not designed to replace it.
+
+### 1.3.1 .xp — Single-File Programs, for Getting Started
+
+`.xp` exists to remove a barrier, not to offer a second permanent architecture alongside the Tri-Modular one. The three-file split above is how a real XPhage project is meant to be organized as it grows — `.xp` is what you reach for before that split is worth doing: your first program, a script, a self-contained example, code while you're still learning the language. Nothing about `.xp` is a lesser or restricted version of the language (every feature in this book works the same way in a `.xp` file), and there's no requirement to "graduate" a working `.xp` file to three files by any particular point — but if a `.xp` file grows into something with real UI, a real API surface other code depends on, and real execution logic all tangled together, that's the signal that it's outgrown the format it's in, and §1.3's three-file structure is where it should move to.
+
+A `.xp` file can freely mix all three layers — types, UI, and execution logic together in one file — and the compiler is not stricter about the mixing than that: there is no warning for combining a `forge` declaration with a `beam` statement in the same `.xp` file, the way there would be for putting a `beam` statement in a `.xh` file. Every `.xp` example used elsewhere in this book (and in the compiler's own golden test suite) is written this way:
+
+```xphage
+// greet.xp — types, functions, and execution all in one file
+forge Person {
+    name: str = ""
+    age: int = 0
+}
+
+pulse greet(p: Person) -> str {
+    return f"Hello, {p.name}! You are {p.age} years old."
+}
+
+atom nahid = spawn Person { name: "Nahid"   age: 28 }
+beam greet(nahid)
+```
+
+```bash
+xphage build greet.xp -o greet
+./greet
+```
+
+**How the compiler handles a `.xp` file internally.** Even though nothing in the file is separated by extension, the compiler still classifies every top-level declaration into the same three layers `.xh`/`.xui`/`.xp0` represent (a `forge`/`pulse` signature is Logic, a `weave`/`strand` UI declaration is UI, a `beam`/loop/`if`/top-level statement is Execution) and reassembles them in Logic → UI → Execution order before generating code — the same ordering a three-file project would naturally have. This classification is purely internal bookkeeping for code generation; you don't write anything differently because of it, and declaration order in the source file doesn't matter (see §14 on declaration-order independence, which applies identically to `.xp` files and to `.xh`/`.xui`/`.xp0` projects).
+
+**A `.xp` file that starts leaning on Tri-Modular siblings.** If a `.xp` file has no execution entry point of its own — just type and function declarations, nothing that would actually run — the compiler looks in the same directory for a file with the same base name that could supply the missing piece(s): `name.xh` for a missing Logic layer, `name.xui` for a missing UI layer, `name.xp0` for a missing Execution layer. If exactly one such file exists per missing layer, and none of its declared names collide with anything the `.xp` file already declares itself, it's merged in automatically:
+
+```
+project/
+├── shapes.xp     ← forge Circle, forge Square (no execution entry point)
+└── shapes.xp0    ← beam statements calling into shapes.xp's functions
+```
+
+```bash
+xphage build shapes.xp    # automatically finds and merges shapes.xp0
+```
+
+If a `.xp` file already has its own execution entry point, this discovery step is skipped entirely — it compiles standalone even if a same-named `.xh`/`.xui`/`.xp0` happens to exist alongside it. And if a same-named sibling file *is* found but declares a symbol with the same name as something the `.xp` file already declares, the compiler treats that as two independent, unrelated files that happen to share a name (not a genuine multi-layer project) and refuses to guess — it prints a warning explaining the collision and compiles the `.xp` file alone, rather than silently picking one declaration over the other.
+
+In practice, this sibling-discovery behavior mostly matters as a stepping stone: it lets a project move its execution logic into a real `.xp0` (or its types into a real `.xh`) one piece at a time, without having to relocate everything at once, while `shapes.xp` still works as the thing you `build`. Once every layer has moved out into its own file, there's nothing left mixed in `shapes.xp` and the project has arrived at the ordinary Tri-Modular layout from §1.3 — at that point you'd typically build the `.xp0` directly (`xphage build shapes.xp0`) rather than continue through the now-empty `.xp`. You can also always name every file explicitly instead of relying on discovery:
+
+```bash
+xphage build shapes.xp shapes.xp0
+```
+
+which is exactly what the block form of `extern "C"`, multi-file `.xh`+`.xp0` projects, and every other multi-file invocation in this book already does.
+
 ### 1.4 Your First Project
 
 ```bash
@@ -138,7 +232,7 @@ my-app/
 `src/main.xp0`:
 ```xphage
 pulse main() {
-    beam "Hello from X-Phage!"
+    beam "Hello from XPhage!"
 }
 ```
 
@@ -174,7 +268,7 @@ Before diving into details, let's build something fun — a number guessing game
 ~link "io"
 
 pulse main() {
-    beam "=== X-Phage Guessing Game ==="
+    beam "=== XPhage Guessing Game ==="
     beam "I'm thinking of a number between 1 and 100."
     beam ""
 
@@ -205,7 +299,7 @@ xphage run guessing_game.xp0
 ```
 
 ```
-=== X-Phage Guessing Game ===
+=== XPhage Guessing Game ===
 I'm thinking of a number between 1 and 100.
 
 Your guess: 50
@@ -236,7 +330,7 @@ Let's analyze what we used:
 
 ### 3.1 Variables
 
-X-Phage has two kinds of variables:
+XPhage has two kinds of variables:
 
 **`atom` — immutable (cannot be changed)**
 ```xphage
@@ -292,7 +386,7 @@ Available everywhere in the module without passing as parameter.
 ```xphage
 const PI:      float = 3.14159265358979
 const MAX_BUF: int   = 65536
-const APP:     str   = "X-Phage"
+const APP:     str   = "XPhage"
 ```
 
 Computed at compile time. Zero runtime cost.
@@ -309,23 +403,14 @@ Computed at compile time. Zero runtime cost.
 | `auto` | Inferred | varies | compiler determines |
 
 ```xphage
-// Integer operations
 atom a: int = 1_000_000    // underscores for readability
 atom b: int = 0xFF          // hex literal
 atom c: int = 0b1010        // binary literal
-
-// Float operations
 atom x: float = 1.0e9       // scientific notation
-atom y: float = -0.001
-
-// Boolean
 atom flag: bool = true
 atom other      = !flag     // false
-
-// String
-atom name: str = "X-Phage"
+atom name: str = "XPhage"
 atom multi      = "Line 1\nLine 2\nLine 3"
-atom tab        = "Column1\tColumn2"
 ```
 
 ### 3.3 String Interpolation (f-strings)
@@ -335,15 +420,11 @@ atom name  = "Nahid"
 atom level = 42
 atom score = 9850.5
 
-// Basic interpolation
 beam f"Hello {name}"
 beam f"Level: {level}, Score: {score}"
-
-// Expressions inside {}
 beam f"Double: {level * 2}"
 beam f"Is high: {score > 9000}"
 
-// Method calls inside {}
 atom upper_name = str_upper(name)
 beam f"Welcome {upper_name}!"
 ```
@@ -351,35 +432,30 @@ beam f"Welcome {upper_name}!"
 ### 3.4 Type Conversion
 
 ```xphage
-// String ↔ Number
-atom n = str_to_int("42")        // str → int
-atom f = str_to_float("3.14")    // str → float
-atom s = int_to_str(1000)        // int → str
-atom fs = float_to_str(3.14)     // float → str
+atom n   = str_to_int("42")
+atom f   = str_to_float("3.14")
+atom s   = int_to_str(1000)
+atom fs  = float_to_str(3.14)
 atom fs2 = float_to_str_prec(3.14159, 2)  // "3.14"
 
 // Explicit cast
 atom x: int   = 42
-atom y: float = x as float      // int → float (Phase 3)
-atom z: int   = 3.9 as int      // float → int, truncates to 3
+atom y: float = x as float
+atom z: int   = 3.9 as int    // truncates to 3
 ```
 
 ### 3.5 Shadowing vs Mutability
 
-In X-Phage, you can redeclare a variable in the same scope:
-
 ```xphage
 atom x = 5
-beam x     // 5
+beam x         // 5
 
-atom x = x * 2     // new atom x, shadows the old one
-beam x     // 10
+atom x = x * 2     // new atom — shadows old one
+beam x         // 10
 
-atom x = f"Value is {x}"   // even change type!
-beam x     // "Value is 10"
+atom x = f"Value is {x}"   // even change type
+beam x         // "Value is 10"
 ```
-
-This is different from `shadow` (mutable). Shadowing creates a new binding. The old one ceases to exist in this scope.
 
 ---
 
@@ -388,22 +464,18 @@ This is different from `shadow` (mutable). Shadowing creates a new binding. The 
 ### 4.1 Declaring Functions
 
 ```xphage
-// Basic function
 pulse greet() {
     beam "Hello!"
 }
 
-// Function with parameters
 pulse greet_user(name: str) {
     beam f"Hello, {name}!"
 }
 
-// Function with return type
 pulse add(a: int, b: int) -> int {
     return a + b
 }
 
-// Function with multiple parameters
 pulse create_user(name: str, age: int, email: str) -> str {
     return f"{name}:{age}:{email}"
 }
@@ -412,36 +484,29 @@ pulse create_user(name: str, age: int, email: str) -> str {
 ### 4.2 Calling Functions
 
 ```xphage
-greet()                              // Hello!
-greet_user("Nahid")                 // Hello, Nahid!
-atom result = add(10, 20)           // 30
+greet()
+greet_user("Nahid")
+atom result = add(10, 20)
 atom user   = create_user("Nahid", 25, "nahid@example.com")
 ```
 
 ### 4.3 Return Values
 
 ```xphage
-// Explicit return
 pulse max_val(a: int, b: int) -> int {
-    if a > b {
-        return a
-    }
+    if a > b { return a }
     return b
 }
 
-// Early return
 pulse find_first_negative(nums: str) -> int {
     atom parts = str_split(nums, ",")
     for part in parts {
         atom n = str_to_int(part)
-        if n < 0 {
-            return n
-        }
+        if n < 0 { return n }
     }
-    return 0   // none found
+    return 0
 }
 
-// No return (void — default)
 pulse log_info(message: str) {
     atom timestamp = os_datetime()
     beam f"[{timestamp}] INFO: {message}"
@@ -451,14 +516,12 @@ pulse log_info(message: str) {
 ### 4.4 Lambda Expressions
 
 ```xphage
-// Single-expression lambda: |params| expression
 atom double   = |x: int| x * 2
 atom add_ten  = |x: int| x + 10
 atom square   = |x: float| x * x
 atom is_even  = |n: int| n % 2 == 0
 atom greet_fn = |name: str| f"Hello {name}"
 
-// Using lambdas
 beam double(5)         // 10
 beam add_ten(32)       // 42
 beam greet_fn("World") // Hello World
@@ -477,8 +540,6 @@ beam clean_text    // "HELLO WORLD"
 
 ### 4.5 The Pipeline Operator |>
 
-The `|>` operator passes the left value as the argument to the right function:
-
 ```xphage
 // Without pipeline (nested, hard to read)
 atom result = str_upper(str_trim(str_replace(input, ",", "")))
@@ -489,17 +550,12 @@ atom result = input
     |> str_trim
     |> str_upper
 
-// Multiple operations
-atom processed = raw_data
-    |> validate
-    |> normalize
-    |> compute_average
-    |> format_output
-
-// Pipeline with arguments using lambdas
-atom result = numbers
-    |> |v| vec_filter(v, |x| str_to_int(x) > 0)
-    |> |v| vec_sort(v)
+// Phase 6: typed pipeline combinators
+atom result: Vec<int> = numbers
+    |> filter(|x| x > 0)
+    |> map(|x| x * 2)
+    |> sort()
+    |> take(10)
 ```
 
 ### 4.6 Recursive Functions
@@ -522,17 +578,14 @@ beam fibonacci(10)   // 55
 ### 4.7 Functions as Values
 
 ```xphage
-// Functions can be stored in variables
 atom my_func = |x: int| x * x
 
-// Pass functions as arguments
 pulse apply(fn: auto, value: int) -> int {
     return fn(value)
 }
 
 atom result = apply(|x: int| x * 3, 7)   // 21
 
-// Return functions from functions
 pulse make_adder(n: int) -> auto {
     return |x: int| x + n
 }
@@ -549,19 +602,16 @@ beam add5(100)   // 105
 ### 5.1 if / elif / else
 
 ```xphage
-// Basic if
 if temperature > 30 {
     beam "Hot day!"
 }
 
-// if-else
 if age >= 18 {
     beam "Adult"
 } else {
     beam "Minor"
 }
 
-// if-elif-else chain
 if score >= 90 {
     beam "A"
 } elif score >= 80 {
@@ -574,7 +624,7 @@ if score >= 90 {
     beam "F"
 }
 
-// if as expression (result used)
+// if as expression
 atom category = if temperature > 30 {
     "hot"
 } elif temperature > 20 {
@@ -588,7 +638,6 @@ beam f"Weather: {category}"
 ### 5.2 while Loops
 
 ```xphage
-// Basic while
 shadow i: int = 0
 while i < 10 {
     beam i
@@ -599,9 +648,7 @@ while i < 10 {
 shadow searching = true
 shadow pos: int = 0
 while searching {
-    if data_at(pos) == target {
-        searching = false
-    }
+    if data_at(pos) == target { searching = false }
     pos = pos + 1
     if pos > max_pos { break }
 }
@@ -610,34 +657,30 @@ while searching {
 shadow n: int = 0
 while n < 20 {
     n = n + 1
-    if n % 2 == 0 { continue }  // skip even numbers
-    beam n    // prints only odd numbers
+    if n % 2 == 0 { continue }
+    beam n
 }
 ```
 
 ### 5.3 for / in Loops
 
 ```xphage
-// Iterate over a range
 for i in range(0, 10) {
-    beam i    // 0, 1, 2, ..., 9
+    beam i
 }
 
-// Range with step
 for i in range_step(0, 100, 10) {
     beam i    // 0, 10, 20, ..., 90
 }
 
-// Iterate over collection (comma-separated)
 atom fruits = "apple,banana,cherry"
 for fruit in str_split(fruits, ",") {
     beam f"I like {fruit}"
 }
 
 // Enumerate (get index + value)
-atom languages = "X-Phage,Rust,C++,Python"
+atom languages = "XPhage,Rust,C++,Python"
 for entry in enumerate(str_split(languages, ",")) {
-    // entry format: "0:X-Phage", "1:Rust", etc.
     atom parts = str_split(entry, ":")
     atom idx  = vec_get(parts, 0)
     atom lang = vec_get(parts, 1)
@@ -645,24 +688,43 @@ for entry in enumerate(str_split(languages, ",")) {
 }
 ```
 
-### 5.4 probe / diverge — Pattern Matching
-
-`probe` is X-Phage's pattern matching — more powerful than `switch`:
+**Direct range syntax.** `range(start, end)` above is a standard-library function; XPhage also has a `..` range operator built directly into `for`, with no function call needed:
 
 ```xphage
-// Basic probe
+for i in 0..10 {
+    beam i    // 0, 1, 2, ..., 9 — same as range(0, 10)
+}
+
+pulse fib(n: int) -> int {
+    if n <= 1 { return n }
+    shadow a: int = 0
+    shadow b: int = 1
+    for i in 2..n {
+        shadow t: int = a + b
+        a = b
+        b = t
+    }
+    return b
+}
+```
+
+`start..end` is **half-open**: it includes `start` and every integer up to but not including `end`, exactly like `range(start, end)` — `2..n` above runs for `n - 2` iterations, not `n - 1`. Both bounds can be arbitrary integer expressions, not just literals (`for i in a..(b + 1)` is valid). There is currently no `..=` inclusive-range variant — write `start..(end + 1)` if you need the upper bound included.
+
+### 5.4 probe / diverge — Pattern Matching
+
+`probe` is XPhage's pattern matching — more powerful than `switch`:
+
+```xphage
 probe command {
     diverge "quit"    -> os_exit(0)
     diverge "help"    -> show_help()
-    diverge "version" -> beam "X-Phage v3.5.0"
+    diverge "version" -> beam "XPhage v3.5.0"
     diverge _         -> beam f"Unknown command: {command}"
 }
 
-// Probe on numbers
 probe error_code {
     diverge 0   -> beam "Success"
     diverge 1   -> beam "Permission denied"
-    diverge 2   -> beam "File not found"
     diverge 404 -> beam "Not found"
     diverge 500 -> beam "Server error"
     diverge _   -> beam f"Error: {error_code}"
@@ -680,12 +742,9 @@ probe action {
         delete_item(current_id)
         beam "Item deleted"
     }
-    diverge _ -> {
-        log_unknown_action(action)
-    }
+    diverge _ -> { log_unknown_action(action) }
 }
 
-// Probe on boolean
 probe authenticated {
     diverge true  -> show_dashboard()
     diverge false -> show_login()
@@ -695,17 +754,15 @@ probe authenticated {
 ### 5.5 vortex — Error Handling
 
 ```xphage
-// Basic error handling
+// Basic
 vortex {
     atom data = parse_dangerous_file("config.xh")
     process(data)
-}
-
-// Error handling with recovery
-vortex {
-    atom connection = db_connect("localhost:5432")
-    atom users = db_query(connection, "SELECT * FROM users")
-    beam f"Found {vec_size(users)} users"
+} catch(err) {
+    beam f"Error: {err.message}"
+    use_defaults()
+} finally {
+    cleanup_temp_files()
 }
 
 // Nested vortex
@@ -715,30 +772,19 @@ vortex {
         atom parsed = json_parse(file)
         use_data(parsed)
     }
-    // outer vortex catches if json_parse fails
 }
 ```
 
 ### 5.6 The ? Error Propagation Operator
 
 ```xphage
-// Without ? — verbose
-pulse load_and_process(path: str) -> str {
-    vortex {
-        atom raw  = io_read(path)
-        atom data = json_parse(raw)
-        return process(data)
-    }
-    return ""
-}
-
-// With ? — concise (Phase 3)
+// With ? — concise error propagation
 pulse load_and_process(path: str) -> str {
     atom raw  = io_read(path)?
     atom data = json_parse(raw)?
     return process(data)
 }
-// ? means: if error, return error immediately (propagate up)
+// ? means: if error, return error immediately
 ```
 
 ---
@@ -751,16 +797,15 @@ pulse load_and_process(path: str) -> str {
 atom a: int = 10
 atom b: int = 3
 
-beam a + b     // 13  — addition
-beam a - b     // 7   — subtraction
-beam a * b     // 30  — multiplication
-beam a / b     // 3   — integer division (truncates)
-beam a % b     // 1   — remainder/modulo
+beam a + b     // 13
+beam a - b     // 7
+beam a * b     // 30
+beam a / b     // 3  (integer division)
+beam a % b     // 1  (modulo)
 
-// Float arithmetic
 atom x: float = 10.0
 atom y: float = 3.0
-beam x / y     // 3.333...  — float division
+beam x / y     // 3.333...
 ```
 
 ### 6.2 Comparison
@@ -772,26 +817,21 @@ beam 5 >  3     // true
 beam 5 <  3     // false
 beam 5 >= 5     // true
 beam 5 <= 4     // false
-
-// String comparison
 beam "abc" == "abc"    // true
-beam "abc" != "xyz"    // true
 ```
 
 ### 6.3 Logical
 
 ```xphage
-beam true && false    // false  (and)
-beam true || false    // true   (or)
-beam !true            // false  (not)
+beam true && false    // false
+beam true || false    // true
+beam !true            // false
 
-// Word forms also work
 beam true and false   // false
 beam true or false    // true
 beam not true         // false
 
-// Short-circuit evaluation
-atom safe_divide = b != 0 && a / b > 0  // b != 0 checked first
+atom safe_divide = b != 0 && a / b > 0
 ```
 
 ### 6.4 Bitwise
@@ -800,27 +840,25 @@ atom safe_divide = b != 0 && a / b > 0  // b != 0 checked first
 atom a: int = 0b1010   // 10
 atom b: int = 0b1100   // 12
 
-beam a & b    // 0b1000 = 8  (AND)
-beam a | b    // 0b1110 = 14 (OR)
-beam a ^ b    // 0b0110 = 6  (XOR)
+beam a & b    // 8  (AND)
+beam a | b    // 14 (OR)
+beam a ^ b    // 6  (XOR)
 beam ~a       // bitwise NOT
-beam a << 1   // 0b10100 = 20 (left shift)
-beam a >> 1   // 0b0101 = 5  (right shift)
+beam a << 1   // 20 (left shift)
+beam a >> 1   // 5  (right shift)
 ```
 
 ### 6.5 Compound Assignment
 
 ```xphage
 shadow x: int = 10
-x += 5    // x = x + 5  = 15
-x -= 3    // x = x - 3  = 12
-x *= 2    // x = x * 2  = 24
-x /= 4    // x = x / 4  = 6
+x += 5    // 15
+x -= 3    // 12
+x *= 2    // 24
+x /= 4    // 6
 ```
 
 ### 6.6 Operator Precedence
-
-From highest to lowest:
 
 ```
 1. Function calls, method calls, indexing
@@ -830,13 +868,10 @@ From highest to lowest:
 5. << >>
 6. < > <= >=
 7. == !=
-8. &
-9. ^
-10. |
-11. &&
-12. ||
-13. |> (pipeline)
-14. = += -= *= /= (assignment)
+8. &  ^  |
+9. && ||
+10. |> (pipeline)
+11. = += -= *= /=
 ```
 
 ---
@@ -866,11 +901,11 @@ forge Color {
 }
 
 forge User {
-    name:       str = ""
-    email:      str = ""
-    age:        int = 0
-    score:      float = 0.0
-    active:     bool = true
+    name:   str   = ""
+    email:  str   = ""
+    age:    int   = 0
+    score:  float = 0.0
+    active: bool  = true
 }
 ```
 
@@ -885,13 +920,8 @@ forge User {
 // main.xp0
 ~link "models.xh"
 
-// Create with spawn
-atom p = spawn Point { x: 3.0, y: 4.0 }
-
-// Partial construction (uses defaults for missing fields)
-atom red = spawn Color { r: 255 }    // g=0, b=0, a=255
-
-// Full construction
+atom p    = spawn Point { x: 3.0, y: 4.0 }
+atom red  = spawn Color { r: 255 }    // g=0, b=0, a=255
 atom user = spawn User {
     name:   "Nahid"
     email:  "nahid@example.com"
@@ -899,21 +929,17 @@ atom user = spawn User {
     score:  98.5
     active: true
 }
-
-// Default construction (all defaults)
-atom origin = spawn Point {}
+atom origin = spawn Point {}    // all defaults
 ```
 
 ### 7.3 Accessing Fields
 
 ```xphage
 atom p = spawn Point { x: 3.0, y: 4.0 }
-
-beam p.x        // 3.0
-beam p.y        // 4.0
+beam p.x
+beam p.y
 beam f"Point: ({p.x}, {p.y})"
 
-// Mutable field access
 shadow u = spawn User { name: "Nahid", age: 25 }
 u.age   = 26
 u.score = 99.0
@@ -924,18 +950,17 @@ beam u.age    // 26
 
 ```xphage
 forge Address {
-    street: str = ""
-    city:   str = ""
+    street:  str = ""
+    city:    str = ""
     country: str = ""
 }
 
 forge Person {
-    name:    str = ""
-    age:     int = 0
+    name:    str     = ""
+    age:     int     = 0
     address: Address = spawn Address {}
 }
 
-// Usage
 shadow person = spawn Person {
     name: "Nahid"
     age:  25
@@ -958,13 +983,13 @@ pulse print_user(u: User) {
     beam f"User: {u.name} (age {u.age})"
 }
 
-// Pass by ref (immutable reference — Phase 3)
+// Pass by ref (immutable reference)
 pulse display_user(ref u: User) {
     beam f"User: {u.name}"
     beam f"Email: {u.email}"
 }
 
-// Pass by mut_ref (mutable reference — Phase 3)
+// Pass by mut_ref (mutable reference)
 pulse birthday(mut_ref u: User) {
     u.age = u.age + 1
 }
@@ -1036,15 +1061,14 @@ beam big.area()          // 60.0
 
 ```xphage
 // interfaces.xh
-
 nexus Drawable {
-    draw() -> void
+    draw()   -> void
     bounds() -> Rectangle
 }
 
 nexus Serializable {
-    to_json()           -> str
-    from_json(s: str)   -> bool
+    to_json()         -> str
+    from_json(s: str) -> bool
 }
 
 nexus Comparable {
@@ -1063,41 +1087,22 @@ nexus Animal {
 
 ```xphage
 // animals.xh
-forge Dog {
-    name: str = ""
-    breed: str = ""
-}
-
-forge Cat {
-    name: str = ""
-    indoor: bool = true
-}
+forge Dog { name: str = ""  breed: str = "" }
+forge Cat { name: str = ""  indoor: bool = true }
 ```
 
 ```xphage
 // animals_impl.xh
 impl Animal for Dog {
-    speak() -> str {
-        return "Woof!"
-    }
-    move() -> void {
-        beam f"{self.name} runs"
-    }
-    name() -> str {
-        return self.name
-    }
+    speak() -> str  { return "Woof!" }
+    move()  -> void { beam f"{self.name} runs" }
+    name()  -> str  { return self.name }
 }
 
 impl Animal for Cat {
-    speak() -> str {
-        return "Meow!"
-    }
-    move() -> void {
-        beam f"{self.name} slinks"
-    }
-    name() -> str {
-        return self.name
-    }
+    speak() -> str  { return "Meow!" }
+    move()  -> void { beam f"{self.name} slinks" }
+    name()  -> str  { return self.name }
 }
 ```
 
@@ -1123,7 +1128,7 @@ forge Document {
 
 impl Serializable for Document {
     to_json() -> str {
-        return f"{\"title\":\"{self.title}\",\"content\":\"{self.content}\",\"author\":\"{self.author}\"}"
+        return f"{{\"title\":\"{self.title}\",\"content\":\"{self.content}\",\"author\":\"{self.author}\"}}"
     }
     from_json(s: str) -> bool {
         self.title   = json_get(s, "title")
@@ -1153,16 +1158,10 @@ nexus Logger {
     // Abstract — must be implemented
     log(message: str) -> void
 
-    // Default implementations
-    log_info(msg: str) -> void {
-        self.log(f"[INFO]  {msg}")
-    }
-    log_warn(msg: str) -> void {
-        self.log(f"[WARN]  {msg}")
-    }
-    log_error(msg: str) -> void {
-        self.log(f"[ERROR] {msg}")
-    }
+    // Default implementations — free for implementors
+    log_info(msg: str)  -> void { self.log(f"[INFO]  {msg}") }
+    log_warn(msg: str)  -> void { self.log(f"[WARN]  {msg}") }
+    log_error(msg: str) -> void { self.log(f"[ERROR] {msg}") }
 }
 ```
 
@@ -1170,61 +1169,209 @@ Any type implementing `Logger` only needs to define `log()`. The other methods c
 
 ---
 
-## Chapter 9: Enumerations and Variants
+## Chapter 8.5: realm — Namespaces
 
-While X-Phage doesn't have a dedicated `enum` keyword yet (Phase 6), you can model enumerations using constants and `probe`:
+> **A note on documentation status:** `realm` is a real, working v3.5.0 feature — the parser, semantic analyzer, and both C++ code generation backends (§Appendix D.1) all support it fully, including nested realms and qualified references. It has simply never been written up in this book or the ecosystem specification before now; the ecosystem specification's package-management section even lists "a namespace/realm system" among *future* language design concerns, which is no longer accurate — `realm` already exists and works today. This chapter fills that documentation gap.
+
+`realm` groups related declarations — `forge` types, `pulse` functions, `const` values, `impl` blocks, and even other `realm`s — under a shared name, so they don't have to compete for global names and can be referred to as a qualified group.
+
+### 8.5.1 Declaring a realm
+
+```xphage
+realm Geometry {
+    const PI: float = 3.14159
+
+    forge Vector2 {
+        x: float = 0.0
+        y: float = 0.0
+    }
+
+    pulse length_sq(v: Geometry::Vector2) -> float {
+        return v.x * v.x + v.y * v.y
+    }
+
+    pulse circle_area(r: float) -> float {
+        return PI * r * r
+    }
+}
+```
+
+Everything declared inside `realm Geometry { }` is qualified with the realm's name — the type is `Geometry::Vector2`, the function is `Geometry::length_sq`, and so on. Notice that `circle_area`'s body refers to `PI` unqualified — a `const` declared inside a realm is visible without its qualifier to other code *in the same realm*; code outside the realm must qualify it as `Geometry::PI`.
+
+### 8.5.2 Using a realm's members from outside
+
+Refer to a realm member with `::`, the same way the type is referenced in `length_sq`'s own parameter above:
+
+```xphage
+atom v = spawn Geometry::Vector2 { x: 3.0   y: 4.0 }
+beam f"len_sq={Geometry::length_sq(v)}"    // len_sq=25
+beam f"area={Geometry::circle_area(2.0)}"  // area=12.5664
+```
+
+### 8.5.3 use — Importing an Unqualified Name
+
+Writing the full `Realm::name` path every time is sometimes more than you want. `use` brings a single qualified name into scope so you can refer to it unqualified afterward:
+
+```xphage
+use Geometry::circle_area
+
+beam f"area={circle_area(2.0)}"   // no "Geometry::" needed anymore
+```
+
+`use` only affects the one name it names — it does not import every member of the realm. There is currently no wildcard `use Realm::*` form.
+
+### 8.5.4 Nested realms
+
+A `realm` can contain another `realm`, for grouping that's more than one level deep:
+
+```xphage
+realm App {
+    realm Models {
+        forge User { name: str = ""   score: int = 0 }
+    }
+
+    pulse rank(u: App::Models::User) -> str {
+        if u.score >= 100 { return "champion" }
+        return "player"
+    }
+}
+
+atom u = spawn App::Models::User { name: "Nahid"   score: 150 }
+beam App::rank(u)   // champion
+```
+
+Each level of nesting adds another `::`-separated segment — `App::Models::User` is fully qualified with both levels, while `App::rank` (declared directly inside `App`, not inside the nested `Models` realm) only needs one.
+
+### 8.5.5 impl inside a realm
+
+An `impl` block for a realm-declared type is written the same way as any other `impl`, and is itself scoped to the realm:
+
+```xphage
+realm Geometry {
+    forge Vector2 { x: float = 0.0   y: float = 0.0 }
+
+    impl Vector2 {
+        length(self) -> float {
+            return (self.x * self.x + self.y * self.y) as float
+        }
+    }
+}
+```
+
+
+
+### 9.1 The enum Keyword (Phase 6)
+
+XPhage has a first-class `enum` keyword for type-safe enumerations. Before Phase 6, `const str` workarounds were used — `enum` replaces those completely with compile-time safety.
 
 ```xphage
 // status.xh
+enum Status {
+    Ok
+    Loading
+    Warning
+    Error(str)      // data-carrying variant
+    NotFound(int)   // error code
+}
+
+enum Direction {
+    North
+    South
+    East
+    West
+}
+
+enum Color {
+    Red
+    Green
+    Blue
+    Custom(int, int, int)   // RGB
+}
+```
+
+### 9.2 Using enum with probe
+
+```xphage
+shadow status: Status = Status.Loading
+load_data()
+status = Status.Ok
+
+probe status {
+    diverge Status.Ok             -> beam "All good"
+    diverge Status.Loading        -> beam "Please wait..."
+    diverge Status.Warning        -> beam "Warning issued"
+    diverge Status.Error(msg)     -> beam f"Error: {msg}"
+    diverge Status.NotFound(code) -> beam f"Not found: {code}"
+}
+```
+
+**Why enum beats const str:**
+```xphage
+// Old way — NOT type-safe (pre-Phase 6):
 const STATUS_OK:      str = "ok"
 const STATUS_WARN:    str = "warn"
 const STATUS_ERROR:   str = "error"
 const STATUS_LOADING: str = "loading"
 
-// directions
-const DIR_NORTH: int = 0
-const DIR_EAST:  int = 1
-const DIR_SOUTH: int = 2
-const DIR_WEST:  int = 3
-```
-
-```xphage
-// Usage
-shadow status = STATUS_LOADING
-load_data()
-status = STATUS_OK
-
 probe status {
-    diverge STATUS_OK      -> beam "All good"
-    diverge STATUS_WARN    -> beam "Warning"
-    diverge STATUS_ERROR   -> beam "Failed"
-    diverge STATUS_LOADING -> beam "Please wait..."
-    diverge _              -> beam "Unknown"
+    diverge "okkk" -> beam "typo! compiler won't catch this"
+}
+
+// New way (Phase 6) — compile-time safe:
+probe status {
+    diverge Status.Okkk -> ...
+    // [error] No variant 'Okkk' in enum Status
+    //         Did you mean: Status.Ok?
 }
 ```
 
-**Option pattern (None / Some):**
+> **Note:** Until Phase 6 lands, use `const str` pattern shown above — it works correctly and is backward compatible. The `enum` keyword will be a drop-in addition.
+
+### 9.3 enum with Generics (Phase 6)
+
 ```xphage
-~link "collections"
+// Built-in Option<T> — replaces option_is_some/option_unwrap
+enum Option<T> {
+    Some(T)
+    None
+}
 
-// Result that may or may not exist
+// Built-in Result<T, E> — replaces result_is_ok/result_unwrap
+enum Result<T, E> {
+    Ok(T)
+    Err(E)
+}
+
+// Usage
+atom found: Option<User> = find_user(42)
+
+probe found {
+    diverge Option.Some(user) -> beam f"Found: {user.name}"
+    diverge Option.None       -> beam "User not found"
+}
+
+atom result: Result<Config, str> = read_config("config.xh")
+
+probe result {
+    diverge Result.Ok(config)  -> apply_config(config)
+    diverge Result.Err(reason) -> beam f"Config failed: {reason}"
+}
+```
+
+**Current (pre-Phase 6) — using helper functions:**
+```xphage
+// Option pattern
 atom found = find_user(42)
-
 if option_is_some(found) {
     atom user = option_unwrap(found)
     beam f"Found: {user}"
 } else {
     beam "User not found"
 }
-
-// With default
 atom name = option_unwrap_or(find_name(id), "Anonymous")
-```
 
-**Result pattern (Ok / Err):**
-```xphage
+// Result pattern
 atom result = read_config("config.xh")
-
 if result_is_ok(result) {
     atom config = result_unwrap(result)
     apply_config(config)
@@ -1234,6 +1381,36 @@ if result_is_ok(result) {
     use_defaults()
 }
 ```
+
+### 9.4 Tuple Types (Phase 6)
+
+Phase 6 also introduces lightweight, anonymous tuple types alongside generics. A tuple groups a fixed number of values of (possibly different) types without requiring a named `forge` declaration — useful for quick, local groupings such as a coordinate pair or a labeled sample, where defining a whole `forge` would be unnecessary ceremony.
+
+```xphage
+// Declaring a tuple type
+atom point: (float, float) = (3.0, 4.0)
+
+// Positional field access with .0, .1, .2, ...
+beam point.0   // 3.0
+beam point.1   // 4.0
+
+// Tuples as function return types
+pulse min_max(values: Vec<int>) -> (int, int) {
+    return (vec_min(values), vec_max(values))
+}
+
+atom (lo, hi) = min_max(numbers)   // destructuring on assignment
+beam f"Range: {lo} to {hi}"
+
+// Tuples inside collections (used throughout Chapter 21's training-loop examples)
+atom dataset: Vec<(float, float)> = vec_from([(1.0, 2.0), (3.0, 6.0)])
+for sample in dataset {
+    atom x = sample.0
+    atom y = sample.1
+}
+```
+
+Tuples are intentionally minimal — they have no named fields and no methods. Reach for a `forge` instead of a tuple as soon as a grouping of values needs a name, a default, or behavior attached to it via `impl`; tuples are meant only for small, local, self-explanatory groupings like the ones shown above.
 
 ---
 
@@ -1245,28 +1422,24 @@ if result_is_ok(result) {
 
 ### 10.1 What is Reactive State?
 
-In traditional programming:
 ```xphage
+// Without flux — manual UI sync:
 shadow score: int = 0
 score = 100
-// UI doesn't know score changed
-// You must manually update UI
-```
+// UI doesn't know score changed — must manually update
 
-With `flux`:
-```xphage
+// With flux — automatic:
 flux score: int = 0
 score = 100
-// Fusion UI automatically re-renders all components that display score
+// Fusion UI automatically re-renders all components using score
 // Zero manual synchronization
 ```
 
-`flux` is the most important concept for building interactive applications in X-Phage.
+`flux` is the most important concept for building interactive applications in XPhage.
 
 ### 10.2 Declaring flux
 
 ```xphage
-// Single values
 flux counter:    int   = 0
 flux username:   str   = "Guest"
 flux is_loading: bool  = false
@@ -1280,53 +1453,40 @@ global flux user_id:   int = -1
 ### 10.3 Reading flux
 
 ```xphage
-// Direct use — reads current value
 beam counter
 beam f"Hello {username}"
 beam f"Progress: {progress}%"
 
-// In conditions
-if is_loading {
-    beam "Please wait..."
-}
-
-if user_id > 0 {
-    beam "Logged in"
-} else {
-    beam "Guest mode"
-}
+if is_loading { beam "Please wait..." }
+if user_id > 0 { beam "Logged in" } else { beam "Guest mode" }
 ```
 
 ### 10.4 Writing flux
 
 ```xphage
-// Direct assignment — triggers observers
 counter    = counter + 1
 username   = "Nahid"
 is_loading = true
 progress   = 75.5
 
-// Compound assignment
-counter += 10
-counter -= 5
+counter  += 10
+counter  -= 5
 progress *= 2.0
 ```
 
-### 10.5 flux in UI (Fusion UI integration)
+### 10.5 flux in Fusion UI
 
 ```xphage
 // layout.xui
 ~link "fusion-ui"
 
-flux count:    int = 0
-flux message:  str = "Ready"
+flux count:   int = 0
+flux message: str = "Ready"
 
 fusion CounterScreen {
     Orbit(weave().padding(24)) {
-        // These automatically re-render when flux changes
-        Vision(f"Count: {count}")
-        Vision(f"Status: {message}")
-
+        Vision(f"Count: {count}")      // auto re-renders
+        Vision(f"Status: {message}")   // auto re-renders
         Trigger("Increment") { emit "inc" }
         Trigger("Reset")     { emit "reset" }
     }
@@ -1351,12 +1511,8 @@ The UI re-renders **only the nodes that use `count` and `message`** — not the 
 ### 10.6 Observing flux in Logic
 
 ```xphage
-// Trigger logic when state changes (Phase 3)
-// Advanced: observe pattern
 flux temperature: float = 20.0
 
-// When temperature changes:
-// absorb pattern handles this naturally
 absorb "temperature_update" {
     if temperature > 35.0 {
         send_alert("High temperature!")
@@ -1365,7 +1521,6 @@ absorb "temperature_update" {
     }
 }
 
-// Trigger update
 temperature = read_sensor()
 emit "temperature_update"
 ```
@@ -1376,22 +1531,16 @@ emit "temperature_update"
 
 ### 11.1 The Event Bus Pattern
 
-Instead of directly calling functions between components, X-Phage uses an event bus:
-
-**Without event bus:**
 ```xphage
-// Tight coupling — every component knows about every other
+// Without event bus — tight coupling:
 pulse button_clicked() {
     update_counter()
     refresh_ui()
     save_to_database()
     send_analytics()
 }
-```
 
-**With emit/absorb:**
-```xphage
-// Loose coupling — components only know about events
+// With emit/absorb — loose coupling:
 Trigger("Click") { emit "button_clicked" }
 
 absorb "button_clicked" { update_counter() }
@@ -1411,24 +1560,22 @@ emit "user_logged_out"
 emit "refresh_requested"
 
 // Event with data
-emit "user_login"    { username }
-emit "purchase"      { product_id, price, quantity }
-emit "error"         { code, message }
-emit "progress"      { current, total }
-emit "navigation"    { destination }
+emit "user_login"  { username }
+emit "purchase"    { product_id, price, quantity }
+emit "error"       { code, message }
+emit "progress"    { current, total }
+emit "navigation"  { destination }
 ```
 
 ### 11.3 Absorbing Events
 
 ```xphage
-// Handle simple event
 absorb "app_started" {
     beam "Application started"
     load_config()
     init_database()
 }
 
-// Handle event with data access
 absorb "user_login" {
     beam f"Welcome {username}"
     load_user_profile(username)
@@ -1445,20 +1592,16 @@ absorb "purchase" {
 absorb "error" {
     beam f"Error {code}: {message}"
     log_error(code, message)
-    if code >= 500 {
-        alert_admin(message)
-    }
+    if code >= 500 { alert_admin(message) }
 }
 ```
 
 ### 11.4 Event-Driven Architecture
 
 ```xphage
-// A complete feature implemented with events
-
 // Feature: User registration
 absorb "register_start" {
-    is_loading = true
+    is_loading     = true
     status_message = "Creating account..."
 }
 
@@ -1479,7 +1622,7 @@ absorb "register_submit" {
 }
 
 absorb "register_success" {
-    is_loading    = false
+    is_loading     = false
     status_message = "Account created!"
     emit "navigate" { "dashboard" }
 }
@@ -1489,13 +1632,11 @@ absorb "register_error" {
     status_message = f"Error: {error_message}"
 }
 
-// Trigger the flow
 Trigger("Create Account") { emit "register_start"; emit "register_validate" }
 ```
 
 ### 11.5 Best Practices
 
-**Name events clearly:**
 ```xphage
 // Good — verb + noun
 emit "user_logout"
@@ -1509,14 +1650,13 @@ emit "update"
 emit "click"
 ```
 
-**One responsibility per absorb:**
 ```xphage
-// Good — each absorb does one thing
+// Good — one responsibility per absorb
 absorb "order_placed" { update_inventory(product_id) }
 absorb "order_placed" { send_confirmation_email(user_email) }
 absorb "order_placed" { notify_warehouse(order_id) }
 
-// Bad — one absorb does everything
+// Bad — one absorb doing everything
 absorb "order_placed" {
     update_inventory(product_id)
     send_confirmation_email(user_email)
@@ -1536,7 +1676,7 @@ absorb "order_placed" {
 
 ### 12.1 The Ownership Model
 
-X-Phage has a lightweight ownership system inspired by Rust but simpler:
+XPhage has a lightweight ownership system inspired by Rust but simpler:
 
 | Keyword | Meaning | Use when |
 |---------|---------|----------|
@@ -1548,22 +1688,18 @@ X-Phage has a lightweight ownership system inspired by Rust but simpler:
 ### 12.2 own — Unique Ownership
 
 ```xphage
-// own = you own this, you are responsible for it
-own shadow buffer = allocate(1024 * 1024)  // 1MB buffer
+own shadow buffer = allocate(1024 * 1024)
 own atom file     = open_file("data.bin")
 own shadow conn   = db_connect("localhost")
-
-// When these go out of scope, resources are freed automatically
-// No GC needed, no manual free()
+// Automatically freed when out of scope — no GC, no manual free()
 ```
 
 ```xphage
 pulse process_file(path: str) {
     own atom f = open_file(path)
     // use f...
-    // f is automatically closed when this function returns
+    // f automatically closed when this function returns
 }
-// No file handle leaks
 ```
 
 ### 12.3 ref — Immutable Borrow
@@ -1572,31 +1708,28 @@ pulse process_file(path: str) {
 forge Image {
     width:  int = 0
     height: int = 0
-    pixels: str = ""   // pixel data
+    pixels: str = ""
 }
 
-// Takes an immutable reference — cannot modify the image
+// ref — cannot modify
 pulse display_info(ref img: Image) {
     beam f"Image: {img.width}x{img.height}"
     beam f"Pixels: {str_length(img.pixels)}"
 }
 
-// Takes ownership — can do anything
+// Takes ownership
 pulse save_image(img: Image, path: str) {
     io_write(path, img.pixels)
 }
 
 atom photo = spawn Image { width: 1920, height: 1080 }
-display_info(photo)   // photo not moved — ref borrow
-// photo still valid here
+display_info(photo)     // photo not moved — ref borrow
 save_image(photo, "photo.bin")  // photo moved
-// photo no longer valid here (owned by save_image)
 ```
 
 ### 12.4 mut_ref — Mutable Borrow
 
 ```xphage
-// Modify without taking ownership
 pulse scale_image(mut_ref img: Image, factor: float) {
     img.width  = img.width  * factor as int
     img.height = img.height * factor as int
@@ -1610,8 +1743,6 @@ beam f"New size: {photo.width}x{photo.height}"  // 960x540
 
 ### 12.5 unsafe — When You Need Full Control
 
-For OS development, hardware access, and FFI:
-
 ```xphage
 // Hardware register access (embedded/OS)
 unsafe {
@@ -1619,11 +1750,10 @@ unsafe {
     *uart_addr = 72    // write 'H' to UART
 }
 
-// Direct memory (when you know exactly what you're doing)
+// Direct memory
 unsafe {
     atom raw_ptr = allocate_raw(1024)
     write_raw(raw_ptr, data, size)
-    // Manual cleanup required in unsafe blocks
     free_raw(raw_ptr)
 }
 
@@ -1633,14 +1763,73 @@ unsafe {
     extern "C" pulse free(ptr: *mut void)
 
     atom mem = malloc(256)
-    // use mem...
     free(mem)
 }
 ```
 
-### 12.6 Memory Safety in Practice
+### 12.5.1 extern "C" — Calling Into C, C++, and Rust Libraries
 
-X-Phage prevents these common bugs:
+`extern "C"` declares a function whose implementation lives outside the current program, in a compiled library — a C library, a C++ library exposing a C-compatible interface, or a Rust library built as a `cdylib`/`staticlib` with `#[no_mangle] extern "C"` functions. XPhage does not compile or link the library itself; it only declares the function's signature so the compiler knows how to call it, and you supply the actual library file (or `-l`/`-L` flags) on the command line.
+
+**Declaring a single function:**
+
+```xphage
+extern "C" pulse native_add(a: int, b: int) -> int
+```
+
+**Declaring several at once (block form)** — equivalent to writing each one separately, just more convenient for a library with many entry points:
+
+```xphage
+extern "C" {
+    pulse native_add(a: int, b: int) -> int
+    pulse native_mul(a: float, b: float) -> float
+    pulse native_greet(name: str) -> str
+    pulse native_strlen(s: str) -> int
+}
+```
+
+Both forms can appear at the top level of a file (they don't have to be wrapped in `unsafe { }` — the `unsafe` block in the example above groups an FFI declaration together with raw pointer use, but a plain `extern "C" pulse ...` declaration by itself doesn't require one).
+
+**Calling an extern function** looks exactly like calling any other `pulse` — there is no special call syntax:
+
+```xphage
+extern "C" {
+    pulse native_add(a: int, b: int) -> int
+    pulse native_greet(name: str) -> str
+}
+
+atom sum = native_add(6, 7)
+atom greeting = native_greet("Nahid")
+beam f"sum={sum}"                 // sum=13
+beam f"greeting={greeting}"       // greeting=Hello, Nahid!
+```
+
+**Type mapping across the FFI boundary.** Most XPhage types map directly to their obvious C equivalent (`int` → a C integer type, `float` → a C floating-point type, `bool` → a C `bool`/`int`). `str` is the one type that needs special handling: XPhage strings are not C strings internally, so the compiler automatically converts a `str` argument to a C-compatible `const char*` at the call site, and converts a `str`-typed return value back into a normal XPhage string — this happens transparently, so `native_greet("Nahid")` above just works without any manual conversion on your part. The corresponding C (or Rust) function signature should use `const char*` (Rust: `*const c_char`, typically read with `CStr::from_ptr`) for any `str`-typed parameter or return value.
+
+**Linking the library.** An `extern "C"` declaration only tells the compiler the function's signature — it does not link the library that actually implements it. Pass the compiled library on the command line:
+
+```bash
+# Static library
+xphage build main.xp0 libnative.a
+
+# Dynamic library, via -l/-L (matches how you'd link it with any C compiler)
+xphage build main.xp0 -L. -lnative
+```
+
+A Rust library built with `cargo build --release --crate-type=cdylib` (producing a `.so`/`.dylib`/`.dll`) or `--crate-type=staticlib` (producing a `.a`/`.lib`) links the same way — `extern "C"` is a contract about calling-convention and symbol naming, not about which language produced the library, so the XPhage side of the declaration is identical whether the library was written in C, C++ (with `extern "C"` on the C++ side to disable name mangling), or Rust.
+
+```rust
+// Rust side — must be #[no_mangle] and extern "C" so the symbol name
+// and calling convention match what XPhage's declaration expects.
+#[no_mangle]
+pub extern "C" fn native_add(a: i32, b: i32) -> i32 {
+    a + b
+}
+```
+
+**A function name declared via `extern "C"` is never renamed or namespaced** by the compiler, even if the declaration appears inside a `realm` — the name must match the library's real exported symbol exactly, since that's what the linker looks for.
+
+### 12.6 Memory Safety in Practice
 
 ```xphage
 // Null pointer — impossible with Option<T>
@@ -1649,14 +1838,11 @@ if option_is_some(user) {
     atom u = option_unwrap(user)
     beam u.name    // safe — we checked
 }
-// Never: beam user.name when user might be null
 
 // Buffer overflow — bounds-checked
 atom arr = vec_new()
 vec_push(arr, "a")
-vec_push(arr, "b")
 atom item = vec_get(arr, 5)   // returns "" not crash
-// Never: direct index without bounds check
 
 // Use-after-free — ownership prevents this
 own atom data = load_data()
@@ -1670,19 +1856,13 @@ process(data)   // data moved into process
 
 ### 13.1 proc — Running Processes
 
-`proc` runs a shell command and captures its output:
-
 ```xphage
-// Basic usage
-atom output = proc "ls -la"
+atom output     = proc "ls -la"
 atom git_branch = proc "git rev-parse --abbrev-ref HEAD"
 atom disk_usage = proc "df -h /"
-atom cpu_info   = proc "cat /proc/cpuinfo | grep 'model name' | head -1"
 
 beam f"Current branch: {git_branch}"
-beam f"Disk usage:\n{disk_usage}"
 
-// Multi-line output
 atom log_lines = proc "git log --oneline -10"
 for line in str_split_lines(log_lines) {
     beam f"  {line}"
@@ -1690,9 +1870,8 @@ for line in str_split_lines(log_lines) {
 ```
 
 ```xphage
-// Build system example
 pulse build_project() {
-    beam "Building X-Phage project..."
+    beam "Building XPhage project..."
 
     atom cmake_out = proc "cmake -B build -S . -DCMAKE_BUILD_TYPE=Release"
     if str_contains(cmake_out, "Error") {
@@ -1702,14 +1881,11 @@ pulse build_project() {
 
     atom make_out = proc "cmake --build build -j 8"
     beam f"Build output: {make_out}"
-
     beam "Build complete!"
 }
 ```
 
 ### 13.2 bypass — Fire-and-Forget Commands
-
-When you don't need the output:
 
 ```xphage
 bypass "mkdir -p build/release"
@@ -1722,15 +1898,12 @@ bypass "git commit -m 'Auto-commit'"
 ### 13.3 env — Environment Variables
 
 ```xphage
-// Read environment variables
-atom home     = env.HOME
-atom path     = env.PATH
-atom user     = env.USER
-atom api_key  = env.OPENAI_API_KEY
-atom port     = env.PORT
-atom debug    = env.DEBUG
+atom home    = env.HOME
+atom path    = env.PATH
+atom api_key = env.OPENAI_API_KEY
+atom port    = env.PORT
+atom debug   = env.DEBUG
 
-// Use in logic
 if debug == "true" {
     beam "Debug mode enabled"
     verbose_logging = true
@@ -1739,21 +1912,7 @@ if debug == "true" {
 atom server_port = if str_length(port) > 0 {
     str_to_int(port)
 } else {
-    8080    // default port
-}
-
-beam f"Starting server on port {server_port}"
-```
-
-```xphage
-// Practical: Loading API credentials
-pulse init_api_client() -> str {
-    atom key = env.API_KEY
-    if str_length(key) == 0 {
-        beam "Error: API_KEY environment variable not set"
-        os_exit(1)
-    }
-    return create_client(key)
+    8080
 }
 ```
 
@@ -1762,28 +1921,20 @@ pulse init_api_client() -> str {
 ```xphage
 ~link "io"
 
-// Find all X-Phage source files
 atom xp0_files = glob "src/*.xp0"
 atom xh_files  = glob "src/*.xh"
 atom all_src   = glob "src/**/*.xp0"
 
-// Process all config files
 for config_file in str_split(glob "config/*.toml", ",") {
     atom content = io_read(config_file)
     parse_config(content)
     beam f"Loaded: {config_file}"
 }
-
-// Count source files
-atom files = glob "**/*.xp0"
-atom count = vec_size(str_split(files, ","))
-beam f"Project has {count} .xp0 files"
 ```
 
 ### 13.5 Command-Line Arguments
 
 ```xphage
-// In main.xp0
 pulse main() {
     atom argc = os_argc()
 
@@ -1800,18 +1951,12 @@ pulse main() {
         diverge "test"   -> cmd_test()
         diverge "clean"  -> cmd_clean()
         diverge "help"   -> show_help()
-        diverge _        -> {
+        diverge _ -> {
             beam f"Unknown command: {command}"
             beam "Run 'myapp help' for usage"
             os_exit(1)
         }
     }
-}
-
-pulse cmd_build() {
-    atom target = if os_argc() > 2 { os_arg(2) } else { "debug" }
-    beam f"Building for target: {target}"
-    // build logic...
 }
 ```
 
@@ -1823,47 +1968,41 @@ pulse cmd_build() {
 
 ## Chapter 14: Collections
 
+> **Phase Note:** In the current version (Phase 1–5), collections store values as strings internally. Phase 6 introduces typed generics (`Vec<T>`, `Map<K,V>`) that eliminate this limitation. Both APIs are shown where relevant.
+
 ### 14.1 Vec — Dynamic Arrays
 
 ```xphage
 ~link "collections"
 
-// Create
+// Create and populate
 shadow v = vec_new()
 v = vec_push(v, "apple")
 v = vec_push(v, "banana")
 v = vec_push(v, "cherry")
 
 // Access
-beam vec_size(v)        // 3
-beam vec_get(v, 0)      // "apple"
-beam vec_get(v, -1)     // "cherry" (negative indexing!)
-beam vec_get(v, 1)      // "banana"
+beam vec_size(v)           // 3
+beam vec_get(v, 0)         // "apple"
+beam vec_get(v, -1)        // "cherry" (negative indexing)
+beam vec_get(v, 1)         // "banana"
+beam vec_contains(v, "banana")  // true
 
 // Modify
-v = vec_set(v, 1, "blueberry")  // replace index 1
-v = vec_push_front(v, "avocado")  // prepend
-v = vec_pop(v)           // remove last
-v = vec_pop_front(v)     // remove first
-
-// Search
-atom found = vec_contains(v, "apple")   // true/false
-atom idx   = vec_index_of(v, "apple")   // index or -1
-
-// Transform
-v = vec_sort(v)                         // alphabetical
+v = vec_remove(v, 1)       // removes index 1
+v = vec_insert(v, 0, "avocado")
+v = vec_sort(v)
 v = vec_reverse(v)
-atom unique_v = vec_unique(v)           // remove duplicates
-atom sliced   = vec_slice(v, 1, 3)      // v[1..3]
+v = vec_slice(v, 1, 3)
 
-// Numeric operations
+// Numeric operations (current — numbers as strings)
 shadow nums = vec_new()
 nums = vec_push(nums, "10")
 nums = vec_push(nums, "20")
 nums = vec_push(nums, "30")
-beam vec_sum(nums)        // 60.0
-beam vec_min(nums)        // 10.0
-beam vec_max(nums)        // 30.0
+beam vec_sum(nums)     // 60.0
+beam vec_min(nums)     // 10.0
+beam vec_max(nums)     // 30.0
 
 // Join
 beam vec_join(v, ", ")    // "apple, banana, cherry"
@@ -1872,102 +2011,80 @@ beam vec_join(v, ", ")    // "apple, banana, cherry"
 ### 14.2 Map — Key-Value Storage
 
 ```xphage
-// Create
 shadow m = map_new()
 m = map_set(m, "name",    "Nahid")
 m = map_set(m, "country", "Bangladesh")
-m = map_set(m, "lang",    "X-Phage")
+m = map_set(m, "lang",    "XPhage")
 m = map_set(m, "level",   "42")
 
-// Access
-beam map_get(m, "name")             // "Nahid"
-beam map_get_or(m, "city", "N/A")   // "N/A" (not set)
-beam map_has(m, "lang")             // true
-beam map_size(m)                    // 4
+beam map_get(m, "name")            // "Nahid"
+beam map_get_or(m, "city", "N/A")  // "N/A"
+beam map_has(m, "lang")            // true
+beam map_size(m)                   // 4
 
-// Keys and values
-atom keys   = map_keys(m)           // comma-separated
-atom values = map_values(m)         // comma-separated
+atom keys   = map_keys(m)
+atom values = map_values(m)
 for key in str_split(keys, ",") {
     beam f"{key}: {map_get(m, key)}"
 }
 
-// Remove
 m = map_remove(m, "level")
-beam map_has(m, "level")    // false
-
-// Merge two maps (second overwrites first on conflict)
 atom combined = map_merge(m, other_map)
 ```
 
 ### 14.3 Set — Unique Collections
 
 ```xphage
-// Create
 shadow s = set_new()
 s = set_add(s, "red")
 s = set_add(s, "green")
 s = set_add(s, "blue")
 s = set_add(s, "red")    // duplicate — ignored
 
-beam set_size(s)          // 3 (not 4)
+beam set_size(s)               // 3
 beam set_contains(s, "red")    // true
-beam set_contains(s, "yellow") // false
 
-// Set operations
-atom a = "apple,banana,cherry"  // as comma-sep for set construction
-atom b = "banana,cherry,date"
-
-// (In practice, build from vecs)
-atom union = set_union(s, other_set)
-atom inter = set_intersect(s, other_set)
-atom diff  = set_difference(s, other_set)
-
+atom u = set_union(s, other_set)
+atom i = set_intersect(s, other_set)
+atom d = set_difference(s, other_set)
 s = set_remove(s, "blue")
-atom v = set_to_vec(s)    // convert to vec
+atom v = set_to_vec(s)
 ```
 
 ### 14.4 Queue and Stack
 
 ```xphage
-// Queue — FIFO (First In, First Out)
+// Queue — FIFO
 shadow q = queue_new()
 q = queue_push(q, "first")
 q = queue_push(q, "second")
 q = queue_push(q, "third")
 
-beam queue_peek(q)         // "first" (don't remove)
-beam queue_size(q)         // 3
+beam queue_peek(q)     // "first"
+beam queue_size(q)     // 3
+q = queue_pop(q)
+beam queue_peek(q)     // "second"
 
-q = queue_pop(q)           // removes "first"
-beam queue_peek(q)         // "second"
-
-// Stack — LIFO (Last In, First Out)
+// Stack — LIFO
 shadow s = stack_new()
 s = stack_push(s, "bottom")
 s = stack_push(s, "middle")
 s = stack_push(s, "top")
 
-beam stack_peek(s)         // "top" (don't remove)
-s = stack_pop(s)           // removes "top"
-beam stack_peek(s)         // "middle"
+beam stack_peek(s)     // "top"
+s = stack_pop(s)
+beam stack_peek(s)     // "middle"
 ```
 
-### 14.5 Range and Functional Operations
+### 14.5 Range and Functional Operations (Current)
 
 ```xphage
 // Range generation
-atom r = range(0, 10)       // "0,1,2,3,4,5,6,7,8,9"
-atom r = range_step(0, 20, 3) // "0,3,6,9,12,15,18"
-atom r = range(10, 0)       // empty (start > end)
-
-// Using range
-for i in str_split(range(0, 5), ",") {
-    beam f"Item {i}"
-}
+atom r  = range(0, 10)
+atom r2 = range_step(0, 20, 3)
 
 // Zip two lists
-atom names = "Alice,Bob,Charlie"
+atom names  = "Alice,Bob,Charlie"
 atom scores = "95,87,92"
 atom zipped = zip(names, scores)
 // "Alice:95,Bob:87,Charlie:92"
@@ -1977,7 +2094,7 @@ for entry in str_split(zipped, ",") {
     beam f"{vec_get(parts,0)} scored {vec_get(parts,1)}"
 }
 
-// Enumerate (add indices)
+// Enumerate
 atom fruits = "apple,banana,cherry"
 for entry in str_split(enumerate(fruits), ",") {
     atom parts = str_split(entry, ":")
@@ -1988,6 +2105,94 @@ for entry in str_split(enumerate(fruits), ",") {
 // 2. cherry
 ```
 
+### 14.6 Typed Pipeline Combinators (Phase 6)
+
+Phase 6 adds fully typed functional combinators that work with the `|>` operator:
+
+```xphage
+~link "collections"
+
+// filter — keep elements where predicate is true
+atom positives = numbers |> filter(|x| x > 0)
+
+// map — transform each element
+atom doubled = numbers |> map(|x| x * 2)
+
+// flat_map — map + flatten
+atom words = sentences |> flat_map(|s| str_split(s, " "))
+
+// reduce — fold to single value
+atom total = numbers |> reduce(0, |acc, x| acc + x)
+
+// sort, sort_by, sort_by_desc
+atom sorted    = numbers |> sort()
+atom by_age    = users   |> sort_by(|u| u.age)
+atom by_score  = users   |> sort_by_desc(|u| u.score)
+
+// take, skip, take_while, skip_while
+atom first10   = numbers |> take(10)
+atom rest      = numbers |> skip(5)
+atom small     = numbers |> take_while(|x| x < 100)
+
+// deduplicate, group_by, zip, enumerate
+atom unique    = names   |> sort() |> deduplicate()
+atom by_dept   = users   |> group_by(|u| u.department)
+atom pairs     = names   |> zip(scores)
+atom indexed   = items   |> enumerate()
+
+// aggregates
+atom cnt   = numbers |> count()
+atom sum   = numbers |> sum()
+atom min   = numbers |> min()
+atom max   = numbers |> max()
+atom first = numbers |> first()
+atom last  = numbers |> last()
+
+// any, all
+atom has_neg = numbers |> any(|x| x < 0)
+atom all_pos = numbers |> all(|x| x > 0)
+
+// Complex pipeline example
+atom report = raw_logs
+    |> filter(|log| log.level == "ERROR")
+    |> map(|log| f"[{log.time}] {log.message}")
+    |> sort_by(|s| s.timestamp)
+    |> deduplicate()
+    |> take(100)
+```
+
+### 14.7 Native Query Syntax (Phase 6.5)
+
+Phase 6.5 adds SQL-style query syntax that compiles to Phase 6 combinators at zero runtime cost:
+
+```xphage
+// Basic query
+shadow active_users =
+    select from users
+    where u.status == "active" and u.age > 18
+    order by u.name asc
+    limit 50
+
+// With computed fields
+shadow report =
+    select f"[{e.level}] {e.message}"
+    from error_log as e
+    where e.severity > 2
+    order by e.timestamp desc
+    limit 20
+
+// Aggregation
+shadow total =
+    select sum(o.amount)
+    from orders as o
+    where o.status == "completed"
+
+// What the compiler generates internally (developer never sees this):
+// users |> filter(|u| u.status == "active" && u.age > 18)
+//       |> sort_by(|u| u.name) |> take(50)
+// Zero runtime overhead — pure compile-time transformation
+```
+
 ---
 
 ## Chapter 15: String Processing
@@ -1995,66 +2200,62 @@ for entry in str_split(enumerate(fruits), ",") {
 ```xphage
 ~link "string"
 
-// The fundamentals
-atom s = "  Hello, X-Phage World!  "
+atom s = "  Hello, XPhage World!  "
 
-beam str_length(s)                // 26
-beam str_trim(s)                  // "Hello, X-Phage World!"
-beam str_upper(s)                 // "  HELLO, X-PHAGE WORLD!  "
-beam str_lower(s)                 // "  hello, x-phage world!  "
-beam str_reverse(str_trim(s))     // "!dlroW egahP-X ,olleH"
+beam str_length(s)
+beam str_trim(s)
+beam str_upper(s)
+beam str_lower(s)
+beam str_reverse(str_trim(s))
 
 // Search
 atom t = str_trim(s)
-beam str_contains(t, "X-Phage")  // true
-beam str_find(t, "X-Phage")      // 7 (index)
-beam str_starts_with(t, "Hello") // true
-beam str_ends_with(t, "!")       // true
-beam str_count(t, "l")           // 3
+beam str_contains(t, "XPhage")
+beam str_find(t, "XPhage")
+beam str_starts_with(t, "Hello")
+beam str_ends_with(t, "!")
+beam str_count(t, "l")
 
-// Slice (like Python s[2:5])
-beam str_slice(t, 0, 5)          // "Hello"
-beam str_slice_from(t, 7)        // "X-Phage World!"
-beam str_slice_to(t, 5)          // "Hello"
-beam str_char_at(t, -1)          // "!" (last character)
+// Slice
+beam str_slice(t, 0, 5)         // "Hello"
+beam str_slice_from(t, 7)       // "XPhage World!"
+beam str_slice_to(t, 5)         // "Hello"
+beam str_char_at(t, -1)         // "!" (last character)
 
-// Replace
-beam str_replace(t, "World", "Universe")  // "Hello, X-Phage Universe!"
-beam str_replace_first(t, "l", "L")       // "HeLlo, X-Phage World!"
-
-// Split and join
-atom parts = str_split(t, ", ")   // "Hello\nX-Phage World!"
-atom joined = str_join(parts, " | ") // "Hello | X-Phage World!"
+// Replace and split
+beam str_replace(t, "World", "Universe")
+atom parts  = str_split(t, ", ")
+atom joined = str_join(parts, " | ")
 atom lines  = str_split_lines("Line1\nLine2\nLine3")
 
 // Padding
-beam str_pad_left("42", 6, '0')   // "000042"
-beam str_pad_right("hi", 10)      // "hi        "
-beam str_center("TITLE", 20, '=') // "=======TITLE========"
+beam str_pad_left("42", 6, '0')    // "000042"
+beam str_pad_right("hi", 10)       // "hi        "
+beam str_center("TITLE", 20, '=')  // "=======TITLE========"
 
 // Type conversion
-beam str_to_int("42")              // 42
-beam str_to_float("3.14")          // 3.14
-beam str_to_bool("true")           // true
-beam int_to_str(1000000)           // "1000000"
-beam float_to_str_prec(3.14159, 2) // "3.14"
-beam bool_to_str(true)             // "true"
+beam str_to_int("42")
+beam str_to_float("3.14")
+beam str_to_bool("true")
+beam int_to_str(1000000)
+beam float_to_str_prec(3.14159, 2)  // "3.14"
+beam bool_to_str(true)
 
 // Character checks
-beam str_is_alpha("hello")         // true
-beam str_is_digit("12345")         // true
-beam str_is_alnum("abc123")        // true
-beam str_is_upper("HELLO")         // true
+beam str_is_alpha("hello")    // true
+beam str_is_digit("12345")    // true
+beam str_is_alnum("abc123")   // true
+beam str_is_upper("HELLO")    // true
 
 // Regex
-beam str_matches("abc123", "[a-z]+[0-9]+")   // true
-beam str_regex_replace("Hello 2026", "\\d+", "YEAR") // "Hello YEAR"
+beam str_matches("abc123", "[a-z]+[0-9]+")
+beam str_regex_replace("Hello 2026", "\\d+", "YEAR")
 atom emails = str_regex_find_all(text, "[\\w.]+@[\\w.]+\\.\\w+")
 
 // Encoding
-beam str_to_hex("AB")              // "4142"
-beam base64_encode("Hello")        // "SGVsbG8="
-atom decoded = base64_decode("SGVsbG8=")  // "Hello"
+beam str_to_hex("AB")
+beam base64_encode("Hello")
+atom decoded = base64_decode("SGVsbG8=")
 ```
 
 ---
@@ -2067,46 +2268,48 @@ atom decoded = base64_decode("SGVsbG8=")  // "Hello"
 
 ### 16.1 Philosophy
 
-Fusion UI is X-Phage's native cross-platform UI framework. It is built from first principles:
+Fusion UI is XPhage's native cross-platform UI framework built from first principles:
 
-**No dependencies on platform UI:**
 - No Jetpack Compose (no JVM)
 - No SwiftUI (no Objective-C runtime)
 - No HTML/CSS/JavaScript (no browser engine)
 - No React Native (no Node.js)
 
-**Own everything:**
-- Layout engine (flex/grid/stack)
-- Diff engine (partial re-renders)
-- Paint engine (draw calls)
-- GPU backends per platform
+XPhage owns everything: the layout engine, diff engine, paint engine, and GPU backends per platform.
 
-**Write once, run everywhere:**
-```
-Same .xui file →
-    Android  (Vulkan)   identical pixels
-    iOS      (Metal)    identical pixels
-    macOS    (Metal)    identical pixels
-    Windows  (Vulkan)   identical pixels
-    Linux    (Vulkan)   identical pixels
-    Web      (WebGPU)   identical pixels
-    Smart TV (Vulkan)   identical pixels
-    Watch    (GLES)     identical pixels
-```
+**The goal:** the same `.xui` file produces pixel-identical output on every platform.
 
-### 16.2 Setting Up
+### 16.2 Current Backend Status
 
-Install Fusion UI:
+> ⚠️ **Honest status as of v3.5.0:** The API is stable and fully specified. The GPU rendering backends are in active development. Every code example in this book runs today on the console backend.
+
+| Backend | Platforms | Status | What Remains |
+|---------|-----------|--------|--------------|
+| **Console** | Development, CI, testing | ✅ Production ready | None |
+| **Vulkan** | Android, Linux, Windows, Smart TV | 🔄 ~70% | GPU draw calls, SDF text, shadow blur |
+| **Metal** | iOS, macOS, visionOS | 🔄 ~60% | SDF shaders, font atlas, CADisplayLink |
+| **WebGPU** | Web (WASM) | 🔄 ~50% | Emscripten glue, JS event bridge, PWA |
+| **OpenGL** | Older Android, Linux fallback | 🔄 ~40% | VBO management, GLSL pipeline |
+| **OpenGL ES 3.0** | WatchOS, legacy Android | 🔜 Not started | Full implementation |
+| **DirectX 12** | Windows native | 🔜 Not started | Stretch goal |
+
+**What this means:**
+- CLI tools and console apps: ✅ Production ready today
+- Android apps: available when Vulkan reaches 100%
+- iOS apps: available when Metal reaches 100%
+- Web apps: available when WebGPU reaches 100%
+
+### 16.3 Setting Up
+
 ```bash
 xpm add fusion-ui
 ```
 
-Add to your `.xui` file:
 ```xphage
 ~link "fusion-ui"
 ```
 
-### 16.3 Your First UI
+### 16.4 Your First UI
 
 ```xphage
 // hello_ui.xui
@@ -2116,9 +2319,7 @@ fusion HelloScreen {
     Orbit(weave().padding(24)) {
         Vision("Hello from Fusion UI!")
         Spacer(16)
-        Trigger("Click Me") {
-            emit "button_clicked"
-        }
+        Trigger("Click Me") { emit "button_clicked" }
     }
 }
 ```
@@ -2142,24 +2343,22 @@ pulse main() {
 
 ### 17.1 Layout Components
 
-**Orbit — Vertical Stack (like Column):**
+**Orbit — Vertical Stack:**
 ```xphage
 Orbit {
     Vision("Item 1")
     Vision("Item 2")
     Vision("Item 3")
 }
-// Items stacked vertically, top to bottom
 ```
 
-**OrbitH — Horizontal Stack (like Row):**
+**OrbitH — Horizontal Stack:**
 ```xphage
 OrbitH {
     Vision("Left")
-    Spacer(weight: 1)   // flexible space
+    Spacer(weight: 1)
     Vision("Right")
 }
-// Items side by side, left to right
 ```
 
 **Canvas — Free-form Box:**
@@ -2167,7 +2366,6 @@ OrbitH {
 Canvas(weave().width(200).height(200)) {
     Vision("Top-left")
     Vision("Center", weave().offset(75, 90))
-    Vision("Bottom", weave().offset(50, 180))
 }
 ```
 
@@ -2175,7 +2373,7 @@ Canvas(weave().width(200).height(200)) {
 ```xphage
 Layer {
     Image("background.jpg", weave().fill())
-    Orbit(weave().fill()) {      // overlaid on image
+    Orbit(weave().fill()) {
         Vision("Overlay text")
         Trigger("Click")
     }
@@ -2189,7 +2387,6 @@ Mesh(cols: 3, gap: 8) {
     Vision("D")  Vision("E")  Vision("F")
     Vision("G")  Vision("H")  Vision("I")
 }
-// 3-column grid, 8dp gap between cells
 ```
 
 **Scaffold — Page layout:**
@@ -2212,49 +2409,35 @@ Scaffold {
 
 ### 17.2 Content Components
 
-**Vision — Text:**
 ```xphage
+// Vision — Text
 Vision("Simple text")
-Vision("Styled text", weave().padding(8))
 Vision(f"Dynamic: {score}")
 Vision(long_text, weave().fill_width())
-```
 
-**Signal — Card/Surface:**
-```xphage
+// Signal — Card/Surface
 Signal(weave().corner_radius(12).elevation(2).padding(16)) {
     Vision("Card content")
     Trigger("Action")
 }
-```
 
-**Image:**
-```xphage
+// Image
 Image("assets/logo.png", weave().width(100).height(100))
 Image("https://example.com/photo.jpg", weave().fill_width().corner_radius(8))
-```
 
-**Spacer:**
-```xphage
-Spacer(16)              // 16dp fixed space
-Spacer(weight: 1)       // flexible — takes remaining space
-Spacer()                // minimal space
-```
-
-**Divider:**
-```xphage
+// Spacer and Divider
+Spacer(16)
+Spacer(weight: 1)
 Divider()
-Divider(weave().padding_h(16))   // with horizontal padding
+Divider(weave().padding_h(16))
 ```
 
 ### 17.3 Interactive Components
 
-**Trigger — Button:**
 ```xphage
-// Simple
+// Trigger — Button
 Trigger("Click Me") { emit "clicked" }
 
-// Styled
 Trigger("Primary", weave()
     .background("#6C63FF")
     .corner_radius(8)
@@ -2262,23 +2445,7 @@ Trigger("Primary", weave()
     emit "primary_action"
 }
 
-// Icon button
-Trigger("X", weave()
-    .width(40).height(40)
-    .corner_radius(20)
-    .background("#FF4444")) {
-    emit "close"
-}
-```
-
-**Input — Text Field:**
-```xphage
-// Basic
-Input("Enter text here") {
-    absorb "on_change" { text_value = input_value }
-}
-
-// Styled
+// Input — Text Field
 Input("Search...", weave()
     .fill_width()
     .corner_radius(24)
@@ -2286,63 +2453,52 @@ Input("Search...", weave()
     .background("#F0F0F0")) {
     absorb "on_change" { search_query = input_value }
 }
-```
 
-**Toggle — Switch:**
-```xphage
+// Toggle
 flux dark_mode: bool = false
-
 Toggle(dark_mode) {
     absorb "on_toggle" { dark_mode = !dark_mode }
 }
-```
 
-**Slider:**
-```xphage
+// Slider
 flux volume: float = 50.0
-
 Slider(volume, 0, 100) {
     absorb "on_slide" { volume = slider_value }
 }
-
 Vision(f"Volume: {volume}%")
 ```
 
 ### 17.4 The weave Modifier System
 
-Every component accepts a `weave()` modifier chain:
-
 ```xphage
 // Size
 weave().width(200)
 weave().height(100)
-weave().fill_width()            // match parent width
-weave().fill_height()           // match parent height
-weave().fill()                  // fill both
-weave().weight(1)               // flex weight
+weave().fill_width()
+weave().fill_height()
+weave().fill()
+weave().weight(1)
 weave().min_width(100)
 weave().max_height(300)
 weave().aspect_ratio(16.0/9.0)
 
 // Spacing
-weave().padding(16)             // all sides
-weave().padding(8, 16)          // vertical, horizontal
-weave().padding(4, 8, 4, 8)     // top, right, bottom, left
-weave().padding_h(16)           // horizontal only
-weave().padding_v(8)            // vertical only
-weave().offset(10, -5)          // x, y offset
+weave().padding(16)
+weave().padding(8, 16)       // vertical, horizontal
+weave().padding(4, 8, 4, 8)  // top, right, bottom, left
+weave().padding_h(16)
+weave().padding_v(8)
+weave().offset(10, -5)
 
 // Appearance
 weave().background("#1A1A2E")
-weave().background("#FFFFFF")
-weave().alpha(0.8)              // 80% opacity
-weave().corner_radius(12)       // all corners
-weave().corner_radius(16, 16, 0, 0) // tl, tr, br, bl
+weave().alpha(0.8)
+weave().corner_radius(12)
+weave().corner_radius(16, 16, 0, 0)
 weave().border_width(1)
 weave().border_color("#DDDDDD")
-weave().elevation(4)            // shadow
-weave().shadow(...)
-weave().rotate(45)              // degrees
+weave().elevation(4)
+weave().rotate(45)
 weave().scale(1.5)
 
 // Interaction
@@ -2351,27 +2507,16 @@ weave().focusable()
 weave().scrollable_v()
 weave().scrollable_h()
 
-// Layout control
-weave().z_index(10)
-weave().clip()
-
-// Composition — combine modifiers
-weave()
+// Composition and reuse
+atom card_style = weave()
     .fill_width()
     .corner_radius(16)
     .elevation(3)
     .padding(16, 24)
-    .background("#6C63FF")
+    .background("#FFFFFF")
 
-// Store and reuse
-atom button_style = weave()
-    .corner_radius(8)
-    .padding(12, 24)
-    .background("#6C63FF")
-
-Trigger("Primary", button_style)
-Trigger("Secondary", button_style)
-Trigger("Cancel",    button_style)
+Signal(card_style) { Vision("Card 1") }
+Signal(card_style) { Vision("Card 2") }
 ```
 
 ---
@@ -2408,10 +2553,10 @@ strand pop {
     spring(scale: 0.8 -> 1.0, preset: snappy)
 }
 
-// Easing functions
+// Easing functions:
 // ease_in      — starts slow, ends fast
-// ease_out     — starts fast, ends slow (most natural for UI)
-// ease_in_out  — slow start and end, fast middle
+// ease_out     — starts fast, ends slow (most natural)
+// ease_in_out  — slow start and end
 // linear       — constant speed
 // bounce       — bounces at the end
 // elastic      — overshoots and springs back
@@ -2420,24 +2565,20 @@ strand pop {
 ### 18.2 Theme System
 
 ```xphage
-// Default light theme
+// Built-in themes
 xphage run MyApp with Theme.light()
-
-// Dark theme
 xphage run MyApp with Theme.dark()
-
-// AeonCoreX theme (futuristic dark)
-xphage run MyApp with Theme.aeon()
+xphage run MyApp with Theme.aeon()    // AeonCoreX futuristic dark
 
 // Custom theme
 atom my_theme = spawn Theme {
     colors: spawn ColorScheme {
-        primary:     "#FF6B6B"
-        secondary:   "#4ECDC4"
-        background:  "#1A1A2E"
-        on_surface:  "#EEEEEE"
+        primary:    "#FF6B6B"
+        secondary:  "#4ECDC4"
+        background: "#1A1A2E"
+        on_surface: "#EEEEEE"
     }
-    dark_mode: true
+    dark_mode:  true
     font_scale: 1.1
 }
 
@@ -2449,7 +2590,6 @@ xphage run MyApp with my_theme
 ```xphage
 flux app_theme: str = "dark"
 
-// Platform-specific and theme-specific UI
 probe app_theme {
     diverge "dark" -> Orbit(weave().background("#121212")) {
         Vision("Dark mode", weave().color("#EEEEEE"))
@@ -2471,7 +2611,6 @@ probe app_theme {
 ### 19.1 async pulse
 
 ```xphage
-// Mark a function as async
 async pulse fetch_data(url: str) -> str {
     atom response = await http_get(url)
     return response.body
@@ -2512,10 +2651,9 @@ async pulse load_dashboard() {
     quantum "load_notifications"
 
     // All three run in parallel
-    // Await results via events
-    absorb "user_data_ready"       { update_user_section(data) }
-    absorb "analytics_ready"       { update_charts(analytics) }
-    absorb "notifications_ready"   { update_badge(count) }
+    absorb "user_data_ready"     { update_user_section(data) }
+    absorb "analytics_ready"     { update_charts(analytics) }
+    absorb "notifications_ready" { update_badge(count) }
 }
 ```
 
@@ -2528,22 +2666,20 @@ async pulse load_dashboard() {
 ```xphage
 ~link "ai"
 
-// Create tensors
 atom zeros   = tensor_zeros("3x4")
 atom ones    = tensor_ones("128x768")
 atom random  = tensor_rand("512x512")
 atom data    = tensor_from_data("2x3", "1.0,2.0,3.0,4.0,5.0,6.0")
 
-// Math
 atom sum     = tensor_add(a, b)
-atom product = tensor_matmul(a, b)    // matrix multiplication
+atom product = tensor_matmul(a, b)
 atom scaled  = tensor_scale(a, 0.5)
 atom normed  = tensor_normalize(a)
 
 // GPU/NPU acceleration
-atom fast_a  = tensor_to_gpu(a)       // move to GPU
-atom npu_a   = tensor_to_npu(a)       // move to NPU (if available)
-atom cpu_r   = tensor_to_cpu(result)  // move back to CPU
+atom fast_a  = tensor_to_gpu(a)
+atom npu_a   = tensor_to_npu(a)
+atom cpu_r   = tensor_to_cpu(result)
 
 // Neural operations
 atom relu    = nn_relu(input)
@@ -2556,11 +2692,10 @@ atom attn    = nn_attention(q, k, v, mask)
 
 ```xphage
 // ONNX model
-atom model = model_load("sentiment.onnx", "gpu")
+atom model  = model_load("sentiment.onnx", "gpu")
 atom result = model_run(model, text_embedding)
 
-// Named I/O
-atom result = model_run_named(model,
+atom result2 = model_run_named(model,
     "input=text_tensor,output=logits")
 ```
 
@@ -2569,24 +2704,21 @@ atom result = model_run_named(model,
 ```xphage
 ~link "ai"
 
-// Load LLaMA model (GGUF format — llama.cpp backend)
 atom llm = llm_load("llama-3.2-3b-instruct.gguf",
     4096,    // context length
-    32       // GPU layers (-1 = all on GPU)
+    32       // GPU layers
 )
 
-// Generate text
 atom response = llm_generate(llm,
     "Explain quantum computing in simple terms:",
-    512     // max tokens
+    512
 )
 beam response
 
-// With parameters
 atom creative = llm_generate_ex(llm,
-    "Write a haiku about X-Phage:",
-    100,    // max tokens
-    0.9,    // temperature (higher = more creative)
+    "Write a haiku about XPhage:",
+    100,
+    0.9,    // temperature
     0.95    // top_p
 )
 beam creative
@@ -2596,19 +2728,17 @@ atom messages = "[{\"role\":\"user\",\"content\":\"Hello!\"}]"
 atom reply    = llm_chat(llm, messages)
 beam reply
 
-// Embeddings (for semantic search, RAG)
-atom embedding = llm_embed(llm, "X-Phage is a systems language")
+// Embeddings
+atom embedding = llm_embed(llm, "XPhage is a systems language")
 ```
 
 ### 20.4 Vector Database (RAG)
 
 ```xphage
-// Create in-memory vector DB for semantic search
-atom db = vecdb_new(768)   // 768-dimensional embeddings
+atom db = vecdb_new(768)
 
-// Index documents
 atom docs = [
-    "X-Phage is a compiled language",
+    "XPhage is a compiled language",
     "Fusion UI uses Vulkan on Android",
     "forge creates struct types"
 ]
@@ -2618,23 +2748,563 @@ for doc in str_split(docs, ",") {
     vecdb_add(db, doc, embed, doc)
 }
 
-// Semantic search
 atom query   = llm_embed(llm, "how to create a structure?")
-atom results = vecdb_search(db, query, 3)  // top 3 results
+atom results = vecdb_search(db, query, 3)
 beam results
 
-// Save/load for persistence
 vecdb_save(db, "knowledge_base.vdb")
 atom db2 = vecdb_load("knowledge_base.vdb")
 ```
 
+### 20.5 GPU Compute with @gpu_kernel (Phase 7)
+
+> **5GL Opt-In Feature** — requires `~link "ai"`. Existing code is completely unaffected.
+
+```xphage
+~link "ai"
+
+// @gpu_kernel — runs this function on GPU
+@gpu_kernel
+pulse matrix_multiply(
+    a: Tensor<float>,
+    b: Tensor<float>
+) -> Tensor<float> {
+    atom row = gpu_thread_x()
+    atom col = gpu_thread_y()
+    shadow sum: float = 0.0
+    for k in range(0, a.cols()) {
+        sum = sum + a[row, k] * b[k, col]
+    }
+    return sum
+}
+
+// accelerate — SIMD auto-vectorization on CPU
+accelerate
+pulse dot_product(a: Vec<float>, b: Vec<float>) -> float {
+    return zip(a, b)
+        |> map(|(x, y)| x * y)
+        |> sum()
+    // Compiler generates AVX-512 on x86, NEON on ARM automatically
+}
+
+// NPU dispatch with fallback chain
+pulse run_inference(model: Model, input: Tensor<float>) -> Tensor<float> {
+    accelerate npu {
+        return model.forward(input)
+        // NPU → GPU → CPU (automatic fallback)
+    }
+}
+```
+
 ---
 
-# Part IX — Building Real Projects
+# Part IX — 5th Generation Power (Opt-In)
+
+> **Important:** Everything in this Part is completely opt-in. None of these features affect existing code. A developer can use XPhage for years without ever needing anything in this section. 5GL features activate only when you explicitly write the annotation or block.
 
 ---
 
-## Chapter 21: Complete Projects
+## Chapter 21: @differentiable — Automatic Differentiation
+
+> **5GL Opt-In Feature — Phase 7.5.** Requires `~link "ai"`. No effect on any function that does not carry the `@differentiable` annotation.
+
+### 21.1 The Problem Without @differentiable
+
+Training ML models requires gradients. Without auto-diff, you compute them manually:
+
+```xphage
+// Manual gradient — one mistake ruins training forever
+pulse loss(w: float, x: float, y: float) -> float {
+    atom pred = w * x
+    return (pred - y) * (pred - y)
+}
+
+// Must derive and implement manually — error-prone:
+// d/dw [(w*x - y)^2] = 2*(w*x - y)*x
+pulse loss_gradient_MANUAL(w: float, x: float, y: float) -> float {
+    return 2.0 * (w * x - y) * x
+    // One sign error here → model never converges
+}
+```
+
+### 21.2 @differentiable — Opt-In Gradient Generation
+
+```xphage
+~link "ai"
+
+// Just add @differentiable — that is all
+@differentiable
+pulse loss(w: float, x: float, y: float) -> float {
+    atom pred = w * x
+    return (pred - y) * (pred - y)
+}
+
+// Compiler automatically generates:
+// loss_grad_w(w, x, y) -> float  — d(loss)/d(w)
+// loss_grad_x(w, x, y) -> float  — d(loss)/d(x)
+// loss_grad_y(w, x, y) -> float  — d(loss)/d(y)
+
+// Training loop using auto-generated gradient:
+pulse train(own data: Vec<(float, float)>, epochs: int) -> float {
+    shadow w:  float = 0.0
+    atom   lr: float = 0.01
+
+    for epoch in range(0, epochs) {
+        for sample in data {
+            atom x    = sample.0
+            atom y    = sample.1
+            atom grad = loss_grad_w(w, x, y)  // auto-generated
+            w         = w - lr * grad
+        }
+    }
+    return w
+}
+```
+
+### 21.3 Neural Network with @differentiable
+
+```xphage
+~link "ai"
+
+@differentiable
+pulse linear_layer(
+    own weights: Vec<Vec<float>>,
+    own bias:    Vec<float>,
+    input:       Vec<float>
+) -> Vec<float> {
+    return matmul(weights, input)
+        |> zip(bias) |> map(|(a, b)| a + b)
+        |> map(|x| relu(x))
+}
+// Compiler auto-generates: linear_layer_grad_weights, linear_layer_grad_bias
+
+@differentiable
+pulse full_network(
+    own w1: Vec<Vec<float>>,
+    own w2: Vec<Vec<float>>,
+    input:  Vec<float>
+) -> Vec<float> {
+    atom h1  = linear_layer(w1, zeros(64), input)
+    atom out = linear_layer(w2, zeros(10), h1)
+    return nn_softmax(out, 0)
+}
+
+pulse train_network(own dataset: Vec<(Vec<float>, int)>) {
+    shadow w1 = tensor_rand("64x784") as Vec<Vec<float>>
+    shadow w2 = tensor_rand("10x64")  as Vec<Vec<float>>
+    atom lr   = 0.001
+
+    for epoch in range(0, 10) {
+        for (x, label) in dataset {
+            atom pred     = full_network(w1, w2, x)
+            atom loss_val = cross_entropy_loss(pred, label)
+
+            // All gradients auto-generated
+            atom dw1 = full_network_grad_w1(w1, w2, x)
+            atom dw2 = full_network_grad_w2(w1, w2, x)
+
+            w1 = w1 |> zip(dw1) |> map(|(w, g)| w - lr * g)
+            w2 = w2 |> zip(dw2) |> map(|(w, g)| w - lr * g)
+        }
+        beam f"Epoch {epoch}: loss = {loss_val}"
+    }
+}
+```
+
+### 21.4 Functions Without @differentiable — Zero Change
+
+```xphage
+// No @differentiable = completely normal function = zero overhead
+pulse loss(w: float, x: float, y: float) -> float {
+    atom pred = w * x
+    return (pred - y) * (pred - y)
+}
+// Compiles exactly as before. No gradient code generated.
+// Adding @differentiable to other functions does not affect this.
+```
+
+### 21.5 Supported Differentiable Operations
+
+| Expression | Derivative rule applied |
+|---|---|
+| `a + b` | `da + db` |
+| `a - b` | `da - db` |
+| `a * b` | `a*db + b*da` |
+| `a / b` | `(da*b - a*db) / b²` |
+| `relu(x)` | `x > 0 ? dx : 0` |
+| `sigmoid(x)` | `sigmoid(x) * (1 - sigmoid(x)) * dx` |
+| `tanh(x)` | `(1 - tanh(x)²) * dx` |
+| `log(x)` | `dx / x` |
+| `exp(x)` | `exp(x) * dx` |
+| `matmul(A, B)` | `dA·Bᵀ + Aᵀ·dB` |
+
+---
+
+## Chapter 22: solve {} — Constraint Solving
+
+> **5GL Opt-In Feature — Phase 10 (long-term, alongside formal verification).** Requires `~link "solver"` and `solver` in `xpm.toml`. This is the most distant feature on the entire roadmap described in this book — it is documented here so the design is recorded, not because it is coming soon.
+
+### 22.1 The Problem solve {} Solves
+
+Some problems are naturally expressed as constraints, not as step-by-step algorithms:
+
+```xphage
+// Without solve: developer writes Dijkstra manually (~80 lines)
+pulse shortest_path_manual(graph: Graph, start: Node, end: Node) -> Vec<Node> {
+    shadow dist  = map_new()
+    shadow prev  = map_new()
+    shadow queue = priority_queue_new()
+    // ... 75 more lines of algorithm ...
+}
+
+// With solve: express what you want, not how to get it
+pulse shortest_path(graph: Graph, start: Node, end: Node) -> Vec<Node> {
+    ~link "solver"
+    solve {
+        find: path as Vec<Node>
+        subject_to {
+            path.first() == start
+            path.last()  == end
+            all n in path -> graph.contains(n)
+            all i in range(0, path.len() - 1) ->
+                graph.has_edge(path[i], path[i + 1])
+        }
+        minimize: path |> map(|i| graph.edge_cost(path[i], path[i+1])) |> sum()
+    }
+}
+```
+
+### 22.2 solve {} Syntax
+
+```xphage
+~link "solver"    // explicit opt-in required
+
+solve {
+    // What to find — typed variable
+    find: <variable_name> as <Type>
+
+    // All constraints must be satisfied
+    subject_to {
+        <constraint_expression>
+        <constraint_expression>
+    }
+
+    // Optimization objective — optional
+    minimize: <expression>   // or: maximize: <expression>
+
+    // Performance hints — optional
+    hints {
+        timeout:  5000                   // max milliseconds
+        strategy: "branch_and_bound"
+    }
+}
+```
+
+### 22.3 Real-World Examples
+
+**Job Scheduling:**
+```xphage
+~link "solver"
+
+pulse schedule_jobs(jobs: Vec<Job>, workers: Vec<Worker>) -> Map<Job, Worker> {
+    solve {
+        find: assignment as Map<Job, Worker>
+        subject_to {
+            all j in jobs -> map_has(assignment, j)
+            all j in jobs ->
+                map_get(assignment, j).skills |> any(|s| s == j.required_skill)
+            all w in workers ->
+                jobs |> filter(|j| map_get(assignment, j) == w)
+                     |> map(|j| j.hours)
+                     |> sum() <= w.max_hours
+        }
+        minimize: jobs |> map(|j| map_get(assignment, j).cost * j.hours) |> sum()
+    }
+}
+```
+
+**Resource Allocation:**
+```xphage
+~link "solver"
+
+pulse allocate_servers(jobs: Vec<Job>, servers: Vec<Server>) -> Map<Job, Server> {
+    solve {
+        find: placement as Map<Job, Server>
+        subject_to {
+            all j in jobs -> map_has(placement, j)
+            all s in servers ->
+                jobs |> filter(|j| map_get(placement, j) == s)
+                     |> map(|j| j.memory_mb) |> sum() <= s.total_memory
+            all s in servers ->
+                jobs |> filter(|j| map_get(placement, j) == s)
+                     |> map(|j| j.cpu_cores) |> sum() <= s.total_cpu
+        }
+        minimize: servers |> filter(|s|
+            jobs |> any(|j| map_get(placement, j) == s)) |> count()
+    }
+}
+```
+
+### 22.4 Manual and solve {} Always Coexist
+
+```xphage
+// Option A: manual — always available, full control
+pulse find_path_manual(g: Graph, s: Node, e: Node) -> Vec<Node> {
+    // Your own Dijkstra, A*, BFS — unchanged 3GL power
+}
+
+// Option B: constraint-based — opt-in
+pulse find_path_auto(g: Graph, s: Node, e: Node) -> Vec<Node> {
+    ~link "solver"
+    solve {
+        find: path as Vec<Node>
+        subject_to { path.first() == s  path.last() == e }
+        minimize: path_cost(path, g)
+    }
+}
+// Both are valid. Developer decides which to use.
+```
+
+### 22.5 Missing Dependency Error
+
+```
+// If ~link "solver" is missing:
+[error E5002] solve {} requires ~link "solver"
+              Add to xpm.toml: [dependencies] solver = "1.0"
+              Then add: ~link "solver" to your .xp0 file
+              Documentation: docs.xphage.dev/solver
+```
+
+---
+
+## Chapter 23: @requires / @ensures — Design by Contract
+
+> **Advanced 3GL Feature — Phase 8.** No opt-in import needed. Contracts are scheduled alongside bare-metal support (Chapter 25) because both rely on the same static-analysis pass the compiler gains in Phase 8 — but `@requires`/`@ensures` are general-purpose and just as useful in ordinary application code as in embedded code; they are not limited to bare-metal targets.
+
+### 23.1 The Problem
+
+```xphage
+// Silent contracts — developer must read docs:
+pulse binary_search(arr: Vec<int>, target: int) -> int {
+    // arr unsorted → wrong result, no error
+    // arr empty → crash
+    // No compiler warning for either
+}
+```
+
+### 23.2 @requires and @ensures
+
+```xphage
+@requires(arr.len() > 0,       "Array cannot be empty")
+@requires(vec_is_sorted(arr),  "Array must be sorted for binary search")
+@ensures(result >= -1,         "Returns -1 if not found")
+@ensures(result < arr.len(),   "Index must be within bounds")
+pulse binary_search(arr: Vec<int>, target: int) -> int {
+    // implementation
+}
+
+@requires(b != 0.0,            "Divisor cannot be zero")
+@ensures(result * b ~= a,      "Result satisfies a/b relationship")
+pulse divide(a: float, b: float) -> float {
+    return a / b
+}
+
+@requires(str_length(email) > 0,       "Email required")
+@requires(str_contains(email, "@"),    "Valid email required")
+@requires(age >= 0 and age <= 150,     "Age must be realistic")
+@ensures(result.id > 0,               "Created user gets valid ID")
+pulse create_user(name: str, email: str, age: int) -> User {
+    // implementation
+}
+```
+
+### 23.3 Debug vs Release Behavior
+
+```
+Debug mode (xphage build):
+    @requires → runtime assertion at function entry
+    @ensures  → runtime assertion at function exit
+    Violation → clear error with line number and message
+
+Release mode (xphage build --release):
+    @requires → compiler attempts static proof
+    Simple cases → proven, removed from binary (zero overhead)
+    Complex cases → lightweight runtime check
+    @ensures  → removed from binary entirely
+
+Phase 10 (Formal Verification):
+    Proven → never in binary (zero overhead, mathematically correct)
+    Unproven → compile warning + lightweight check
+```
+
+---
+
+## Chapter 24: @smart_ownership — Ownership Inference
+
+> **5GL Opt-In Feature** — available from Phase 8.5. Explicit `own/ref/mut_ref` always remains valid and is never removed.
+
+### 24.1 Explicit vs Inferred
+
+```xphage
+// Current (always valid — explicit):
+pulse display(ref img: Image) {
+    beam f"Size: {img.width}x{img.height}"
+}
+
+pulse resize(mut_ref img: Image, scale: float) {
+    img.width  = img.width  * scale as int
+    img.height = img.height * scale as int
+}
+
+pulse process(own data: Buffer) -> Buffer {
+    transform(data)
+    return data
+}
+
+// Phase 8.5 (opt-in — compiler infers):
+@smart_ownership
+pulse display(img: Image) {
+    beam f"Size: {img.width}x{img.height}"
+    // Compiler: img not modified, not returned → infers ref
+}
+
+@smart_ownership
+pulse resize(img: Image, scale: float) {
+    img.width = img.width * scale as int
+    // Compiler: img modified, not returned → infers mut_ref
+}
+
+@smart_ownership
+pulse process(data: Buffer) -> Buffer {
+    transform(data)
+    return data
+    // Compiler: data returned → infers own (move)
+}
+```
+
+### 24.2 Ambiguous Cases — Helpful Errors
+
+```xphage
+@smart_ownership
+pulse send_and_keep(data: Buffer) {
+    network_send(data)   // Does send() consume data or borrow?
+    beam data.size       // data used after send — ambiguous
+}
+// [error] Cannot infer ownership for 'data'
+//         network_send() signature is ambiguous from context
+//         Please specify explicitly: own / ref / mut_ref
+//         Hint: if network_send borrows: use 'ref data: Buffer'
+//               if network_send consumes: use 'own data: Buffer'
+```
+
+### 24.3 Both Styles Always Work Together
+
+```xphage
+// Explicit and inferred functions freely call each other
+
+pulse explicit_fn(ref img: Image) {   // explicit — always valid
+    beam img.width
+}
+
+@smart_ownership
+pulse inferred_fn(img: Image) {       // inferred — Phase 8.5
+    beam img.width
+}
+
+pulse main() {
+    atom img = load_image("photo.jpg")
+    explicit_fn(img)   // works
+    inferred_fn(img)   // works
+    // Both are identical at runtime
+}
+```
+
+---
+
+## Chapter 25: @register — Declarative Hardware (Phase 8)
+
+> **Advanced 3GL Feature** — for embedded and OS development. Makes `unsafe` hardware access safe and readable.
+
+### 25.1 The Problem
+
+```xphage
+// Raw hardware access — verbose, error-prone, hard to read:
+unsafe {
+    atom uart = 0x10000000 as *mut int
+    *uart = (*uart & !0xFF) | (baudrate & 0xFF)
+    atom status = *(0x10000008 as *const int)
+    if status & 0x01 != 0 { /* TX ready */ }
+}
+```
+
+### 25.2 @register — Declarative Layout
+
+```xphage
+// hardware.xh — declare hardware once, cleanly
+@register UART0 at 0x10000000 {
+    TX_DATA:   write_only  bit[8]  at 0x00
+    RX_DATA:   read_only   bit[8]  at 0x04
+    BAUD_RATE: read_write  bit[16] at 0x08
+    STATUS:    read_only   bit[32] at 0x0C {
+        TX_READY: bit[0]
+        RX_FULL:  bit[1]
+        ERROR:    bit[2]
+    }
+    CONTROL:   read_write  bit[8]  at 0x10 {
+        ENABLE:     bit[0]
+        INT_ENABLE: bit[1]
+        PARITY:     bit[2:3]
+    }
+}
+
+@register GPIO at 0x20000000 {
+    PIN_OUT:   read_write bit[32] at 0x00
+    PIN_IN:    read_only  bit[32] at 0x04
+    PIN_DIR:   read_write bit[32] at 0x08
+    PIN_SET:   write_only bit[32] at 0x0C
+    PIN_CLEAR: write_only bit[32] at 0x10
+}
+```
+
+```xphage
+// main.xp0 — clean, safe, readable
+// Compiler generates all unsafe pointer arithmetic automatically
+
+pulse init_uart(baud: int) {
+    UART0.BAUD_RATE       = baud
+    UART0.CONTROL.ENABLE  = true
+    UART0.CONTROL.PARITY  = 0
+}
+
+pulse send_byte(byte: int) {
+    while !UART0.STATUS.TX_READY {}
+    UART0.TX_DATA = byte
+}
+
+pulse recv_byte() -> int {
+    while !UART0.STATUS.RX_FULL {}
+    return UART0.RX_DATA
+}
+
+pulse set_pin_output(pin: int) {
+    GPIO.PIN_DIR = GPIO.PIN_DIR | (1 << pin)
+    GPIO.PIN_SET = 1 << pin
+}
+```
+
+**Compiler generates all unsafe code automatically:**
+```
+UART0.TX_DATA = byte    →    unsafe { *(0x10000000 as *mut int) = byte & 0xFF }
+UART0.STATUS.TX_READY  →    unsafe { (*(0x1000000C as *const int) >> 0) & 0x01 != 0 }
+```
+
+---
+
+# Part X — Building Real Projects
+
+---
+
+## Chapter 26: Complete Projects
 
 ### Project 1: Command-Line Tool
 
@@ -2647,17 +3317,17 @@ A file statistics tool:
 ~link "math"
 
 forge FileStats {
-    path:       str = ""
-    size:       int = 0
-    lines:      int = 0
-    words:      int = 0
-    chars:      int = 0
-    ext:        str = ""
+    path:  str = ""
+    size:  int = 0
+    lines: int = 0
+    words: int = 0
+    chars: int = 0
+    ext:   str = ""
 }
 
 pulse analyze_file(path: str) -> FileStats {
-    atom content  = io_read(path)
-    atom all_lines = str_split_lines(content)
+    atom content    = io_read(path)
+    atom all_lines  = str_split_lines(content)
     atom line_count = vec_size(str_split(all_lines, "\n"))
     atom word_list  = str_split(content, " ")
     atom clean_words = vec_filter(word_list,
@@ -2694,7 +3364,6 @@ pulse main() {
     atom first_arg = os_arg(1)
 
     if first_arg == "--dir" && argc >= 3 {
-        // Analyze all files in directory
         atom dir   = os_arg(2)
         atom files = io_list_dir(dir)
         shadow total_lines: int = 0
@@ -2712,7 +3381,6 @@ pulse main() {
         }
         beam f"TOTAL: {total_lines} lines, {total_words} words"
     } else {
-        // Analyze single file
         atom stats = analyze_file(first_arg)
         print_stats(stats)
     }
@@ -2747,8 +3415,6 @@ pulse fetch_repos(username: str) -> str {
 }
 
 pulse parse_repos(json_array: str) -> str {
-    // Returns comma-separated repo summaries
-    // (until typed generics land in Phase 6)
     atom names = json_array(json_array, "[*].name")
     atom stars = json_array(json_array, "[*].stargazers_count")
     return zip(names, stars)
@@ -2788,10 +3454,10 @@ pulse main() {
 ```xphage
 // models.xh
 forge Task {
-    id:        int  = 0
-    title:     str  = ""
-    done:      bool = false
-    priority:  int  = 1     // 1=low, 2=med, 3=high
+    id:       int  = 0
+    title:    str  = ""
+    done:     bool = false
+    priority: int  = 1     // 1=low, 2=med, 3=high
 }
 ```
 
@@ -2800,28 +3466,27 @@ forge Task {
 ~link "fusion-ui"
 ~link "models.xh"
 
-flux tasks:      str  = ""     // JSON array of tasks
-flux new_title:  str  = ""
-flux filter:     str  = "all"  // all, active, done
+flux tasks:     str = ""
+flux new_title: str = ""
+flux filter:    str = "all"
 
 atom priority_color = |p: int| -> str {
     probe p {
-        diverge 3 -> "#FF4444"   // high
-        diverge 2 -> "#FF9800"   // medium
-        diverge _ -> "#4CAF50"   // low
+        diverge 3 -> "#FF4444"
+        diverge 2 -> "#FF9800"
+        diverge _ -> "#4CAF50"
     }
 }
 
 fusion TaskApp {
     Scaffold {
         top_bar: OrbitH(weave().background("#6C63FF").padding(16)) {
-            Vision("X-Phage Tasks")
+            Vision("XPhage Tasks")
             Spacer(weight: 1)
             Trigger("Clear Done") { emit "clear_done" }
         }
 
         content: Orbit(weave().padding(16)) {
-            // Add new task
             Signal(weave().corner_radius(12).elevation(1).margin(8)) {
                 Orbit(weave().padding(16)) {
                     Vision("Add New Task")
@@ -2842,7 +3507,6 @@ fusion TaskApp {
 
             Spacer(16)
 
-            // Filter tabs
             OrbitH(weave().fill_width()) {
                 Trigger("All",    weave().weight(1)) { filter = "all" }
                 Trigger("Active", weave().weight(1)) { filter = "active" }
@@ -2850,9 +3514,6 @@ fusion TaskApp {
             }
 
             Spacer(8)
-
-            // Task list (renders from flux `tasks` state)
-            // Real impl: parse tasks JSON and render each
             Vision(f"{vec_size(str_split(tasks,\"|\"))} tasks")
         }
 
@@ -2868,7 +3529,6 @@ fusion TaskApp {
 ~link "models.xh"
 ~link "layout.xui"
 ~link "collections"
-~link "crypt"
 
 shadow task_list = vec_new()
 shadow next_id: int = 1
@@ -2884,7 +3544,6 @@ absorb "add_task" {
 }
 
 absorb "toggle_task" {
-    // toggle done state
     tasks = toggle_task_in_list(task_id, task_list)
 }
 
@@ -2894,7 +3553,7 @@ absorb "clear_done" {
 }
 
 pulse main() {
-    beam f"X-Phage Task App on {os_platform()}"
+    beam f"XPhage Task App on {os_platform()}"
     xphage run TaskApp
 }
 ```
@@ -2916,60 +3575,72 @@ pulse main() {
 | `const` | 3 | Compile-time constant |
 | `return` | 1 | Return value |
 | `beam` | 1 | Print output |
-| `scan` | 1 | Read input |
-| `bypass` | 1 | System command |
-| `quantum` | 1 | Spawn thread |
-| `chronos` | 1 | Sleep |
-| `ether` | 1 | Network |
-| `matrix` | 1 | Array |
-| `vortex` | 1 | Try/catch |
-| `~link` | 1 | Import |
+| `bypass` | 1 | System command (fire-and-forget) |
+| `quantum` | 1 | Spawn concurrent task |
+| `vortex` | 1 | Error handling block |
+| `catch` | 1 | Error catch clause |
+| `finally` | 1 | Always-run cleanup |
+| `~link` | 1 | Import module or file |
 | `if/elif/else` | 1 | Conditional |
-| `while` | 1 | Loop |
-| `for/in` | 1 | Iterator |
+| `while` | 1 | While loop |
+| `for/in` | 1 | Iterator loop |
 | `break/continue` | 1 | Loop control |
-| `forge` | 2 | Struct type |
-| `nexus` | 2 | Interface |
-| `impl` | 2 | Implement |
-| `self` | 2 | Self reference |
-| `flux` | 2 | Reactive state |
-| `probe/diverge` | 2 | Pattern match |
-| `emit` | 2 | Event dispatch |
-| `absorb` | 2 | Event handler |
-| `weave` | 2 | UI modifier |
-| `strand` | 2 | Animation |
-| `mesh` | 2 | Grid layout |
-| `spawn` | 2 | Create instance |
+| `forge` | 2 | Struct/record type |
+| `nexus` | 2 | Interface/trait |
+| `impl` | 2 | Method implementation |
+| `self` | 2 | Self reference in impl |
+| `realm` | 2 | Namespace grouping |
+| `use` | 2 | Import a qualified name into unqualified scope |
+| `flux` | 2 | Reactive state variable |
+| `probe/diverge` | 2 | Pattern matching |
+| `emit` | 2 | Fire event |
+| `absorb` | 2 | Handle event |
+| `weave` | 2 | UI modifier chain |
+| `strand` | 2 | Animation definition |
+| `spawn` | 2 | Create struct instance |
 | `own` | 3 | Unique ownership |
 | `ref` | 3 | Immutable borrow |
 | `mut_ref` | 3 | Mutable borrow |
 | `async` | 3 | Async function |
-| `await` | 3 | Await result |
-| `lambda` | 3 | Lambda keyword |
-| `proc` | 3 | Process capture |
-| `env` | 3 | Environment var |
+| `await` | 3 | Await async result |
+| `proc` | 3 | Run shell command + capture output |
+| `env` | 3 | Environment variables |
 | `unsafe` | 3 | Unsafe block |
-| `use` | 3 | Scope import |
-| `pub/priv` | 3 | Visibility |
-| `extern` | 3 | External linkage |
+| `extern` | 3 | External linkage (FFI) |
+| `enum` | 6 | Type-safe enumeration |
+| `select/from/where` | 6.5 | Native query syntax |
+| `solve` | 10 | Constraint solver block |
+
+### Annotations
+
+| Annotation | Phase | Purpose |
+|---|---|---|
+| `@differentiable` | 7.5 | Opt-in auto gradient generation |
+| `@gpu_kernel` | 7 | Opt-in GPU dispatch |
+| `@smart_ownership` | 8.5 | Opt-in ownership inference |
+| `@requires(cond, msg)` | 8 | Precondition contract |
+| `@ensures(cond, msg)` | 8 | Postcondition contract |
+| `@register NAME at ADDR {}` | 8 | Hardware register map |
+| `@interrupt NAME {}` | 8 | Interrupt handler |
 
 ---
 
 ## Appendix B: Operator Quick Reference
 
 ```
-Arithmetic:     + - * / %
-Comparison:     == != < > <= >=
-Logical:        && || !  (and or not)
-Bitwise:        & | ^ ~ << >>
-Assignment:     = += -= *= /=
-Pipeline:       |>
-Error prop:     ?
-Range:          ..
-f-string:       f"text {expr}"
-Member access:  object.field
-Index:          array[i]
-Lambda:         |params| expression
+Arithmetic:       + - * / %
+Comparison:       == != < > <= >=
+Logical:          && || !  (and or not)
+Bitwise:          & | ^ ~ << >>
+Assignment:       = += -= *= /=
+Pipeline:         |>
+Error prop:       ?
+f-string:         f"text {expr}"
+Member access:    object.field
+Index:            array[i]
+Lambda:           |params| expression
+Cast:             value as Type
+Range:            ..
 ```
 
 ---
@@ -2977,14 +3648,15 @@ Lambda:         |params| expression
 ## Appendix C: Standard Library Reference
 
 ```
-~link "io"           File, process, env, path, glob
+~link "io"           File I/O, path, glob, process I/O
 ~link "math"         Arithmetic, trig, stats, Vec2/3, Mat4
 ~link "string"       String processing, regex, encoding
-~link "collections"  Option, Result, Vec, Map, Set, Queue, Stack
+~link "collections"  Vec, Map, Set, Queue, Stack + Phase 6 combinators
 ~link "net"          HTTP, WebSocket, TCP, DNS, JSON
 ~link "os"           Platform, threads, time, signals
 ~link "crypt"        AES, RSA, SHA, Argon2, UUID
-~link "ai"           Tensor, neural ops, LLM, NPU
+~link "ai"           Tensor, neural ops, LLM, NPU, @differentiable, @gpu_kernel
+~link "solver"       Constraint solver for solve {} blocks (Phase 10)
 ~link "fusion-ui"    Full UI framework
 ```
 
@@ -2994,23 +3666,52 @@ Lambda:         |params| expression
 
 ```bash
 # Build commands
-xphage build src/main.xp0                    # debug build
-xphage build -O2 src/main.xp0               # optimized
-xphage build -o myapp src/main.xp0           # custom output
-xphage build --target android src/main.xp0   # Android
-xphage build --target ios src/main.xp0       # iOS
-xphage build --target web src/main.xp0       # WebAssembly
+xphage build src/main.xp0                         # debug build
+xphage build src/main.xp0 --release               # optimized
+xphage build src/main.xp0 --release -O3           # max optimization
+xphage build src/main.xp0 --release --lto         # link-time optimization
+xphage build src/main.xp0 --release --pgo         # profile-guided optimization
+xphage build src/main.xp0 -o bin/myapp            # custom output name
+
+# Backend selection (see Appendix D.1 for what each backend is)
+xphage build src/main.xp0 --backend=llvm          # LLVM native (default for --release)
+xphage build src/main.xp0 --backend=transpiler    # C++17 transpiler, AST-driven
+xphage build src/main.xp0 --backend=xil           # C++17 transpiler, IR-driven
+
+# Cross-compilation
+xphage build --target android-aarch64 src/main.xp0
+xphage build --target ios-arm64       src/main.xp0
+xphage build --target wasm32-unknown  src/main.xp0
+xphage build --target riscv32-none-elf src/boot.xp0   # bare metal
 
 # Run
-xphage run src/main.xp0                      # compile + run
+xphage run src/main.xp0
+xphage run src/main.xp0 -- --arg1 --arg2
 
 # Package management
-xpm add fusion-ui                            # install package
-xpm add net                                  # install stdlib module
-xpm remove fusion-ui                         # remove package
-xpm list                                     # list installed
-xpm update                                   # update all
+xpm add fusion-ui
+xpm add solver          # required for solve {} blocks
+xpm remove fusion-ui
+xpm list
+xpm update
+xpm publish             # publish library to Spore registry
 ```
+
+### Appendix D.1 — The Three Compiler Backends
+
+XPhage source passes through the same lexer, parser, and semantic analyzer regardless of backend — the backend only decides how the validated program becomes an executable. There are three:
+
+| Backend | Flag | Pipeline | When it's used |
+|---|---|---|---|
+| LLVM native | `--backend=llvm` | AST → LLVM IR → native machine code | Default for `--release` builds; full optimization levels, DWARF debug info, LTO, PGO (see Appendix D) |
+| C++17 transpiler (AST) | `--backend=transpiler` | AST → generated C++17 → system C++ compiler | Default for debug builds; the original, most heavily-tested code generation path |
+| C++17 transpiler (XIL) | `--backend=xil` | AST → XIL (XPhage Intermediate Representation) → generated C++17 → system C++ compiler | An alternative C++ codegen path that goes through an explicit intermediate representation instead of generating C++ directly from the AST |
+
+**What XIL is, and why there are two C++ transpiler paths.** "XIL" (XPhage Intermediate Representation) is a lowered, SSA-register-style representation that sits between the AST and generated C++ — every expression becomes a sequence of typed instructions (`Alloca`, `Store`, `Call`, `GEP`, arithmetic/comparison ops, branches) operating on named registers, closer to what a traditional compiler's middle-end works with than to XPhage source syntax itself. `--backend=transpiler` skips this step and walks the AST directly to produce C++; `--backend=xil` lowers to XIL first (`xphage build --emit=ir` prints this representation directly, if you want to see it) and generates C++ from that instead.
+
+The practical difference for day-to-day use is small — both `--backend=transpiler` and `--backend=xil` produce working programs and, for any given source file, should produce output that behaves identically. The AST-driven transpiler is the more heavily used and tested of the two C++ paths; XIL exists because an explicit intermediate representation is what the LLVM native backend was always going to need anyway (LLVM IR generation lowers from the same kind of intermediate form), so XIL doubles as a C++-backed way to exercise and validate that lowering step independently of LLVM itself. If you don't have a specific reason to pick one of the C++ paths over the other, `--backend=transpiler` (the default for debug builds) is the safer choice today; reach for `--backend=xil` if you're specifically working on or debugging the IR lowering step itself.
+
+All three backends accept the same linking flags for external libraries — see §12.5.1 for `extern "C"` and linking against C/C++/Rust libraries, which works identically regardless of which backend you build with.
 
 ---
 
@@ -3029,14 +3730,20 @@ xpm update                                   # update all
 → Missing closing brace. Check your blocks.
 
 [error] Expected ')'
-→ Missing closing parenthesis in function call or params.
+→ Missing closing parenthesis.
 
-[error] .xh only allows declarations
-→ Remove function calls, if statements, loops from .xh files.
+[error E5001] @differentiable requires ~link "ai"
+→ Add ~link "ai" to your imports.
+
+[error E5002] solve {} requires ~link "solver"
+→ Add solver = "1.0" to xpm.toml [dependencies]
+→ Add ~link "solver" to your .xp0 file.
+
+[error E5003] @gpu_kernel requires ~link "ai"
+→ Add ~link "ai" to your imports.
 
 [vortex] <error message>
 → Runtime error caught by vortex block.
-→ Check the error message for details.
 ```
 
 ---
@@ -3053,12 +3760,12 @@ my-tool/
 └── README.md
 ```
 
-### Library
+### Library (Spore Package)
 ```
 my-lib/
 ├── src/
-│   ├── lib.xh          ← public API
-│   └── internal.xh     ← internal types
+│   ├── lib.xh           ← public API
+│   └── internal.xh      ← internal types
 ├── tests/
 │   └── test_main.xp0
 ├── xpm.toml
@@ -3069,9 +3776,9 @@ my-lib/
 ```
 my-app/
 ├── src/
-│   ├── main.xp0        ← entry point + event handlers
-│   ├── models.xh       ← data types
-│   ├── logic.xh        ← business logic signatures
+│   ├── main.xp0         ← entry point + event handlers
+│   ├── models.xh        ← data types
+│   ├── logic.xh         ← business logic signatures
 │   ├── screens/
 │   │   ├── home.xui
 │   │   ├── profile.xui
@@ -3086,28 +3793,86 @@ my-app/
 └── README.md
 ```
 
-### System/OS Project
+### System / OS Project
 ```
 my-os/
 ├── src/
-│   ├── boot.xp0        ← bootloader entry
-│   ├── kernel.xp0      ← kernel main
-│   ├── interrupts.xh   ← IRQ handlers
-│   ├── memory.xh       ← memory management
+│   ├── boot.xp0         ← #![bare_metal] entry
+│   ├── kernel.xp0       ← kernel main
+│   ├── interrupts.xh    ← @interrupt handlers
+│   ├── hardware.xh      ← @register declarations
+│   ├── memory.xh        ← memory management
 │   ├── drivers/
 │   │   ├── uart.xh
-│   │   ├── disk.xh
-│   │   └── network.xh
+│   │   ├── uart.xp0
+│   │   ├── gpio.xh
+│   │   └── gpio.xp0
 │   └── fs/
 │       ├── vfs.xh
 │       └── ext4.xh
 ├── linker.ld
-└── Makefile
+└── xpm.toml
+```
+
+### Embedded / Microcontroller
+```
+my-device/
+├── src/
+│   ├── main.xp0         ← #![bare_metal] #![no_main]
+│   └── hardware.xh      ← @register blocks
+├── xpm.toml
+└── README.md
 ```
 
 ---
 
-*The X-Phage Programming Language is developed by AeonCoreX Lab.*
+## Appendix G: Generation Feature Summary
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│              XPhage 3GL + 4GL + 5GL Features                 │
+├──────────────────────────────────────────────────────────────┤
+│  3GL — Systems (Always Available)                            │
+│  atom/shadow/const/global/flux — variables                   │
+│  pulse/forge/nexus/impl        — functions and types         │
+│  realm/use                     — namespaces                  │
+│  own/ref/mut_ref               — ownership model             │
+│  unsafe {}                     — raw memory access           │
+│  extern "C"                    — C/C++/Rust FFI              │
+│  proc/bypass/env               — system integration          │
+│  async/await/quantum           — concurrency                 │
+│  @register (Ph 8)              — declarative HW registers    │
+│  @interrupt (Ph 8)             — interrupt handlers          │
+│  @requires/@ensures (Ph 8)     — design by contract          │
+│  #![bare_metal] (Ph 8)         — no OS, no stdlib            │
+├──────────────────────────────────────────────────────────────┤
+│  4GL — Declarative (Always Available)                        │
+│  flux/emit/absorb              — reactive state + event bus  │
+│  Fusion UI (weave/strand)      — cross-platform UI           │
+│  enum (Ph 6)                   — type-safe enumerations      │
+│  (T, U) tuples (Ph 6)          — anonymous grouped values     │
+│  filter/map/reduce (Ph 6)      — typed pipeline combinators  │
+│  select from where (Ph 6.5)    — native query syntax         │
+│  group_by/zip/sort_by (Ph 6)   — collection combinators      │
+├──────────────────────────────────────────────────────────────┤
+│  5GL — Intelligence (Opt-In Only)                            │
+│  @differentiable (Ph 7.5)  → gradient auto-generation        │
+│  @gpu_kernel (Ph 7)        → GPU parallel dispatch           │
+│  accelerate (Ph 7)         → SIMD auto-vectorization         │
+│  accelerate npu (Ph 7)     → NPU dispatch + CPU fallback     │
+│  @smart_ownership (Ph 8.5) → ownership inference             │
+│  solve {} (Ph 10)          → constraint-based solving        │
+│                                                              │
+│  Activate: @annotation or solve {} or ~link                  │
+│  Cost if unused: exactly zero bytes, zero nanoseconds        │
+│  Existing code: never affected, never breaks                 │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+*The XPhage Programming Language is developed by AeonCoreX Lab.*
 *© 2026 AeonCoreX Lab. All Rights Reserved.*
 
 *"From silicon to the stars."*
+
